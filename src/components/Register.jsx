@@ -63,48 +63,56 @@ function Register() {
   
     try {
       const formData = new FormData();
-      Object.keys(values).forEach(key => formData.append(key, values[key]));
+      formData.append('username', values.username);
+      formData.append('email', values.email);
+      formData.append('password', values.password);
+      formData.append('fullName', values.fullName);
       
-      // Convert base64 to Blob
-      const uploadedBlob = await fetch(uploadedImage).then(r => r.blob());
-      const capturedBlob = await fetch(capturedImage).then(r => r.blob());
-      
-      formData.append('uploadedPhoto', uploadedBlob, 'uploaded.jpg');
-      formData.append('capturedPhoto', capturedBlob, 'captured.jpg');
-  
-      const response = await axios.post('http://localhost:4000/api/auth/register', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity
-      });
-  
-      toast({
-        title: 'Registration Successful',
-        description: 'Please check your email to verify your account.',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-  
-      navigate('/login');
-    } catch (error) {
-      console.error('Registration error:', error.response?.data || error);
-      
-      let errorMessage = 'An error occurred during registration.';
-      if (error.response?.data?.message === "File upload error") {
-        errorMessage = 'The uploaded file is too large. Please use a smaller image file.';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      if (uploadedImage) {
+        formData.append('uploadedPhoto', await fetch(uploadedImage).then(r => r.blob()), 'uploadedPhoto.jpg');
       }
-  
-      toast({
-        title: 'Registration Successful',
-        description: 'Please check your email to verify your account before logging in.',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
+      if (capturedImage) {
+        formData.append('capturedPhoto', await fetch(capturedImage).then(r => r.blob()), 'capturedPhoto.jpg');
+      }
+   
+    
+        const response = await axios.post('http://localhost:4000/api/auth/register', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity
+        });
+      
+        toast({
+          title: 'Registration Successful',
+          description: 'Please check your email to verify your account.',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      
+        navigate('/login');
+      } catch (error) {
+        console.error('Registration error:', error.response?.data || error);
+        
+        let errorTitle = 'Registration Failed';
+        let errorMessage = 'An error occurred during registration.';
+        
+        if (error.response?.data?.message) {
+          errorTitle = error.response.data.message;
+        }
+        if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        }
+      
+        toast({
+          title: errorTitle,
+          description: errorMessage,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    finally {
       actions.setSubmitting(false);
     }
   };
@@ -113,6 +121,13 @@ function Register() {
     setUploadedImage(uploadedImg);
     setCapturedImage(capturedImg);
     onClose();
+    toast({
+      title: "Images captured",
+      description: "Please click 'Register' to complete the process.",
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
   const dataURItoBlob = (dataURI) => {
@@ -211,10 +226,10 @@ function Register() {
                 </Button>
 
                 {uploadedImage && capturedImage && (
-                  <Text color="green.500" fontWeight="bold">
-                    Face verification completed successfully!
-                  </Text>
-                )}
+                  <Text color="blue.500" fontWeight="bold">
+                    Images captured. Click 'Register' to complete the process.
+                   </Text>
+                  )}
 
                 <Button
                   mt={4}
@@ -225,6 +240,7 @@ function Register() {
                   size="lg"
                   boxShadow="md"
                   _hover={{ boxShadow: 'lg' }}
+                  isDisabled={!uploadedImage || !capturedImage}
                 >
                   Register
                 </Button>
