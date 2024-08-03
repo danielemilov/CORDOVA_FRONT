@@ -1,40 +1,41 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  Box, 
-  Button, 
-  Image, 
-  Text, 
-  VStack, 
-  Heading, 
-  Progress, 
-  useToast, 
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Box,
+  Button,
+  VStack,
+  Heading,
+  Text,
   Flex,
-  IconButton
+  useToast,
+  Progress,
+  AspectRatio,
 } from '@chakra-ui/react';
-import { FaCamera, FaUpload, FaRedo } from 'react-icons/fa';
+import { motion } from 'framer-motion';
 
-const FaceVerification = ({ onVerificationComplete }) => {
+const FaceVerification = ({ onVerificationComplete, onClose }) => {
   const [step, setStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState(null);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const fileInputRef = useRef(null);
   const toast = useToast();
 
-  const startVideo = useCallback(async () => {
+  useEffect(() => {
+    if (step === 2) {
+      startVideo();
+    }
+    return () => stopVideo();
+  }, [step]);
+
+  const startVideo = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' } 
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        videoRef.current.play();
       }
     } catch (err) {
-      setError('Error accessing the camera: ' + err.message);
       toast({
         title: 'Camera Error',
         description: err.message,
@@ -43,40 +44,31 @@ const FaceVerification = ({ onVerificationComplete }) => {
         isClosable: true,
       });
     }
-  }, [toast]);
+  };
 
-  const stopVideo = useCallback(() => {
+  const stopVideo = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       videoRef.current.srcObject.getTracks().forEach(track => track.stop());
     }
-  }, []);
-
-  useEffect(() => {
-    if (step === 3) {
-      startVideo();
-    } else {
-      stopVideo();
-    }
-    return () => stopVideo();
-  }, [step, startVideo, stopVideo]);
+  };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setUploadedImage(e.target.result);
-        setStep(2);
-      };
-      reader.onerror = () => {
-        setError('Error reading file');
-        toast({
-          title: 'File Error',
-          description: 'Error reading the uploaded file',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = 640;
+          canvas.height = 480;
+          ctx.drawImage(img, 0, 0, 640, 480);
+          const resizedImage = canvas.toDataURL('image/jpeg', 0.8);
+          setUploadedImage(resizedImage);
+          setStep(2);
+        };
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -86,143 +78,119 @@ const FaceVerification = ({ onVerificationComplete }) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (video && canvas) {
-      const context = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const capturedImageData = canvas.toDataURL('image/jpeg');
-      setCapturedImage(capturedImageData);
-      setStep(4);
+      onVerificationComplete(uploadedImage, capturedImageData);
+      onClose();
     }
-  };
-
-  const verifyFaces = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      // Simulating API call for face verification
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      onVerificationComplete(uploadedImage, capturedImage);
-      toast({
-        title: 'Verification Successful',
-        description: 'Face verification completed successfully',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-    } catch (err) {
-      setError('Verification failed: ' + err.message);
-      toast({
-        title: 'Verification Failed',
-        description: err.message,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const resetProcess = () => {
-    setStep(1);
-    setUploadedImage(null);
-    setCapturedImage(null);
-    setError('');
   };
 
   return (
-    <VStack spacing={6} align="stretch" w="100%" maxW="md" mx="auto">
-      <Heading size="lg" textAlign="center">Face Verification</Heading>
-      <Progress value={(step / 4) * 100} size="sm" colorScheme="blue" />
-      
-      {step === 1 && (
-        <Box>
-          <Heading size="md" mb={4}>Step 1: Upload Photo</Heading>
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={handleFileUpload} 
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-          />
-          <Button 
-            leftIcon={<FaUpload />} 
-            onClick={() => fileInputRef.current.click()}
-            colorScheme="blue"
-            w="100%"
-          >
-            Choose File
-          </Button>
-        </Box>
-      )}
-
-      {step === 2 && (
-        <Box>
-          <Heading size="md" mb={4}>Step 2: Confirm Uploaded Photo</Heading>
-          <Image src={uploadedImage} alt="Uploaded" borderRadius="md" mb={4} />
-          <Button 
-            onClick={() => setStep(3)} 
-            colorScheme="blue" 
-            w="100%"
-            leftIcon={<FaCamera />}
-          >
-            Take a Photo
-          </Button>
-        </Box>
-      )}
-
-      {step === 3 && (
-        <Box>
-          <Heading size="md" mb={4}>Step 3: Capture Photo</Heading>
-          <Box position="relative" mb={4}>
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              muted 
-              playsInline 
-              style={{ width: '100%', borderRadius: '0.375rem' }} 
-            />
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
-          </Box>
-          <Button 
-            onClick={captureImage} 
-            colorScheme="blue" 
-            w="100%"
-            leftIcon={<FaCamera />}
-          >
-            Capture
-          </Button>
-        </Box>
-      )}
-
-      {step === 4 && (
-        <Box>
-          <Heading size="md" mb={4}>Step 4: Confirm Captured Photo</Heading>
-          <Image src={capturedImage} alt="Captured" borderRadius="md" mb={4} />
-          <Flex justifyContent="space-between">
-            <Button 
-              onClick={verifyFaces} 
-              colorScheme="green" 
-              isLoading={isLoading}
-              loadingText="Verifying"
-              flex={1}
-              mr={2}
-            >
-              Verify Photos
-            </Button>
-            <IconButton
-              icon={<FaRedo />}
-              onClick={resetProcess}
-              colorScheme="gray"
-              aria-label="Reset process"
-            />
-          </Flex>
-        </Box>
-      )}
-
-      {error && <Text color="red.500" textAlign="center">{error}</Text>}
-    </VStack>
+    <Box
+      position="fixed"
+      top="0"
+      left="0"
+      right="0"
+      bottom="0"
+      bg="rgba(0,0,0,0.7)"
+      zIndex="1000"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <VStack
+          bg="white"
+          p={6}
+          borderRadius="2xl"
+          spacing={6}
+          align="stretch"
+          maxW="sm"
+          w="90%"
+          boxShadow="2xl"
+        >
+          <Heading size="lg" textAlign="center" color="teal.600">Face Verification</Heading>
+          <Progress value={(step / 2) * 100} colorScheme="teal" borderRadius="full" />
+          {step === 1 ? (
+            <>
+              <Text textAlign="center">Please upload a clear photo of your face</Text>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+                id="file-upload"
+              />
+              <Button
+                as="label"
+                htmlFor="file-upload"
+                colorScheme="teal"
+                size="lg"
+                w="full"
+                boxShadow="md"
+                _hover={{ boxShadow: 'lg' }}
+              >
+                Choose File
+              </Button>
+            </>
+          ) : (
+            <>
+              <AspectRatio ratio={4/3} width="100%" overflow="hidden" borderRadius="xl">
+                <Box position="relative">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <Box
+                    position="absolute"
+                    top="50%"
+                    left="50%"
+                    transform="translate(-50%, -50%)"
+                    width="70%"
+                    height="90%"
+                    border="3px solid white"
+                    borderRadius="50%"
+                    pointerEvents="none"
+                    boxShadow="0 0 0 9999px rgba(0, 0, 0, 0.5)"
+                  />
+                </Box>
+              </AspectRatio>
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+              <Text textAlign="center" fontWeight="bold" color="teal.600">
+                Move closer and center your face
+              </Text>
+              <Flex justify="space-between">
+                <Button
+                  onClick={() => setStep(1)}
+                  colorScheme="gray"
+                  boxShadow="md"
+                  _hover={{ boxShadow: 'lg' }}
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={captureImage}
+                  colorScheme="teal"
+                  boxShadow="md"
+                  _hover={{ boxShadow: 'lg' }}
+                >
+                  Capture
+                </Button>
+              </Flex>
+            </>
+          )}
+        </VStack>
+      </motion.div>
+    </Box>
   );
 };
 

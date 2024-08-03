@@ -1,81 +1,86 @@
 import React, { useState } from 'react';
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
 import {
   VStack,
-  Input,
   Button,
   Heading,
-  Box,
-  Text,
-  useToast,
   FormControl,
   FormLabel,
+  Input,
+  FormErrorMessage,
+  useToast,
+  useDisclosure,
+  Box,
+  Text,
   InputGroup,
   InputRightElement,
   IconButton,
-  Divider,
-  useDisclosure
 } from '@chakra-ui/react';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import FaceVerification from './FaceVerification';
 
-function Register() {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    fullName: '',
-  });
+const RegisterSchema = Yup.object().shape({
+  username: Yup.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(20, 'Username must not exceed 20 characters')
+    .required('Username is required'),
+  password: Yup.string()
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/, 
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&.)')
+    .required('Password is required'),
+  email: Yup.string()
+    .email('Invalid email address')
+    .required('Email is required'),
+  fullName: Yup.string()
+    .required('Full name is required'),
+});
 
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+function Register() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [passwordValid, setPasswordValid] = useState(true);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (values, actions) => {
     if (!uploadedImage || !capturedImage) {
-      setError('Please complete face verification first');
+      toast({
+        title: 'Face Verification Required',
+        description: 'Please complete face verification before registering.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
       return;
-    }
-    setLoading(true);
-    setError('');
-  
-    const formDataToSend = new FormData();
-    formDataToSend.append('username', formData.username);
-    formDataToSend.append('password', formData.password);
-    formDataToSend.append('email', formData.email);
-    formDataToSend.append('fullName', formData.fullName);
-  
-    // Handle file upload
-    if (capturedImage) {
-      const file = dataURItoFile(capturedImage, 'capturedImage.jpg');
-      formDataToSend.append('photo', file);
-      console.log('Form data being sent:', Object.fromEntries(formDataToSend));
     }
   
     try {
-      const response = await axios.post('http://localhost:4000/api/auth/register', formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        }
-      });
+      const formData = new FormData();
+      Object.keys(values).forEach(key => formData.append(key, values[key]));
+      
+      // Convert base64 to Blob
+      const uploadedBlob = await fetch(uploadedImage).then(r => r.blob());
+      const capturedBlob = await fetch(capturedImage).then(r => r.blob());
+      
+      formData.append('uploadedPhoto', uploadedBlob, 'uploaded.jpg');
+      formData.append('capturedPhoto', capturedBlob, 'captured.jpg');
   
-      console.log('Registration response:', response.data);
+      const response = await axios.post('http://localhost:4000/api/auth/register', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      });
   
       toast({
         title: 'Registration Successful',
-        description: 'You have been successfully registered.',
+        description: 'Please check your email to verify your account.',
         status: 'success',
         duration: 5000,
         isClosable: true,
@@ -83,19 +88,34 @@ function Register() {
   
       navigate('/login');
     } catch (error) {
-      console.error('Registration failed', error.response ? error.response.data : error);
-      setError(error.response?.data?.message || 'Registration failed. Please try again.');
+      console.error('Registration error:', error.response?.data || error);
+      
+      let errorMessage = 'An error occurred during registration.';
+      if (error.response?.data?.message === "File upload error") {
+        errorMessage = 'The uploaded file is too large. Please use a smaller image file.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+  
+      toast({
+        title: 'Registration Successful',
+        description: 'Please check your email to verify your account before logging in.',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
-      setLoading(false);
+      actions.setSubmitting(false);
     }
   };
-  const handleVerificationComplete = (uploaded, captured) => {
-    setUploadedImage(uploaded);
-    setCapturedImage(captured);
+
+  const handleVerificationComplete = (uploadedImg, capturedImg) => {
+    setUploadedImage(uploadedImg);
+    setCapturedImage(capturedImg);
     onClose();
   };
 
-  const dataURItoFile = (dataURI, filename) => {
+  const dataURItoBlob = (dataURI) => {
     const byteString = atob(dataURI.split(',')[1]);
     const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
     const ab = new ArrayBuffer(byteString.length);
@@ -103,80 +123,116 @@ function Register() {
     for (let i = 0; i < byteString.length; i++) {
       ia[i] = byteString.charCodeAt(i);
     }
-    return new File([ab], filename, { type: mimeString });
+    return new Blob([ab], { type: mimeString });
   };
 
   return (
-    <VStack spacing={8} align="stretch" w="100%" maxW="md" mx="auto" mt={8}>
-      <Heading textAlign="center">Register</Heading>
-      <Box as="form" onSubmit={handleRegister}>
-        <VStack spacing={4} align="stretch">
-          <FormControl isRequired>
-            <FormLabel>Username</FormLabel>
-            <Input
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              placeholder="Enter your username"
-            />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel>Password</FormLabel>
-            <InputGroup>
-              <Input
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Enter your password"
-              />
-              <InputRightElement>
-                <IconButton
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  icon={showPassword ? <FaEyeSlash /> : <FaEye />}
-                  onClick={() => setShowPassword(!showPassword)}
-                  variant="ghost"
-                />
-              </InputRightElement>
-            </InputGroup>
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel>Email</FormLabel>
-            <Input
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              placeholder="Enter your email"
-            />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel>Full Name</FormLabel>
-            <Input
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleInputChange}
-              placeholder="Enter your full name"
-            />
-          </FormControl>
+    <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="2xl" boxShadow="2xl" bg="white">
+      <VStack spacing={8} align="stretch">
+        <Heading textAlign="center" color="teal.600">Register</Heading>
+        <Formik
+          initialValues={{ username: '', password: '', email: '', fullName: '' }}
+          validationSchema={RegisterSchema}
+          onSubmit={handleSubmit}
+        >
+          {({ errors, touched, isSubmitting }) => (
+            <Form>
+              <VStack spacing={6}>
+                <Field name="username">
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.username && touched.username}>
+                      <FormLabel htmlFor="username">Username</FormLabel>
+                      <Input {...field} id="username" placeholder="Enter your username" />
+                      <FormErrorMessage>{errors.username}</FormErrorMessage>
+                    </FormControl>
+                  )}
+                </Field>
 
-          <Divider />
+                <Field name="password">
+                  {({ field, form }) => (
+                    <FormControl isInvalid={form.errors.password && form.touched.password}>
+                      <FormLabel htmlFor="password">Password</FormLabel>
+                      <InputGroup>
+                        <Input
+                          {...field}
+                          id="password"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          onBlur={(e) => {
+                            field.onBlur(e);
+                            setPasswordTouched(true);
+                          }}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setPasswordValid(RegisterSchema.fields.password.isValidSync(e.target.value));
+                          }}
+                        />
+                        <InputRightElement>
+                          <IconButton
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            icon={showPassword ? <FaEyeSlash /> : <FaEye />}
+                            onClick={() => setShowPassword(!showPassword)}
+                            variant="ghost"
+                          />
+                        </InputRightElement>
+                      </InputGroup>
+                      <FormErrorMessage>{form.errors.password}</FormErrorMessage>
+                      {passwordTouched && !passwordValid && (
+                        <Text fontSize="sm" color="gray.600" mt={1}>
+                          Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&.).
+                        </Text>
+                      )}
+                    </FormControl>
+                  )}
+                </Field>
 
-          <Button onClick={onOpen} colorScheme="blue">
-            {uploadedImage && capturedImage ? 'Retake Face Verification' : 'Start Face Verification'}
-          </Button>
+                <Field name="email">
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.email && touched.email}>
+                      <FormLabel htmlFor="email">Email</FormLabel>
+                      <Input {...field} id="email" type="email" placeholder="Enter your email" />
+                      <FormErrorMessage>{errors.email}</FormErrorMessage>
+                    </FormControl>
+                  )}
+                </Field>
 
-          {error && (
-            <Text color="red.500" fontSize="sm">
-              {error}
-            </Text>
+                <Field name="fullName">
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.fullName && touched.fullName}>
+                      <FormLabel htmlFor="fullName">Full Name</FormLabel>
+                      <Input {...field} id="fullName" placeholder="Enter your full name" />
+                      <FormErrorMessage>{errors.fullName}</FormErrorMessage>
+                    </FormControl>
+                  )}
+                </Field>
+
+                <Button onClick={onOpen} colorScheme="teal" width="full">
+                  {uploadedImage && capturedImage ? 'Retake Face Verification' : 'Start Face Verification'}
+                </Button>
+
+                {uploadedImage && capturedImage && (
+                  <Text color="green.500" fontWeight="bold">
+                    Face verification completed successfully!
+                  </Text>
+                )}
+
+                <Button
+                  mt={4}
+                  colorScheme="teal"
+                  isLoading={isSubmitting}
+                  type="submit"
+                  width="full"
+                  size="lg"
+                  boxShadow="md"
+                  _hover={{ boxShadow: 'lg' }}
+                >
+                  Register
+                </Button>
+              </VStack>
+            </Form>
           )}
-
-          <Button type="submit" colorScheme="teal" isLoading={loading} loadingText="Registering">
-            Register
-          </Button>
-        </VStack>
-      </Box>
+        </Formik>
+      </VStack>
 
       {isOpen && (
         <FaceVerification
@@ -184,7 +240,7 @@ function Register() {
           onClose={onClose}
         />
       )}
-    </VStack>
+    </Box>
   );
 }
 

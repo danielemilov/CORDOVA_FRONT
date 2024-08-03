@@ -1,99 +1,107 @@
 import React, { useState } from 'react';
-import { VStack, Input, Button, Heading, Box, Text, useToast } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import {
+  VStack,
+  FormControl,
+  FormLabel,
+  Input,
+  Button,
+  Heading,
+  Text,
+  useToast,
+  Box,
+} from '@chakra-ui/react';
 
 function Login({ setUser }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
 
-  const API_URL = 'http://localhost:4000'; // Update this if your server is running on a different port
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
-    }
-  
-    setLoading(true);
-    setError('');
-  
-    console.log('Attempting login with:', { email, password }); // Log the credentials being sent
-  
-    try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, 
-        { email, password },
-        { 
-          headers: { 'Content-Type': 'application/json' },
-          withCredentials: true
-        }
-      );
-  
+    setIsLoading(true);
 
+    try {
+      const response = await axios.post('http://localhost:4000/api/auth/login', { email, password });
+      
       if (response.data && response.data.user && response.data.token) {
         localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('token', response.data.token);
         setUser(response.data.user);
+        
         toast({
-          title: "Login successful",
-          status: "success",
+          title: 'Login Successful',
+          status: 'success',
           duration: 3000,
           isClosable: true,
         });
+        
         navigate('/chat');
       } else {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Login failed', error.response?.data || error);
-      setError(error.response?.data?.message || 'An error occurred during login');
+      console.error('Login error:', error);
+      let errorMessage = 'An error occurred during login.';
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
       toast({
-        title: "Login failed",
-        description: error.response?.data?.message || 'An error occurred during login',
-        status: "error",
+        title: 'Login Failed',
+        description: errorMessage,
+        status: 'error',
         duration: 5000,
         isClosable: true,
       });
-    } finally {
-      setLoading(false);
-    }
-  };
+    }}
 
   return (
-    <VStack spacing={4} align="stretch" w="100%" maxW="md" mx="auto" mt={8}>
-      <Heading>Login</Heading>
-      <Box as="form" onSubmit={handleSubmit}>
-        <VStack spacing={4} align="stretch">
+    <Box maxW="md" mx="auto" mt={8} p={6} borderRadius="2xl" boxShadow="2xl" bg="white">
+      <VStack spacing={6} as="form" onSubmit={handleSubmit}>
+        <Heading color="brand.600">Login</Heading>
+        <FormControl isRequired>
+          <FormLabel>Email</FormLabel>
           <Input
-            placeholder="Email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            isRequired
+            placeholder="Enter your email"
           />
+        </FormControl>
+        <FormControl isRequired>
+          <FormLabel>Password</FormLabel>
           <Input
-            placeholder="Password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            isRequired
+            placeholder="Enter your password"
           />
-          {error && (
-            <Text color="red.500" fontSize="sm">
-              {error}
-            </Text>
-          )}
-          <Button type="submit" colorScheme="teal" isLoading={loading} loadingText="Logging in">
-            Login
+        </FormControl>
+        <Button
+          type="submit"
+          colorScheme="brand"
+          width="full"
+          size="lg"
+          isLoading={isLoading}
+          loadingText="Logging in"
+          boxShadow="md"
+          _hover={{ boxShadow: 'lg' }}
+          
+          >
+          Login
+        </Button>
+        <Text>
+          Don't have an account?{' '}
+          <Button variant="link" colorScheme="brand" onClick={() => navigate('/register')}>
+            Register
           </Button>
-        </VStack>
-      </Box>
-    </VStack>
+        </Text>
+      </VStack>
+    </Box>
   );
 }
 
