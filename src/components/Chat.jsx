@@ -1,280 +1,178 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
-import io from 'socket.io-client';
-import { FaPaperPlane } from 'react-icons/fa';
 import {
   Box,
   VStack,
   HStack,
   Text,
   Input,
-  Button,
-  Heading,
+  IconButton,
   useToast,
   Spinner,
+  Flex,
 } from '@chakra-ui/react';
-import {
-  ChatContainer,
-  Sidebar,
-  ChatArea,
-  Header,
-  UserList,
-  UserItem,
-  Avatar,
-  MessageList,
-  MessageItem,
-  MessageInput,
-  SendButton
-} from './ChatStyles';
+import { ArrowBackIcon } from '@chakra-ui/icons';
+import { FaPaperPlane } from 'react-icons/fa';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
-const API_BASE_URL = 'http://localhost:4000'; // Update this to your backend URL
-
-const Chat = ({ user, setUser }) => {
-  const [socket, setSocket] = useState(null);
-  const [onlineUsers, setOnlineUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
+const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
   const messagesEndRef = useRef(null);
+  const [inputKey, setInputKey] = useState(0); // New state for input key
 
-  const initializeSocket = useCallback(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast({
-        title: 'Authentication error',
-        description: 'Please log in again.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      window.location.href = '/login';
-      return;
-    }
 
-    const newSocket = io(API_BASE_URL, {
-      auth: { token },
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+  const fetchMessages = useCallback(async () => {
+    if (!currentUser || !otherUser) return;
 
-    newSocket.on('connect', () => {
-      console.log('Connected to WebSocket');
-      setIsLoading(false);
-    });
-
-    newSocket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
-      toast({
-        title: 'Connection error',
-        description: 'Failed to connect to the server. Please try again.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    });
-
-    newSocket.on('disconnect', (reason) => {
-      console.warn('WebSocket disconnected:', reason);
-      if (reason === 'io server disconnect') {
-        newSocket.connect();
-      }
-    });
-
-    newSocket.on('private message', (message) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
-    });
-
-    newSocket.on('user status', ({ userId, isOnline }) => {
-      setOnlineUsers((prevUsers) => {
-        if (isOnline) {
-          return prevUsers.some(u => u._id === userId) 
-            ? prevUsers 
-            : [...prevUsers, { _id: userId, isOnline }];
-        } else {
-          return prevUsers.filter(u => u._id !== userId);
-        }
-      });
-    });
-
-    newSocket.on('error', (error) => {
-      console.error('WebSocket error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'An error occurred',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    });
-
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.close();
-    };
-  }, [toast]);
-
-  useEffect(() => {
-    initializeSocket();
-  }, [initializeSocket]);
-
-  const fetchOnlineUsers = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/users/online-users`, {
+      const response = await fetch(`${API_BASE_URL}/api/messages/${otherUser._id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setOnlineUsers(response.data);
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      const data = await response.json();
+      setMessages(data);
     } catch (error) {
-      console.error('Error fetching online users:', error);
+      console.error('Error fetching messages:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch online users',
+        description: 'Failed to load messages. Please try again.',
         status: 'error',
         duration: 3000,
         isClosable: true,
       });
+    } finally {
+      setIsLoading(false);
     }
-  }, [toast]);
+  }, [currentUser, otherUser, toast]);
 
   useEffect(() => {
-    fetchOnlineUsers();
-    const interval = setInterval(fetchOnlineUsers, 30000);
-    return () => clearInterval(interval);
-  }, [fetchOnlineUsers]);
-
-  const fetchChatHistory = useCallback(async (userId) => {
-    if (!userId) return;
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/messages/${userId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    if (isOpen && socket) {
+      fetchMessages();
+      
+      socket.on('private message', (message) => {
+        setMessages((prevMessages) => [...prevMessages, message]);
       });
-      setMessages(response.data);
-    } catch (error) {
-      console.error('Error fetching chat history:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch chat history.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+
+      return () => {
+        socket.off('private message');
+      };
     }
-  }, [toast]);
-
-  useEffect(() => {
-    if (selectedUser) {
-      fetchChatHistory(selectedUser._id);
-    }
-  }, [selectedUser, fetchChatHistory]);
-
-  const handleSendMessage = useCallback(() => {
-    if (!newMessage.trim() || !selectedUser || !socket) {
-      return;
-    }
-
-    const messageToSend = {
-      recipientId: selectedUser._id,
-      content: newMessage,
-    };
-
-    socket.emit('private message', messageToSend, (error) => {
-      if (error) {
-        console.error('Error sending message:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to send message: ' + error,
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
-      } else {
-        setMessages((prevMessages) => [...prevMessages, { ...messageToSend, sender: user._id, timestamp: new Date() }]);
-        setNewMessage('');
-      }
-    });
-  }, [newMessage, selectedUser, socket, toast, user._id]);
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setUser(null);
-    if (socket) {
-      socket.disconnect();
-    }
-    window.location.href = '/login';
-  }, [setUser, socket]);
-
-  const handleUserSelect = useCallback((user) => {
-    setSelectedUser(user);
-    setMessages([]);
-  }, []);
+  }, [isOpen, socket, fetchMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (isLoading) {
-    return <Spinner />;
-  }
+  const handleSendMessage = useCallback(() => {
+    if (!newMessage.trim() || !socket) return;
+  
+    const messageToSend = {
+      recipientId: otherUser._id,
+      content: newMessage,
+    };
+  
+    socket.emit('private message', messageToSend, (error) => {
+      if (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to send message. Please try again.',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { ...messageToSend, sender: currentUser._id, timestamp: new Date() },
+        ]);
+        setNewMessage('');
+      }
+    });
+  }, [newMessage, otherUser._id, socket, toast, currentUser._id]);
+  
+  // Use this effect to ensure the input is cleared
+  useEffect(() => {
+    if (newMessage === '') {
+      const inputElement = document.querySelector('input[placeholder="Type a message"]');
+      if (inputElement) {
+        inputElement.value = '';
+      }
+    }
+  }, [newMessage]);
+
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  if (!isOpen) return null;
+
 
   return (
-    <ChatContainer>
-      <Sidebar>
-        <Header>
-          <h2>Chats</h2>
-        </Header>
-        <UserList>
-          {onlineUsers.map((u) => (
-            <UserItem
-            key={u._id}
-            $active={selectedUser && selectedUser._id === u._id}
-            onClick={() => handleUserSelect(u)}
-          >
-              <Avatar src={u.photo || 'https://via.placeholder.com/40'} alt={u.username} />
-              <span>{u.username}</span>
-            </UserItem>
-          ))}
-        </UserList>
-      </Sidebar>
-      <ChatArea>
-        <Header>
-          {selectedUser && (
-            <>
-              <Avatar src={selectedUser.photo || 'https://via.placeholder.com/40'} alt={selectedUser.username} />
-              <span>{selectedUser.username}</span>
-            </>
-          )}
-          <button onClick={handleLogout}>Logout</button>
-        </Header>
-        <MessageList>
-          {messages.map((msg, index) => (
-            <MessageItem key={index} sent={msg.sender === user._id}>
-              {msg.content}
-              <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
-            </MessageItem>
-          ))}
-          <div ref={messagesEndRef} />
-        </MessageList>
-        {selectedUser && (
-          <MessageInput>
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type a message"
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+    <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="white" zIndex={1000}>
+      <Flex direction="column" h="100%">
+        <Box p={4} bg="teal.500" color="white">
+          <HStack>
+            <IconButton
+              icon={<ArrowBackIcon />}
+              onClick={onClose}
+              variant="ghost"
+              color="white"
+              aria-label="Go back"
             />
-            <SendButton onClick={handleSendMessage}>
-              <FaPaperPlane />
-            </SendButton>
-          </MessageInput>
-        )}
-      </ChatArea>
-    </ChatContainer>
+            <Text fontWeight="bold">{otherUser.username}</Text>
+          </HStack>
+        </Box>
+        <VStack flex={1} overflowY="auto" p={4} spacing={4}>
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            messages.map((msg, index) => (
+              <Box
+                key={msg._id || `msg-${index}`}
+                alignSelf={msg.sender === currentUser._id ? 'flex-end' : 'flex-start'}
+                bg={msg.sender === currentUser._id ? 'teal.500' : 'gray.100'}
+                color={msg.sender === currentUser._id ? 'white' : 'black'}
+                borderRadius="lg"
+                p={2}
+                maxW="70%"
+              >
+                <Text>{msg.content}</Text>
+                <Text fontSize="xs" textAlign="right">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </Text>
+              </Box>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </VStack>
+        <HStack p={4} bg="gray.100">
+        <Input
+  value={newMessage}
+  onChange={handleInputChange}
+  onKeyDown={handleKeyDown}
+  placeholder="Type a message"
+/>
+          <IconButton
+            icon={<FaPaperPlane />}
+            onClick={handleSendMessage}
+            isDisabled={!newMessage.trim()}
+            colorScheme="teal"
+            aria-label="Send message"
+          />
+        </HStack>
+      </Flex>
+    </Box>
   );
 };
 

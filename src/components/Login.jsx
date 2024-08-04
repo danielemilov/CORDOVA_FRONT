@@ -13,6 +13,15 @@ import {
   Box,
 } from '@chakra-ui/react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 function Login({ setUser }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,44 +29,44 @@ function Login({ setUser }) {
   const navigate = useNavigate();
   const toast = useToast();
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-
+    const loginData = { email, password };
+    console.log('Sending login data:', loginData);
+  
     try {
-      const response = await axios.post('http://localhost:4000/api/auth/login', { email, password });
-      
-      if (response.data && response.data.user && response.data.token) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      const response = await api.post('/api/auth/login', loginData);
+      console.log('Login response:', response.data);
+  
+      if (response.data && response.data.user) {
         localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         setUser(response.data.user);
-        
         toast({
           title: 'Login Successful',
           status: 'success',
           duration: 3000,
           isClosable: true,
         });
-        
-        navigate('/chat');
+        navigate('/');
       } else {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      let errorMessage = 'An error occurred during login.';
-      if (error.response && error.response.data && error.response.data.message) {
-        errorMessage = error.response.data.message;
-      }
+      console.error('Login error:', error.response ? error.response.data : error.message);
       toast({
         title: 'Login Failed',
-        description: errorMessage,
+        description: error.response?.data?.message || error.message,
         status: 'error',
         duration: 5000,
         isClosable: true,
       });
-    }}
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Box maxW="md" mx="auto" mt={8} p={6} borderRadius="2xl" boxShadow="2xl" bg="white">
@@ -90,8 +99,7 @@ function Login({ setUser }) {
           loadingText="Logging in"
           boxShadow="md"
           _hover={{ boxShadow: 'lg' }}
-          
-          >
+        >
           Login
         </Button>
         <Text>
