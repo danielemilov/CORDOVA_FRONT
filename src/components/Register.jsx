@@ -68,6 +68,7 @@ function Register() {
       formData.append('password', values.password);
       formData.append('fullName', values.fullName);
       
+      
       if (uploadedImage) {
         formData.append('uploadedPhoto', await fetch(uploadedImage).then(r => r.blob()), 'uploadedPhoto.jpg');
       }

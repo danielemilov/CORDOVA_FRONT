@@ -65,10 +65,10 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
               </Text>
             </Box>
           )}
-          <Button 
-            colorScheme="teal" 
-            w="100%" 
-            size="lg" 
+          <Button
+            colorScheme="teal"
+            w="100%"
+            size="lg"
             onClick={() => onChatClick(user)}
             leftIcon={<ChatIcon />}
           >

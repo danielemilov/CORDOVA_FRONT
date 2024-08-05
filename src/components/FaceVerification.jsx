@@ -83,6 +83,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const capturedImageData = canvas.toDataURL('image/jpeg');
       onVerificationComplete(uploadedImage, capturedImageData);
+      console.log(captureImage, "YYYYYYY")
+      console.log('XXXXXXXXXX',uploadedImage)
       onClose();
     }
   };

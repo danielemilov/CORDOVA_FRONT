@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { Box, Image, Text, Badge, IconButton, HStack, VStack, Tooltip } from "@chakra-ui/react";
-import { ChatIcon } from "@chakra-ui/icons";
+import { Box, Image, Text, Badge, IconButton, HStack, VStack, Tooltip } from '@chakra-ui/react';
+import { ChatIcon } from '@chakra-ui/icons';
 
 const UserCard = memo(({ user, onUserClick, onChatClick }) => (
   <Box
@@ -25,18 +25,24 @@ const UserCard = memo(({ user, onUserClick, onChatClick }) => (
         fallbackSrc="https://via.placeholder.com/100"
       />
       <VStack align="start" flex={1} spacing={1}>
-        <Text fontWeight="bold" fontSize="md">{user.username}</Text>
-        <Text fontSize="sm" color="gray.600" noOfLines={1}>{user.title || 'No title'}</Text>
-        <Text fontSize="xs" color="gray.500" noOfLines={1}>{user.location || 'No location'}</Text>
+        <Text fontWeight="bold" fontSize="md">
+          {user.username}
+        </Text>
+        <Text fontSize="sm" color="gray.600" noOfLines={1}>
+          {user.title || 'No title'}
+        </Text>
+        <Text fontSize="xs" color="gray.500" noOfLines={1}>
+          {user.location || 'No location'}
+        </Text>
       </VStack>
-      <Tooltip label={user.isOnline ? "Online" : "Offline"} placement="top">
+      <Tooltip label={user.isOnline ? 'Online' : 'Offline'} placement="top">
         <Badge
-          colorScheme={user.isOnline ? "green" : "red"}
+          colorScheme={user.isOnline ? 'green' : 'red'}
           position="absolute"
           top="2"
           right="2"
         >
-          {user.isOnline ? "Online" : "Offline"}
+          {user.isOnline ? 'Online' : 'Offline'}
         </Badge>
       </Tooltip>
       <IconButton

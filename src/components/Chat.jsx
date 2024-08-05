@@ -9,6 +9,7 @@ import {
   useToast,
   Spinner,
   Flex,
+  Avatar,
 } from "@chakra-ui/react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
@@ -21,6 +22,10 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    return()=>setNewMessage("")
+  }, []);
 
   const fetchMessages = useCallback(async () => {
     if (!currentUser || !otherUser) return;
@@ -75,12 +80,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
 
   const handleSendMessage = useCallback(() => {
     if (!newMessage.trim() || !socket || !currentUser || !otherUser) return;
-
+  
     const messageToSend = {
       recipientId: otherUser._id,
       content: newMessage,
     };
-
+  
     socket.emit("private message", messageToSend, (error) => {
       if (error) {
         console.error("Error sending message:", error);
@@ -96,16 +101,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
           ...prevMessages,
           { ...messageToSend, sender: currentUser._id, timestamp: new Date() },
         ]);
-        setNewMessage("");
         console.log('Message sent, input cleared');
       }
     });
   }, [newMessage, otherUser, socket, toast, currentUser]);
-
+  
+  // Ensure the input field is controlled
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
-    console.log('Input changed:', e.target.value);
   };
+
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -115,6 +120,59 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   };
 
   if (!isOpen) return null;
+
+  const formatMessageTime = (timestamp) => {
+    const messageDate = new Date(timestamp);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+  
+    if (messageDate.toDateString() === now.toDateString()) {
+      return `Today at ${messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (messageDate.toDateString() === yesterday.toDateString()) {
+      return `Yesterday at ${messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return messageDate.toLocaleDateString([], { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
+  };
+  const renderMessages = () => {
+    let lastDate = null;
+    return messages.map((msg, index) => {
+      const messageDate = new Date(msg.timestamp);
+      const formattedTime = formatMessageTime(msg.timestamp);
+      const showDateHeader = lastDate !== messageDate.toDateString();
+      lastDate = messageDate.toDateString();
+
+      return (
+        <React.Fragment key={msg._id || `msg-${index}`}>
+          {showDateHeader && (
+            <Text textAlign="center" fontSize="sm" color="gray.500" my={2}>
+              {formattedTime.split(' at ')[0]}
+            </Text>
+          )}
+          <Box
+            alignSelf={msg.sender === currentUser._id ? "flex-end" : "flex-start"}
+            bg={msg.sender === currentUser._id ? "purple.500" : "gray.100"}
+            color={msg.sender === currentUser._id ? "white" : "black"}
+            borderRadius="lg"
+            p={2}
+            maxW="70%"
+          >
+            <Text>{msg.content}</Text>
+            <Text fontSize="xs" textAlign="right">
+              {formattedTime.split(' at ')[1]}
+            </Text>
+          </Box>
+        </React.Fragment>
+      );
+    });
+  };
 
   return (
     <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="white" zIndex={1000}>
@@ -128,6 +186,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
               color="white"
               aria-label="Go back"
             />
+            <Avatar src={otherUser.photo} name={otherUser.username} size="sm" />
             <Text fontWeight="bold">{otherUser.username}</Text>
           </HStack>
         </Box>
@@ -145,10 +204,17 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
                 p={2}
                 maxW="70%"
               >
-                <Text>{msg.content}</Text>
-                <Text fontSize="xs" textAlign="right">
-                  {new Date(msg.timestamp).toLocaleTimeString()}
-                </Text>
+                <HStack>
+                  {msg.sender !== currentUser._id && (
+                    <Avatar src={otherUser.photo} name={otherUser.username} size="xs" />
+                  )}
+                  <VStack align="start" spacing={1}>
+                    <Text>{msg.content}</Text>
+                    <Text fontSize="xs" opacity={0.8}>
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </Text>
+                  </VStack>
+                </HStack>
               </Box>
             ))
           )}
@@ -157,9 +223,10 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
         <HStack p={4} bg="gray.100">
           <Input
             value={newMessage}
-            onChange={handleInputChange}
+            onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message"
+
           />
           <IconButton
             icon={<FaPaperPlane />}

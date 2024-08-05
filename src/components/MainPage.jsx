@@ -65,9 +65,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
       console.error('Error fetching users:', error);
       if (error.response && error.response.status === 401) {
         // Token might be expired, redirect to login
-        setUser(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        onLogout();
         toast({
           title: "Session Expired",
           description: "Please log in again.",
@@ -89,7 +87,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user._id, toast, page, hasMore, setUser]);
+  }, [user._id, toast, page, hasMore, setUser, onLogout]);
 
   useEffect(() => {
     fetchUsers();
@@ -155,7 +153,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           left={4}
           top={4}
         />
-        <Heading textAlign="center" fontSize="xl" color="teal.600">User Directory</Heading>
+        <Heading textAlign="center" fontSize="xl" color="teal.600">X </Heading>
       </Box>
 
       <VStack spacing={4} align="stretch" mt={20} pb={20}>
