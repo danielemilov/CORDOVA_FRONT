@@ -40,7 +40,7 @@ function Login({ setUser }) {
       console.log('Login response:', response.data);
   
       if (response.data && response.data.user) {
-        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('token', response.data.token);     
         localStorage.setItem('user', JSON.stringify(response.data.user));
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         setUser(response.data.user);

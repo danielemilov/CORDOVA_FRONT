@@ -15,7 +15,7 @@ const UserCard = memo(({ user, onUserClick, onChatClick }) => (
     bg="white"
     w="100%"
   >
-<HStack spacing={4} p={4}>
+    <HStack spacing={4} p={4}>
       <Image
         src={user.photo || 'https://via.placeholder.com/100'}
         alt={user.username}
@@ -24,7 +24,6 @@ const UserCard = memo(({ user, onUserClick, onChatClick }) => (
         borderRadius="full"
         fallbackSrc="https://via.placeholder.com/100"
       />
-      
       <VStack align="start" flex={1} spacing={1}>
         <Text fontWeight="bold" fontSize="md">{user.username}</Text>
         <Text fontSize="sm" color="gray.600" noOfLines={1}>{user.title || 'No title'}</Text>

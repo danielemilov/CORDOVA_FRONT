@@ -22,9 +22,7 @@ import UserCard from "./UserCard";
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-const MainPage = ({ user, setUser, socket }) => {
+const MainPage = ({ user, setUser, socket, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const { isOpen: isProfileOpen, onOpen: onProfileOpen, onClose: onProfileClose } = useDisclosure();
@@ -35,28 +33,20 @@ const MainPage = ({ user, setUser, socket }) => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  useEffect(() => {
-    if (socket) {
-      socket.on('user status', ({ userId, isOnline }) => {
-        setUsers(prevUsers => 
-          prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
-        );
-      });
-
-      return () => {
-        socket.off('user status');
-      };
-    }
-  }, [socket]);
-
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
     setIsLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
       const response = await api.get('/api/users', {
-        params: { page, limit: 20 }
+        params: { page, limit: 20 },
+        headers: { Authorization: `Bearer ${token}` }
       });
       console.log('Fetched users:', response.data);
+  
       const newUsers = response.data.filter(u => u._id !== user._id);
       setUsers(prevUsers => {
         const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
@@ -73,21 +63,51 @@ const MainPage = ({ user, setUser, socket }) => {
       setPage(prevPage => prevPage + 1);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch users. Please try again later.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      if (error.response && error.response.status === 401) {
+        // Token might be expired, redirect to login
+        setUser(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        toast({
+          title: "Session Expired",
+          description: "Please log in again.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        // Redirect to login page
+        window.location.href = '/login';
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch users. Please try again later.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [user._id, toast, page, hasMore]);
+  }, [user._id, toast, page, hasMore, setUser]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('user status', ({ userId, isOnline }) => {
+        setUsers(prevUsers => 
+          prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
+        );
+      });
+
+      return () => {
+        socket.off('user status');
+      };
+    }
+  }, [socket]);
 
   const handleUserClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
@@ -99,25 +119,11 @@ const MainPage = ({ user, setUser, socket }) => {
     onChatOpen();
   }, [onChatOpen]);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    if (socket) {
-      socket.disconnect();
-    }
-  }, [setUser, socket]);
-
   const handleDeleteAccount = useCallback(async () => {
     if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
       try {
         await api.delete(`/api/users/${user._id}`);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
-        if (socket) {
-          socket.disconnect();
-        }
+        onLogout();
         toast({
           title: "Account Deleted",
           description: "Your account has been successfully deleted.",
@@ -136,7 +142,7 @@ const MainPage = ({ user, setUser, socket }) => {
         });
       }
     }
-  }, [user._id, setUser, toast, socket]);
+  }, [user._id, onLogout, toast]);
 
   return (
     <Box>
@@ -153,17 +159,14 @@ const MainPage = ({ user, setUser, socket }) => {
       </Box>
 
       <VStack spacing={4} align="stretch" mt={20} pb={20}>
-  {users.map((u, index) => (
-    <UserCard 
-    key={u._id}
-    user={{
-      ...u,
-      photo: u.photo || '/path/to/default/image.jpg'
-    }}
-    onUserClick={handleUserClick}
-    onChatClick={handleChatClick}
-  />
-  ))}
+        {users.map((u) => (
+          <UserCard 
+            key={u._id}
+            user={u} 
+            onUserClick={handleUserClick}
+            onChatClick={handleChatClick}
+          />
+        ))}
         {isLoading && <Spinner />}
         {!isLoading && hasMore && (
           <Button onClick={fetchUsers} colorScheme="teal">
@@ -179,7 +182,7 @@ const MainPage = ({ user, setUser, socket }) => {
           <DrawerHeader>Menu</DrawerHeader>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
-              <Button onClick={handleLogout}>Logout</Button>
+              <Button onClick={onLogout}>Logout</Button>
               <Button onClick={handleDeleteAccount} colorScheme="red">Delete Account</Button>
             </VStack>
           </DrawerBody>

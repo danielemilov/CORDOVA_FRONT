@@ -11,18 +11,16 @@ import EmailVerification from './components/EmailVerification';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
 function App() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     if (user) {
       const newSocket = io(API_BASE_URL, {
         auth: { token: localStorage.getItem('token') },
-        transports: ['websocket'],
-        upgrade: false,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
       });
 
       newSocket.on('connect', () => {
@@ -35,30 +33,42 @@ function App() {
 
       setSocket(newSocket);
 
-      return () => {
-        if (newSocket) newSocket.disconnect();
-      };
+      return () => newSocket.close();
     }
   }, [user]);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    if (socket) {
+      socket.close();
+    }
+  };
 
   return (
     <ChakraProvider theme={theme}>
       <Router>
         <Routes>
           {user ? (
-            <Route 
-              path="/" 
+            <Route
+              path="/"
               element={
-                <MainPage 
-                  user={user} 
-                  setUser={setUser} 
-                  socket={socket} 
+                <MainPage
+                  user={user}
+                  socket={socket}
+                  onLogout={handleLogout}
                 />
-              } 
+              }
             />
           ) : (
             <>
-              <Route path="/login" element={<Login setUser={setUser} />} />
+              <Route path="/login" element={<Login onLogin={handleLogin} />} />
               <Route path="/register" element={<Register />} />
             </>
           )}
