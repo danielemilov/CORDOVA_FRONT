@@ -13,6 +13,8 @@ import {
 } from "@chakra-ui/react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
+import InfiniteScroll from "react-infinite-scroll-component";
+import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
@@ -20,16 +22,17 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const toast = useToast();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) return;
   
     try {
-      console.log('Fetching messages for users:', currentUser._id, otherUser._id);
-      const response = await fetch(`${API_BASE_URL}/api/messages/${otherUser._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/messages/${otherUser._id}?page=${pageNum}&limit=20`, {
         headers: { 
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -39,8 +42,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
         throw new Error(errorData.message || "Failed to fetch messages");
       }
       const data = await response.json();
-      console.log('Fetched messages:', data.length);
-      setMessages(data);
+      setMessages(prevMessages => [...prevMessages, ...data.messages]);
+      setHasMore(data.hasMore);
+      setPage(pageNum + 1);
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast({
@@ -60,7 +64,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
       fetchMessages();
 
       socket.on("private message", (message) => {
-        console.log("Received new message:", message);
         setMessages((prevMessages) => [...prevMessages, message]);
       });
 
@@ -82,7 +85,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
       content: newMessage,
     };
   
-    socket.emit("private message", messageToSend, (error) => {
+    socket.emit("private message", messageToSend, (error, sentMessage) => {
       if (error) {
         console.error("Error sending message:", error);
         toast({
@@ -93,12 +96,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
           isClosable: true,
         });
       } else {
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { ...messageToSend, sender: currentUser._id, timestamp: new Date() },
-        ]);
-        setNewMessage(""); // Clear the input after sending
-        console.log('Message sent, input cleared');
+        setMessages((prevMessages) => [...prevMessages, sentMessage]);
+        setNewMessage("");
       }
     });
   }, [newMessage, otherUser, socket, toast, currentUser]);
@@ -118,62 +117,65 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
 
   const formatMessageTime = (timestamp) => {
     const messageDate = new Date(timestamp);
-    const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-  
-    if (messageDate.toDateString() === now.toDateString()) {
-      return `Today at ${messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    } else if (messageDate.toDateString() === yesterday.toDateString()) {
-      return `Yesterday at ${messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    if (isToday(messageDate)) {
+      return format(messageDate, 'h:mm a');
+    } else if (isYesterday(messageDate)) {
+      return `Yesterday ${format(messageDate, 'h:mm a')}`;
+    } else if (isThisWeek(messageDate)) {
+      return format(messageDate, 'EEEE h:mm a');
     } else {
-      return messageDate.toLocaleDateString([], { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
+      return format(messageDate, 'dd.MM.yyyy h:mm a');
     }
   };
 
-  const renderMessages = () => {
-    let lastDate = null;
-    return messages.map((msg, index) => {
-      const messageDate = new Date(msg.timestamp);
-      const formattedTime = formatMessageTime(msg.timestamp);
-      const showDateHeader = lastDate !== messageDate.toDateString();
-      lastDate = messageDate.toDateString();
-
-      return (
-        <React.Fragment key={msg._id || `msg-${index}`}>
-          {showDateHeader && (
-            <Text textAlign="center" fontSize="sm" color="gray.500" my={2}>
-              {formattedTime.split(' at ')[0]}
-            </Text>
-          )}
-          <Box
-            alignSelf={msg.sender === currentUser._id ? "flex-end" : "flex-start"}
-            bg={msg.sender === currentUser._id ? "purple.500" : "gray.100"}
-            color={msg.sender === currentUser._id ? "white" : "black"}
-            borderRadius="lg"
-            p={2}
-            maxW="70%"
-          >
-            <Text>{msg.content}</Text>
-            <Text fontSize="xs" textAlign="right">
-              {formattedTime.split(' at ')[1]}
-            </Text>
-          </Box>
-        </React.Fragment>
-      );
-    });
+  const renderMessage = (msg, index, arr) => {
+    const isSentByCurrentUser = msg.sender._id === currentUser._id;
+  
+    return (
+      <Flex
+        key={msg._id}
+        justifyContent={isSentByCurrentUser ? "flex-end" : "flex-start"}
+        mb={2}
+      >
+        {!isSentByCurrentUser && (
+          <Avatar 
+            size="sm" 
+            name={msg.sender.username} 
+            src={msg.sender.photo} 
+            mr={2} 
+            alignSelf="flex-end" 
+          />
+        )}
+        <Box
+          maxWidth="70%"
+          bg={isSentByCurrentUser ? "blue.100" : "green-100"}
+          color={isSentByCurrentUser ? "blue.800" : "green"}
+          borderRadius={isSentByCurrentUser ? "20px 20px 0 20px" : "20px 20px 20px 0"}
+          p={3}
+          boxShadow="md"
+        >
+          <Text>{msg.content}</Text>
+          <Text fontSize="xs" textAlign="right" mt={1} opacity={0.8}>
+            {formatMessageTime(msg.timestamp)}
+          </Text>
+        </Box>
+        {isSentByCurrentUser && (
+          <Avatar 
+            size="sm" 
+            name={currentUser.username} 
+            src={currentUser.photo} 
+            ml={2} 
+            alignSelf="flex-end" 
+          />
+        )}
+      </Flex>
+    );
   };
 
   return (
-    <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="white" zIndex={1000}>
+    <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="gray.50" zIndex={1000}>
       <Flex direction="column" h="100%">
-        <Box p={4} bg="black" color="white">
+        <Box p={4} bg="black" color="white" boxShadow="md">
           <HStack>
             <IconButton
               icon={<ArrowBackIcon />}
@@ -181,35 +183,48 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
               variant="ghost"
               color="white"
               aria-label="Go back"
+              _hover={{ bg: "green.600" }}
             />
             <Avatar src={otherUser.photo} name={otherUser.username} size="sm" />
             <Text fontWeight="bold">{otherUser.username}</Text>
           </HStack>
         </Box>
-        <VStack flex={1} overflowY="auto" p={4} spacing={4}>
-          {isLoading ? (
-            <Spinner />
-          ) : (
-            renderMessages()
-          )}
+        <Box flex={1} overflowY="auto" p={4} id="scrollableDiv">
+          <InfiniteScroll
+            dataLength={messages.length}
+            next={() => fetchMessages(page)}
+            hasMore={hasMore}
+            loader={<Spinner />}
+            scrollableTarget="scrollableDiv"
+            style={{ display: 'flex', flexDirection: 'column-reverse' }}
+            inverse={true}
+          >
+            {messages.map((msg, index, arr) => renderMessage(msg, index, arr))}
+          </InfiniteScroll>
           <div ref={messagesEndRef} />
-        </VStack>
-        <HStack p={4} bg="gray.100">
-          <Input
-            ref={inputRef}
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message"
-          />
-          <IconButton
-            icon={<FaPaperPlane />}
-            onClick={handleSendMessage}
-            isDisabled={!newMessage.trim()}
-            colorScheme="teal"
-            aria-label="Send message"
-          />
-        </HStack>
+        </Box>
+        <Box p={4} bg="white" boxShadow="0 -2px 10px rgba(0,0,0,0.05)">
+          <HStack>
+            <Input
+              ref={inputRef}
+              value={newMessage}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message"
+              bg="gray.100"
+              borderRadius="full"
+              _focus={{ boxShadow: "outline" }}
+            />
+            <IconButton
+              icon={<FaPaperPlane />}
+              onClick={handleSendMessage}
+              isDisabled={!newMessage.trim()}
+              colorScheme="blue"
+              aria-label="Send message"
+              borderRadius="full"
+            />
+          </HStack>
+        </Box>
       </Flex>
     </Box>
   );

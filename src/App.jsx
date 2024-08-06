@@ -13,8 +13,7 @@ import Login from "./components/Login";
 import Register from "./components/Register";
 import EmailVerification from "./components/EmailVerification";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
@@ -30,28 +29,44 @@ function App() {
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
       });
-  
+
       newSocket.on('connect', () => {
         console.log('Connected to WebSocket');
         setSocket(newSocket);
       });
-  
+
       newSocket.on('connect_error', (err) => {
         console.error('WebSocket connection error:', err);
+        // You can add additional error handling here, such as showing a toast notification
       });
-  
+
+      newSocket.on('disconnect', (reason) => {
+        console.log('Disconnected from WebSocket:', reason);
+        if (reason === 'io server disconnect') {
+          // the disconnection was initiated by the server, you need to reconnect manually
+          newSocket.connect();
+        }
+        // else the socket will automatically try to reconnect
+      });
+
       return () => {
-        if (newSocket) newSocket.disconnect();
+        if (newSocket) {
+          newSocket.disconnect();
+        }
       };
     }
   }, [user]);
-
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
+    }
   };
+
   return (
     <ChakraProvider theme={theme}>
       <Router>
