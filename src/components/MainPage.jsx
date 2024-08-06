@@ -13,9 +13,12 @@ import {
   DrawerOverlay,
   DrawerContent,
   DrawerCloseButton,
-  IconButton
+  IconButton,
+  Text,
+  Flex,
+  Avatar
 } from "@chakra-ui/react";
-import { HamburgerIcon } from "@chakra-ui/icons";
+import { HamburgerIcon, SettingsIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
 
@@ -37,13 +40,8 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     if (!hasMore) return;
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
       const response = await api.get('/api/users', {
         params: { page, limit: 20 },
-        headers: { Authorization: `Bearer ${token}` }
       });
       console.log('Fetched users:', response.data);
   
@@ -64,7 +62,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     } catch (error) {
       console.error('Error fetching users:', error);
       if (error.response && error.response.status === 401) {
-        // Token might be expired, redirect to login
         onLogout();
         toast({
           title: "Session Expired",
@@ -73,7 +70,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           duration: 5000,
           isClosable: true,
         });
-        // Redirect to login page
         window.location.href = '/login';
       } else {
         toast({
@@ -87,7 +83,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user._id, toast, page, hasMore, setUser, onLogout]);
+  }, [user._id, toast, page, hasMore, onLogout]);
 
   useEffect(() => {
     fetchUsers();
@@ -144,19 +140,19 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
 
   return (
     <Box>
-      <Box position="fixed" top={0} left={0} right={0} p={4} bg="white" boxShadow="md" zIndex={10}>
-        <IconButton
-          icon={<HamburgerIcon />}
-          onClick={onDrawerOpen}
-          aria-label="Open menu"
-          position="absolute"
-          left={4}
-          top={4}
-        />
-        <Heading textAlign="center" fontSize="xl" color="teal.600">X </Heading>
+      <Box position="fixed" top={0} left={0} right={0} p={4} bg="black" boxShadow="md" zIndex={10}>
+        <Flex justify="space-between" align="center">
+          <IconButton
+            icon={<HamburgerIcon />}
+            onClick={onDrawerOpen}
+            aria-label="Open menu"
+          />
+          <Heading fontSize="xl" color="white">MXY  </Heading>
+          <Avatar src={user.photo} name={user.username} size="sm" />
+        </Flex>
       </Box>
 
-      <VStack spacing={4} align="stretch" mt={20} pb={20}>
+      <VStack spacing={4} align="stretch" mt={20} pb={20} px={4}>
         {users.map((u) => (
           <UserCard 
             key={u._id}
@@ -180,6 +176,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           <DrawerHeader>Menu</DrawerHeader>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
+              <Button leftIcon={<SettingsIcon />} onClick={() => {/* Implement settings functionality */}}>Settings</Button>
               <Button onClick={onLogout}>Logout</Button>
               <Button onClick={handleDeleteAccount} colorScheme="red">Delete Account</Button>
             </VStack>

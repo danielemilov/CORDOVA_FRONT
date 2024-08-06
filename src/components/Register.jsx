@@ -68,56 +68,50 @@ function Register() {
       formData.append('password', values.password);
       formData.append('fullName', values.fullName);
       
+      // Convert base64 to Blob and append to FormData
+      const uploadedPhotoBlob = await fetch(uploadedImage).then(r => r.blob());
+      const capturedPhotoBlob = await fetch(capturedImage).then(r => r.blob());
       
-      if (uploadedImage) {
-        formData.append('uploadedPhoto', await fetch(uploadedImage).then(r => r.blob()), 'uploadedPhoto.jpg');
+      formData.append('uploadedPhoto', uploadedPhotoBlob, 'uploadedPhoto.jpg');
+      formData.append('capturedPhoto', capturedPhotoBlob, 'capturedPhoto.jpg');
+  
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      toast({
+        title: 'Registration Successful',
+        description: 'Please check your email to verify your account.',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      navigate('/login');
+    } catch (error) {
+      console.error('Registration error:', error.response?.data || error);
+      
+      let errorTitle = 'Registration Failed';
+      let errorMessage = 'An error occurred during registration.';
+      
+      if (error.response?.data?.message) {
+        errorTitle = error.response.data.message;
       }
-      if (capturedImage) {
-        formData.append('capturedPhoto', await fetch(capturedImage).then(r => r.blob()), 'capturedPhoto.jpg');
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
       }
-   
     
-        const response = await axios.post('http://localhost:4000/api/auth/register', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity
-        });
-      
-        toast({
-          title: 'Registration Successful',
-          description: 'Please check your email to verify your account.',
-          status: 'success',
-          duration: 5000,
-          isClosable: true,
-        });
-      
-        navigate('/login');
-      } catch (error) {
-        console.error('Registration error:', error.response?.data || error);
-        
-        let errorTitle = 'Registration Failed';
-        let errorMessage = 'An error occurred during registration.';
-        
-        if (error.response?.data?.message) {
-          errorTitle = error.response.data.message;
-        }
-        if (error.response?.data?.error) {
-          errorMessage = error.response.data.error;
-        }
-      
-        toast({
-          title: errorTitle,
-          description: errorMessage,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    finally {
+      toast({
+        title: errorTitle,
+        description: errorMessage,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
       actions.setSubmitting(false);
     }
   };
-
   const handleVerificationComplete = (uploadedImg, capturedImg) => {
     setUploadedImage(uploadedImg);
     setCapturedImage(capturedImg);
@@ -129,17 +123,6 @@ function Register() {
       duration: 3000,
       isClosable: true,
     });
-  };
-
-  const dataURItoBlob = (dataURI) => {
-    const byteString = atob(dataURI.split(',')[1]);
-    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i);
-    }
-    return new Blob([ab], { type: mimeString });
   };
 
   return (

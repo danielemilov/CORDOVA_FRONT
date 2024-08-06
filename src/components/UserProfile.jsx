@@ -17,7 +17,7 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
   return (
     <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="white" zIndex={1000}>
       <VStack align="stretch" h="100%">
-        <Box p={4} bg="teal.500" color="white">
+        <Box p={4} bg="black" color="white">
           <HStack>
             <IconButton
               icon={<ArrowBackIcon />}
@@ -66,7 +66,7 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
             </Box>
           )}
           <Button
-            colorScheme="teal"
+            colorScheme="green"
             w="100%"
             size="lg"
             onClick={() => onChatClick(user)}

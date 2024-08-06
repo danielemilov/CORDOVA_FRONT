@@ -21,7 +21,7 @@ const UserCard = memo(({ user, onUserClick, onChatClick }) => (
         alt={user.username}
         objectFit="cover"
         boxSize="60px"
-        borderRadius="full"
+        borderRadius="l"
         fallbackSrc="https://via.placeholder.com/100"
       />
       <VStack align="start" flex={1} spacing={1}>

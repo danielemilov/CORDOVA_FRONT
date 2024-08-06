@@ -22,20 +22,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
   const messagesEndRef = useRef(null);
-
-  useEffect(() => {
-    return()=>setNewMessage("")
-  }, []);
+  const inputRef = useRef(null);
 
   const fetchMessages = useCallback(async () => {
     if (!currentUser || !otherUser) return;
-
+  
     try {
       console.log('Fetching messages for users:', currentUser._id, otherUser._id);
       const response = await fetch(`${API_BASE_URL}/api/messages/${otherUser._id}`, {
         headers: { 
           Authorization: `Bearer ${localStorage.getItem("token")}`,
-          'Content-Type': 'application/json'
         },
       });
       if (!response.ok) {
@@ -43,7 +39,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
         throw new Error(errorData.message || "Failed to fetch messages");
       }
       const data = await response.json();
-      console.log('Fetched messages:', data);
+      console.log('Fetched messages:', data.length);
       setMessages(data);
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -101,16 +97,15 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
           ...prevMessages,
           { ...messageToSend, sender: currentUser._id, timestamp: new Date() },
         ]);
+        setNewMessage(""); // Clear the input after sending
         console.log('Message sent, input cleared');
       }
     });
   }, [newMessage, otherUser, socket, toast, currentUser]);
   
-  // Ensure the input field is controlled
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
   };
-
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -141,6 +136,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
       });
     }
   };
+
   const renderMessages = () => {
     let lastDate = null;
     return messages.map((msg, index) => {
@@ -177,7 +173,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   return (
     <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="white" zIndex={1000}>
       <Flex direction="column" h="100%">
-        <Box p={4} bg="teal.500" color="white">
+        <Box p={4} bg="black" color="white">
           <HStack>
             <IconButton
               icon={<ArrowBackIcon />}
@@ -194,39 +190,17 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
           {isLoading ? (
             <Spinner />
           ) : (
-            messages.map((msg, index) => (
-              <Box
-                key={msg._id || `msg-${index}`}
-                alignSelf={msg.sender === currentUser._id ? "flex-end" : "flex-start"}
-                bg={msg.sender === currentUser._id ? "teal.500" : "gray.100"}
-                color={msg.sender === currentUser._id ? "white" : "black"}
-                borderRadius="lg"
-                p={2}
-                maxW="70%"
-              >
-                <HStack>
-                  {msg.sender !== currentUser._id && (
-                    <Avatar src={otherUser.photo} name={otherUser.username} size="xs" />
-                  )}
-                  <VStack align="start" spacing={1}>
-                    <Text>{msg.content}</Text>
-                    <Text fontSize="xs" opacity={0.8}>
-                      {new Date(msg.timestamp).toLocaleTimeString()}
-                    </Text>
-                  </VStack>
-                </HStack>
-              </Box>
-            ))
+            renderMessages()
           )}
           <div ref={messagesEndRef} />
         </VStack>
         <HStack p={4} bg="gray.100">
           <Input
+            ref={inputRef}
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Type a message"
-
           />
           <IconButton
             icon={<FaPaperPlane />}

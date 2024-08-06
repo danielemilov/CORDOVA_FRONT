@@ -32,30 +32,16 @@ function Login({ setUser }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    const loginData = { email, password };
-    console.log('Sending login data:', loginData);
-  
     try {
-      const response = await api.post('/api/auth/login', loginData);
-      console.log('Login response:', response.data);
-  
-      if (response.data && response.data.user) {
-        localStorage.setItem('token', response.data.token);     
+      const response = await api.post('/api/auth/login', { email, password });
+      if (response.data && response.data.token) {
+        localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         setUser(response.data.user);
-        toast({
-          title: 'Login Successful',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
         navigate('/');
-      } else {
-        throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Login error:', error.response ? error.response.data : error.message);
+          console.error('Login error:', error.response ? error.response.data : error.message);
       toast({
         title: 'Login Failed',
         description: error.response?.data?.message || error.message,
@@ -69,9 +55,11 @@ function Login({ setUser }) {
   };
 
   return (
-    <Box maxW="md" mx="auto" mt={8} p={6} borderRadius="2xl" boxShadow="2xl" bg="white">
+    <Box maxW="md" mx="auto" mt={90} p={6} borderRadius="2xl" boxShadow="2xl" bg="white">
       <VStack spacing={6} as="form" onSubmit={handleSubmit}>
-        <Heading color="brand.600">Login</Heading>
+      <Heading color="brand.600">MEET ME</Heading>
+
+        <Heading color="lightblue">Login</Heading>
         <FormControl isRequired>
           <FormLabel>Email</FormLabel>
           <Input
