@@ -20,6 +20,7 @@ import {
 import { HamburgerIcon, SettingsIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
+import { getUserLocation } from '../utils';
 
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
@@ -39,8 +40,13 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     if (!hasMore) return;
     setIsLoading(true);
     try {
-      const response = await api.get('/api/users', {
-        params: { page, limit: 20 },
+      const latlon = await getUserLocation()
+      console.log(latlon)
+
+      const response = await api.get('/api/users/usersByProximity', {
+        params: { page, limit: 20, latitude:latlon.latitude, longitude:latlon.longitude 
+        },
+
       });
       console.log('Fetched users:', response.data);
   
@@ -207,3 +213,4 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
 };
 
 export default MainPage;
+

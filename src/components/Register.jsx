@@ -8,6 +8,7 @@ import {
   FormControl,
   FormLabel,
   Input,
+  Select,
   FormErrorMessage,
   useToast,
   useDisclosure,
@@ -21,6 +22,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import FaceVerification from './FaceVerification';
+import {getUserLocation} from '../utils'
 
 const RegisterSchema = Yup.object().shape({
   username: Yup.string()
@@ -37,6 +39,9 @@ const RegisterSchema = Yup.object().shape({
     .required('Email is required'),
   fullName: Yup.string()
     .required('Full name is required'),
+  gender: Yup.string()
+    .oneOf(['male', 'female', 'other'], 'Please select a valid gender')
+    .required('Gender is required'),
 });
 
 function Register() {
@@ -50,6 +55,8 @@ function Register() {
   const [passwordValid, setPasswordValid] = useState(true);
 
   const handleSubmit = async (values, actions) => {
+    const latlon = await getUserLocation()
+    
     if (!uploadedImage || !capturedImage) {
       toast({
         title: 'Face Verification Required',
@@ -67,6 +74,8 @@ function Register() {
       formData.append('email', values.email);
       formData.append('password', values.password);
       formData.append('fullName', values.fullName);
+      formData.append('location', latlon)
+      formData.append('gender', values.gender)
       
       // Convert base64 to Blob and append to FormData
       const uploadedPhotoBlob = await fetch(uploadedImage).then(r => r.blob());
@@ -112,6 +121,7 @@ function Register() {
       actions.setSubmitting(false);
     }
   };
+
   const handleVerificationComplete = (uploadedImg, capturedImg) => {
     setUploadedImage(uploadedImg);
     setCapturedImage(capturedImg);
@@ -130,7 +140,7 @@ function Register() {
       <VStack spacing={8} align="stretch">
         <Heading textAlign="center" color="teal.600">Register</Heading>
         <Formik
-          initialValues={{ username: '', password: '', email: '', fullName: '' }}
+          initialValues={{ username: '', password: '', email: '', fullName: '', gender: '' }}
           validationSchema={RegisterSchema}
           onSubmit={handleSubmit}
         >
@@ -201,6 +211,20 @@ function Register() {
                       <FormLabel htmlFor="fullName">Full Name</FormLabel>
                       <Input {...field} id="fullName" placeholder="Enter your full name" />
                       <FormErrorMessage>{errors.fullName}</FormErrorMessage>
+                    </FormControl>
+                  )}
+                </Field>
+
+                <Field name="gender">
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.gender && touched.gender}>
+                      <FormLabel htmlFor="gender">Gender</FormLabel>
+                      <Select {...field} id="gender" placeholder="Select your gender">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </Select>
+                      <FormErrorMessage>{errors.gender}</FormErrorMessage>
                     </FormControl>
                   )}
                 </Field>

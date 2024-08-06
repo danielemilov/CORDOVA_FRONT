@@ -17,6 +17,7 @@ function App() {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
+   
     const token = localStorage.getItem('token');
     if (user && token && !socket) {
       const newSocket = io(API_BASE_URL, {
@@ -60,6 +61,7 @@ function App() {
       setSocket(null);
     }
   };
+
 
   return (
     <ChakraProvider theme={theme}>
