@@ -1,10 +1,7 @@
+// App.jsx
+
 import React, { useState, useEffect } from "react";
-import {
-  BrowserRouter as Router,
-  Route,
-  Routes,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import { io } from "socket.io-client";
 import theme from "./theme";
@@ -37,16 +34,13 @@ function App() {
 
       newSocket.on('connect_error', (err) => {
         console.error('WebSocket connection error:', err);
-        // You can add additional error handling here, such as showing a toast notification
       });
 
       newSocket.on('disconnect', (reason) => {
         console.log('Disconnected from WebSocket:', reason);
         if (reason === 'io server disconnect') {
-          // the disconnection was initiated by the server, you need to reconnect manually
           newSocket.connect();
         }
-        // else the socket will automatically try to reconnect
       });
 
       return () => {

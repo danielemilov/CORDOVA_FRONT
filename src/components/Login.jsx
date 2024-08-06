@@ -1,3 +1,5 @@
+// Login.jsx
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -41,7 +43,7 @@ function Login({ setUser }) {
         navigate('/');
       }
     } catch (error) {
-          console.error('Login error:', error.response ? error.response.data : error.message);
+      console.error('Login error:', error.response ? error.response.data : error.message);
       toast({
         title: 'Login Failed',
         description: error.response?.data?.message || error.message,
@@ -57,8 +59,7 @@ function Login({ setUser }) {
   return (
     <Box maxW="md" mx="auto" mt={90} p={6} borderRadius="2xl" boxShadow="2xl" bg="white">
       <VStack spacing={6} as="form" onSubmit={handleSubmit}>
-      <Heading color="brand.600">MEET ME</Heading>
-
+        <Heading color="brand.600">MEET ME</Heading>
         <Heading color="lightblue">Login</Heading>
         <FormControl isRequired>
           <FormLabel>Email</FormLabel>

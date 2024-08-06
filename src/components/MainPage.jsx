@@ -14,7 +14,6 @@ import {
   DrawerContent,
   DrawerCloseButton,
   IconButton,
-  Text,
   Flex,
   Avatar
 } from "@chakra-ui/react";
@@ -70,7 +69,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           duration: 5000,
           isClosable: true,
         });
-        window.location.href = '/login';
       } else {
         toast({
           title: "Error",
@@ -140,17 +138,17 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
 
   return (
     <Box>
-<Box position="fixed" top={0} left={0} right={0} p={4} bg="black" boxShadow="md" zIndex={10}>
-  <Flex justify="space-between" align="center">
-    <IconButton
-      icon={<HamburgerIcon color="white" />}
-      onClick={onDrawerOpen}
-      aria-label="Open menu"
-    />
-    <Heading fontSize="xl" color="white">MXY</Heading>
-    <Avatar src={user.photo} name={user.username} size="sm" />
-  </Flex>
-</Box>
+      <Box position="fixed" top={0} left={0} right={0} p={4} bg="black" boxShadow="md" zIndex={10}>
+        <Flex justify="space-between" align="center">
+          <IconButton
+            icon={<HamburgerIcon color="white" />}
+            onClick={onDrawerOpen}
+            aria-label="Open menu"
+          />
+          <Heading fontSize="xl" color="white">MXY</Heading>
+          <Avatar src={user.photo} name={user.username} size="sm" />
+        </Flex>
+      </Box>
 
       <VStack spacing={4} align="stretch" mt={20} pb={20} px={4}>
         {users.map((u) => (
@@ -195,13 +193,13 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         )}
 
         {selectedUser && (
-          <Chat
-            currentUser={user}
-            otherUser={selectedUser}
-            isOpen={isChatOpen}
-            onClose={onChatClose}
-            socket={socket}
-          />
+       <Chat
+       currentUser={user}  
+       otherUser={selectedUser}
+       isOpen={isChatOpen}
+       onClose={onChatClose}
+       socket={socket}
+     />
         )}
       </Suspense>
     </Box>

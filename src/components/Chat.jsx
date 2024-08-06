@@ -15,10 +15,12 @@ import { ArrowBackIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+import api from "../api";
 
 const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
+  console.log("Current user in Chat:", currentUser);
+  console.log("Other user in Chat:", otherUser);
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -32,17 +34,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     if (!currentUser || !otherUser) return;
   
     try {
-      const response = await fetch(`${API_BASE_URL}/api/messages/${otherUser._id}?page=${pageNum}&limit=20`, {
-        headers: { 
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch messages");
-      }
-      const data = await response.json();
-      setMessages(prevMessages => [...prevMessages, ...data.messages]);
+      const response = await api.get(`/api/messages/${otherUser._id}?page=${pageNum}&limit=10`);
+      const data = response.data;
+      setMessages(prevMessages => [...data.messages.reverse(), ...prevMessages]);
       setHasMore(data.hasMore);
       setPage(pageNum + 1);
     } catch (error) {
@@ -60,13 +54,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   }, [currentUser, otherUser, toast]);
 
   useEffect(() => {
-    if (isOpen && socket && currentUser && otherUser) {
+    if (isOpen && socket && currentUser && currentUser._id && otherUser) {
       fetchMessages();
-
+  
       socket.on("private message", (message) => {
         setMessages((prevMessages) => [...prevMessages, message]);
       });
-
+  
       return () => {
         socket.off("private message");
       };
@@ -128,16 +122,23 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     }
   };
 
-  const renderMessage = (msg, index, arr) => {
-    const isSentByCurrentUser = msg.sender._id === currentUser._id;
+  const renderMessage = (msg, index, messages) => {
+    console.log("Rendering message:", msg);
+    console.log("Current user:", currentUser);
+    console.log("Message sender ID:", msg.sender._id);
+    
+    const isSentByCurrentUser = currentUser && msg.sender._id === currentUser._id;
+    console.log("Is sent by current user:", isSentByCurrentUser);
+
+    const isFirstMessageInSequence = index === 0 || messages[index - 1].sender._id !== msg.sender._id;
   
     return (
       <Flex
-        key={msg._id}
+        key={`${msg._id}-${index}`}
         justifyContent={isSentByCurrentUser ? "flex-end" : "flex-start"}
         mb={2}
       >
-        {!isSentByCurrentUser && (
+        {!isSentByCurrentUser && isFirstMessageInSequence && (
           <Avatar 
             size="sm" 
             name={msg.sender.username} 
@@ -146,10 +147,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
             alignSelf="flex-end" 
           />
         )}
+        {!isSentByCurrentUser && !isFirstMessageInSequence && <Box width="32px" mr={2} />}
         <Box
           maxWidth="70%"
-          bg={isSentByCurrentUser ? "blue.100" : "green-100"}
-          color={isSentByCurrentUser ? "blue.800" : "green"}
+          bg={isSentByCurrentUser ? "blue.100" : "green.100"}
+          color={isSentByCurrentUser ? "blue.800" : "green.800"}
           borderRadius={isSentByCurrentUser ? "20px 20px 0 20px" : "20px 20px 20px 0"}
           p={3}
           boxShadow="md"
@@ -159,7 +161,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
             {formatMessageTime(msg.timestamp)}
           </Text>
         </Box>
-        {isSentByCurrentUser && (
+        {isSentByCurrentUser && isFirstMessageInSequence && (
           <Avatar 
             size="sm" 
             name={currentUser.username} 
@@ -168,6 +170,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
             alignSelf="flex-end" 
           />
         )}
+        {isSentByCurrentUser && !isFirstMessageInSequence && <Box width="32px" ml={2} />}
       </Flex>
     );
   };
@@ -196,10 +199,10 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
             hasMore={hasMore}
             loader={<Spinner />}
             scrollableTarget="scrollableDiv"
-            style={{ display: 'flex', flexDirection: 'column-reverse' }}
-            inverse={true}
+            inverse={false}
+            style={{ display: 'flex', flexDirection: 'column' }}
           >
-            {messages.map((msg, index, arr) => renderMessage(msg, index, arr))}
+            {messages.map((msg, index) => renderMessage(msg, index, messages))}
           </InfiniteScroll>
           <div ref={messagesEndRef} />
         </Box>
