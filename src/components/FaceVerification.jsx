@@ -9,12 +9,15 @@ import {
   useToast,
   Progress,
   AspectRatio,
+  Image,
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
 const FaceVerification = ({ onVerificationComplete, onClose }) => {
   const [step, setStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const toast = useToast();
@@ -57,18 +60,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = 640;
-          canvas.height = 480;
-          ctx.drawImage(img, 0, 0, 640, 480);
-          const resizedImage = canvas.toDataURL('image/jpeg', 0.8);
-          setUploadedImage(resizedImage);
-          setStep(2);
-        };
-        img.src = e.target.result;
+        setUploadedImage(e.target.result);
+        setStep(2);
       };
       reader.readAsDataURL(file);
     }
@@ -82,11 +75,69 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const capturedImageData = canvas.toDataURL('image/jpeg');
-      onVerificationComplete(uploadedImage, capturedImageData);
-      console.log(captureImage, "YYYYYYY")
-      console.log('XXXXXXXXXX',uploadedImage)
-      onClose();
+      setCapturedImage(capturedImageData);
+      stopVideo();
+      setStep(3);
     }
+  };
+
+  const verifyFaces = async () => {
+    if (!uploadedImage || !capturedImage) {
+      toast({
+        title: 'Error',
+        description: 'Both uploaded and captured images are required.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('uploadedImage', dataURItoBlob(uploadedImage));
+      formData.append('capturedImage', dataURItoBlob(capturedImage));
+
+      const response = await axios.post('/api/verify-face', formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}` // Add the auth token
+        }
+      });
+
+      if (response.data.isVerified) {
+        onVerificationComplete(uploadedImage);
+        onClose();
+      } else {
+        toast({
+          title: 'Verification Failed',
+          description: 'The captured image does not match the uploaded image.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      toast({
+        title: 'Error',
+        description: 'An error occurred during verification. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const dataURItoBlob = (dataURI) => {
+    const byteString = atob(dataURI.split(',')[1]);
+    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeString });
   };
 
   return (
@@ -118,8 +169,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
           boxShadow="2xl"
         >
           <Heading size="lg" textAlign="center" color="teal.600">Face Verification</Heading>
-          <Progress value={(step / 2) * 100} colorScheme="teal" borderRadius="full" />
-          {step === 1 ? (
+          <Progress value={(step / 3) * 100} colorScheme="teal" borderRadius="full" />
+          {step === 1 && (
             <>
               <Text textAlign="center">Please upload a clear photo of your face</Text>
               <input
@@ -141,7 +192,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                 Choose File
               </Button>
             </>
-          ) : (
+          )}
+          {step === 2 && (
             <>
               <AspectRatio ratio={4/3} width="100%" overflow="hidden" borderRadius="xl">
                 <Box position="relative">
@@ -188,6 +240,17 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                   Capture
                 </Button>
               </Flex>
+            </>
+          )}
+          {step === 3 && (
+            <>
+              <Flex justify="space-between">
+                <Image src={uploadedImage} alt="Uploaded" boxSize="150px" objectFit="cover" />
+                <Image src={capturedImage} alt="Captured" boxSize="150px" objectFit="cover" />
+              </Flex>
+              <Button onClick={verifyFaces} colorScheme="teal">
+                Verify Faces
+              </Button>
             </>
           )}
         </VStack>

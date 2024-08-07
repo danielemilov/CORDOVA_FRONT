@@ -1,4 +1,3 @@
-// Register.jsx
 import React, { useState } from 'react';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
@@ -9,14 +8,10 @@ import {
   FormControl,
   FormLabel,
   Input,
-  Select,
   FormErrorMessage,
   useToast,
   Box,
   Text,
-  InputGroup,
-  InputRightElement,
-  IconButton,
   Checkbox,
   Link,
   Modal,
@@ -24,9 +19,12 @@ import {
   ModalContent,
   ModalHeader,
   ModalBody,
-  ModalCloseButton
+  ModalCloseButton,
+  useDisclosure,
+  RadioGroup,
+  Radio,
+  HStack,
 } from '@chakra-ui/react';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import FaceVerification from './FaceVerification';
@@ -45,11 +43,11 @@ const RegisterSchema = Yup.object().shape({
   email: Yup.string()
     .email('Invalid email address')
     .required('Email is required'),
-  age: Yup.number()
-    .min(18, 'You must be at least 18 years old')
-    .required('Age is required'),
+  birthDate: Yup.date()
+    .max(new Date(Date.now() - 567648000000), 'You must be at least 18 years old')
+    .required('Birth date is required'),
   gender: Yup.string()
-    .oneOf(['male', 'female', 'other'], 'Please select a valid gender')
+    .oneOf(['male', 'female'], 'Please select a gender')
     .required('Gender is required'),
   agreedToPrivacyPolicy: Yup.boolean()
     .oneOf([true], 'You must agree to the privacy policy')
@@ -59,14 +57,13 @@ const RegisterSchema = Yup.object().shape({
 function Register() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [showPassword, setShowPassword] = useState(false);
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isVerificationComplete, setIsVerificationComplete] = useState(false);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const handleSubmit = async (values, actions) => {
     if (!isVerificationComplete) {
-      setIsVerificationModalOpen(true);
+      onOpen();
       return;
     }
 
@@ -74,7 +71,7 @@ function Register() {
       const location = await getUserLocation();
       const formData = new FormData();
       Object.keys(values).forEach(key => {
-        formData.append(key, values[key]);
+        formData.append(key, key === 'birthDate' ? values[key].toISOString() : values[key]);
       });
       formData.append('latitude', location.latitude);
       formData.append('longitude', location.longitude);
@@ -110,9 +107,10 @@ function Register() {
     }
   };
 
-  const handleVerificationComplete = () => {
+  const handleVerificationComplete = (photo) => {
     setIsVerificationComplete(true);
-    setIsVerificationModalOpen(false);
+    setUploadedPhoto(photo);
+    onClose();
     toast({
       title: "Face Verification Completed",
       description: "You can now proceed with registration.",
@@ -120,10 +118,6 @@ function Register() {
       duration: 3000,
       isClosable: true,
     });
-  };
-
-  const handlePhotoUpload = (event) => {
-    setUploadedPhoto(event.target.files[0]);
   };
 
   return (
@@ -135,14 +129,14 @@ function Register() {
             username: '', 
             password: '', 
             email: '', 
-            age: '', 
+            birthDate: '', 
             gender: '',
             agreedToPrivacyPolicy: false,
           }}
           validationSchema={RegisterSchema}
           onSubmit={handleSubmit}
         >
-          {({ errors, touched, isSubmitting }) => (
+          {({ errors, touched, isSubmitting, setFieldValue }) => (
             <Form>
               <VStack spacing={4}>
                 <Field name="username">
@@ -159,22 +153,7 @@ function Register() {
                   {({ field }) => (
                     <FormControl isInvalid={errors.password && touched.password}>
                       <FormLabel htmlFor="password">Password</FormLabel>
-                      <InputGroup>
-                        <Input
-                          {...field}
-                          id="password"
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="Enter your password"
-                        />
-                        <InputRightElement>
-                          <IconButton
-                            aria-label={showPassword ? 'Hide password' : 'Show password'}
-                            icon={showPassword ? <FaEyeSlash /> : <FaEye />}
-                            onClick={() => setShowPassword(!showPassword)}
-                            variant="ghost"
-                          />
-                        </InputRightElement>
-                      </InputGroup>
+                      <Input {...field} id="password" type="password" placeholder="Enter your password" />
                       <FormErrorMessage>{errors.password}</FormErrorMessage>
                     </FormControl>
                   )}
@@ -190,12 +169,12 @@ function Register() {
                   )}
                 </Field>
 
-                <Field name="age">
+                <Field name="birthDate">
                   {({ field }) => (
-                    <FormControl isInvalid={errors.age && touched.age}>
-                      <FormLabel htmlFor="age">Age</FormLabel>
-                      <Input {...field} id="age" type="number" placeholder="Enter your age" />
-                      <FormErrorMessage>{errors.age}</FormErrorMessage>
+                    <FormControl isInvalid={errors.birthDate && touched.birthDate}>
+                      <FormLabel htmlFor="birthDate">Birth Date</FormLabel>
+                      <Input {...field} id="birthDate" type="date" />
+                      <FormErrorMessage>{errors.birthDate}</FormErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -204,20 +183,19 @@ function Register() {
                   {({ field }) => (
                     <FormControl isInvalid={errors.gender && touched.gender}>
                       <FormLabel htmlFor="gender">Gender</FormLabel>
-                      <Select {...field} id="gender" placeholder="Select your gender">
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </Select>
+                      <RadioGroup
+                        {...field}
+                        onChange={(value) => setFieldValue('gender', value)}
+                      >
+                        <HStack spacing={4}>
+                          <Radio value="male">Male</Radio>
+                          <Radio value="female">Female</Radio>
+                        </HStack>
+                      </RadioGroup>
                       <FormErrorMessage>{errors.gender}</FormErrorMessage>
                     </FormControl>
                   )}
                 </Field>
-
-                <FormControl>
-                  <FormLabel htmlFor="photo">Profile Photo</FormLabel>
-                  <Input type="file" id="photo" onChange={handlePhotoUpload} accept="image/*" />
-                </FormControl>
 
                 <Field name="agreedToPrivacyPolicy">
                   {({ field }) => (
@@ -249,13 +227,13 @@ function Register() {
         </Formik>
       </VStack>
 
-      <Modal isOpen={isVerificationModalOpen} onClose={() => setIsVerificationModalOpen(false)}>
+      <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Face Verification</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <FaceVerification onVerificationComplete={handleVerificationComplete} />
+            <FaceVerification onVerificationComplete={handleVerificationComplete} onClose={onClose} />
           </ModalBody>
         </ModalContent>
       </Modal>

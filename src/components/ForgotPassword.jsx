@@ -1,44 +1,29 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  VStack, 
-  Heading, 
-  FormControl, 
-  FormLabel, 
-  Input, 
-  Button, 
-  Text, 
-  useToast 
-} from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
+import { Box, Button, FormControl, FormLabel, Input, VStack, useToast } from '@chakra-ui/react';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-function ForgotPassword() {
+const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/forgot-password`, { email });
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/forgot-password`, { email });
       toast({
-        title: 'Reset Email Sent',
+        title: 'Email Sent',
         description: response.data.message,
         status: 'success',
         duration: 5000,
         isClosable: true,
       });
-      navigate('/login');
     } catch (error) {
-      console.error('Forgot password error:', error.response ? error.response.data : error.message);
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'An error occurred. Please try again.',
+        description: error.response?.data?.message || 'An error occurred',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -49,31 +34,20 @@ function ForgotPassword() {
   };
 
   return (
-    <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg">
-      <VStack spacing={4} as="form" onSubmit={handleSubmit}>
-        <Heading>Forgot Password</Heading>
-        <Text>Enter your email address to receive a password reset link.</Text>
-        <FormControl isRequired>
-          <FormLabel>Email</FormLabel>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
-          />
-        </FormControl>
-        <Button
-          type="submit"
-          colorScheme="blue"
-          width="full"
-          isLoading={isLoading}
-          loadingText="Sending"
-        >
-          Send Reset Link
-        </Button>
-      </VStack>
+    <Box maxW="md" mx="auto" mt={8}>
+      <form onSubmit={handleSubmit}>
+        <VStack spacing={4}>
+          <FormControl id="email" isRequired>
+            <FormLabel>Email address</FormLabel>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FormControl>
+          <Button type="submit" colorScheme="blue" isLoading={isLoading}>
+            Send Reset Link
+          </Button>
+        </VStack>
+      </form>
     </Box>
   );
-}
+};
 
 export default ForgotPassword;

@@ -36,10 +36,53 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   const { isOpen: isChatOpen, onOpen: onChatOpen, onClose: onChatClose } = useDisclosure();
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
   const { isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose } = useDisclosure();
-  const toast = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  
+  const toast = useToast();
+  useEffect(() => {
+    const updateUserLocation = async () => {
+      if ("geolocation" in navigator) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject);
+          });
+          
+          const { latitude, longitude } = position.coords;
+          await api.post('/api/users/update-location', { latitude, longitude });
+          
+          toast({
+            title: "Location Updated",
+            description: "Your location has been successfully updated.",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        } catch (error) {
+          console.error('Error updating location:', error);
+          toast({
+            title: "Location Update Failed",
+            description: "Unable to update your location. Please check your settings and try again.",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      } else {
+        toast({
+          title: "Geolocation Unavailable",
+          description: "Your browser doesn't support geolocation.",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    };
+
+    updateUserLocation();
+  }, [toast]);
+
 
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
@@ -101,6 +144,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+  
 
   useEffect(() => {
     if (socket) {
