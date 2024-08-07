@@ -1,3 +1,4 @@
+// UserCard.jsx
 import React, { memo } from 'react';
 import { Box, Image, Text, Badge, IconButton, HStack, VStack, Tooltip } from '@chakra-ui/react';
 import { ChatIcon } from '@chakra-ui/icons';
@@ -31,9 +32,13 @@ const UserCard = memo(({ user, onUserClick, onChatClick }) => (
         <Text fontSize="sm" color="gray.600" noOfLines={1}>
           {user.title || 'No title'}
         </Text>
-        <Text fontSize="xs" color="gray.500" noOfLines={1}>
-          {user.location || 'No location'}
-        </Text>
+        <Text fontSize="xs" color="gray.500">
+  {user.distance !== null 
+    ? `${user.distance.toFixed(2)} km away` 
+    : user.location && user.location.city 
+      ? user.location.city 
+      : 'Location unknown'}
+</Text>
         {user.distance !== null && (
           <Text fontSize="xs" color="gray.500">
             {user.distance.toFixed(1)} km away

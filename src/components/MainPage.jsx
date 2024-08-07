@@ -1,8 +1,8 @@
+// MainPage.jsx
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { 
-  Box, 
-  VStack, 
-  Heading, 
+import {
+  Box,
+  VStack,
   Button,
   useToast,
   Spinner,
@@ -13,9 +13,9 @@ import {
   DrawerOverlay,
   DrawerContent,
   DrawerCloseButton,
-  Text,
   Flex,
-  Avatar
+  Avatar,
+  Heading,
 } from "@chakra-ui/react";
 import { SettingsIcon } from "@chakra-ui/icons";
 import api from "../api";
@@ -46,8 +46,8 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         params: { page, limit: 20 },
       });
       console.log('Fetched users:', response.data);
-  
-      const newUsers = response.data.filter(u => u._id !== user._id).map(u => ({
+
+      const newUsers = response.data.users.filter(u => u._id !== user._id).map(u => ({
         ...u,
         distance: user.location && u.location ? 
           getDistance(

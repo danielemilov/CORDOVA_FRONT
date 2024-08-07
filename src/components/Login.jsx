@@ -1,3 +1,4 @@
+// Login.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -19,7 +20,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
-function Login({ setUser }) {
+function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,8 +37,7 @@ function Login({ setUser }) {
       });
       if (response.data && response.data.token) {
         localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        setUser(response.data.user);
+        onLogin(response.data.user);
         navigate('/');
       }
     } catch (error) {

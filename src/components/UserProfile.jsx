@@ -49,7 +49,7 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
             )}
             {user.location && (
               <Text fontSize="md" color="gray.600">
-                📍 {user.location}
+                📍 {user.location.city || 'Unknown location'}
               </Text>
             )}
             {user.age && (

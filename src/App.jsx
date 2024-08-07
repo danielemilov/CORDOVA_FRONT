@@ -8,9 +8,9 @@ import MainPage from "./components/MainPage";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import EmailVerification from "./components/EmailVerification";
-import Settings from "./components/Settings";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
+import Header from "./components/Header";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
@@ -46,27 +46,10 @@ function App() {
         }
       });
 
-      newSocket.on('user status', ({ userId, isOnline }) => {
-        console.log('User status update:', userId, isOnline);
-        // You might want to update the user list here if you're keeping it in the App state
-      });
-
-      newSocket.on('new notification', (notification) => {
-        if (notification.type === 'new_message') {
-          toast({
-            title: "New Message",
-            description: `New message from ${notification.message.sender.username}`,
-            status: "info",
-            duration: 5000,
-            isClosable: true,
-          });
-        }
-      });
-
       return newSocket;
     }
     return null;
-  }, [user, toast]);
+  }, [user]);
 
   useEffect(() => {
     const newSocket = setupSocket();
@@ -75,6 +58,11 @@ function App() {
       return () => newSocket.disconnect();
     }
   }, [setupSocket]);
+
+  const handleLogin = useCallback((userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  }, []);
 
   const handleLogout = useCallback(() => {
     setUser(null);
@@ -89,28 +77,23 @@ function App() {
   return (
     <ChakraProvider theme={theme}>
       <Router>
+        {user && <Header user={user} onLogout={handleLogout} />}
         <Routes>
           {user ? (
-            <>
-              <Route
-                path="/"
-                element={
-                  <MainPage
-                    user={user}
-                    setUser={setUser}
-                    socket={socket}
-                    onLogout={handleLogout}
-                  />
-                }
-              />
-              <Route
-                path="/settings"
-                element={<Settings user={user} setUser={setUser} />}
-              />
-            </>
+            <Route
+              path="/"
+              element={
+                <MainPage
+                  user={user}
+                  setUser={setUser}
+                  socket={socket}
+                  onLogout={handleLogout}
+                />
+              }
+            />
           ) : (
             <>
-              <Route path="/login" element={<Login setUser={setUser} />} />
+              <Route path="/login" element={<Login onLogin={handleLogin} />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />

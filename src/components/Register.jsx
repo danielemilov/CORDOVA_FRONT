@@ -55,22 +55,17 @@ function Register() {
   const navigate = useNavigate();
   const toast = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isVerificationComplete, setIsVerificationComplete] = useState(false);
 
   const handleSubmit = async (values, actions) => {
-    const location = await getUserLocation();
-    
     if (!isVerificationComplete) {
-      toast({
-        title: 'Face Verification Required',
-        description: 'Please complete face verification before registering.',
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
+      setIsVerificationModalOpen(true);
       return;
     }
 
+    const location = await getUserLocation();
+    
     try {
       const formData = new FormData();
       Object.keys(values).forEach(key => {
@@ -109,6 +104,7 @@ function Register() {
 
   const handleVerificationComplete = () => {
     setIsVerificationComplete(true);
+    setIsVerificationModalOpen(false);
     toast({
       title: "Face Verification Completed",
       description: "You can now proceed with registration.",
@@ -234,7 +230,7 @@ function Register() {
                   <Text color="green.500">Face verification completed</Text>
                 )}
 
-                <Button
+<Button
                   mt={4}
                   colorScheme="blue"
                   isLoading={isSubmitting}
@@ -248,6 +244,17 @@ function Register() {
           )}
         </Formik>
       </VStack>
+
+      <Modal isOpen={isVerificationModalOpen} onClose={() => setIsVerificationModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Face Verification</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <FaceVerification onVerificationComplete={handleVerificationComplete} />
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }
