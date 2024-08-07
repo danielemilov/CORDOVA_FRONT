@@ -25,7 +25,6 @@ import {
   Text,
   Stack,
   Checkbox,
-  CloseButton
 } from "@chakra-ui/react";
 import { HamburgerIcon, SettingsIcon, SearchIcon } from "@chakra-ui/icons";
 import api from "../api";
@@ -72,7 +71,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         }
       });
 
-      const newUsers = response.data.users || [];  // Ensure newUsers is an array
+      const newUsers = response.data.users || [];
       setUsers(prevUsers => [...prevUsers, ...newUsers]);
       setHasMore(response.data.hasMore);
       setPage(prevPage => prevPage + 1);
@@ -98,7 +97,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     if (socket) {
       socket.on('user status', ({ userId, isOnline }) => {
         setUsers(prevUsers => 
-          prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
+          prevUsers.map(u => u.id === userId ? { ...u, isOnline } : u)
         );
       });
 
@@ -121,7 +120,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   const handleDeleteAccount = useCallback(async () => {
     if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
       try {
-        await api.delete(`/api/users/${user._id}`);
+        await api.delete(`/api/users/${user.id}`);
         onLogout();
         toast({
           title: "Account Deleted",
@@ -141,7 +140,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         });
       }
     }
-  }, [user._id, onLogout, toast]);
+  }, [user.id, onLogout, toast]);
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -203,7 +202,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
       <VStack spacing={4} align="stretch" mt={20} pb={20} px={4}>
         {users.map((u) => (
           <UserCard 
-            key={u._id}
+            key={u.id}
             user={u} 
             onUserClick={handleUserClick}
             onChatClick={handleChatClick}
@@ -298,9 +297,11 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
               onClose={onProfileClose}
             />
             <Chat 
-              user={selectedUser}
+              currentUser={user}
+              otherUser={selectedUser}
               isOpen={isChatOpen}
               onClose={onChatClose}
+              socket={socket}
             />
           </>
         )}

@@ -17,6 +17,8 @@ import {
   InputGroup,
   InputRightElement,
   IconButton,
+  Checkbox,
+  Link,
 } from '@chakra-ui/react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
@@ -45,6 +47,9 @@ const RegisterSchema = Yup.object().shape({
   gender: Yup.string()
     .oneOf(['male', 'female', 'other'], 'Please select a valid gender')
     .required('Gender is required'),
+  agreedToPrivacyPolicy: Yup.boolean()
+    .oneOf([true], 'You must agree to the privacy policy')
+    .required('You must agree to the privacy policy'),
 });
 
 function Register() {
@@ -68,7 +73,7 @@ function Register() {
       });
       return;
     }
-  
+
     try {
       const formData = new FormData();
       formData.append('username', values.username);
@@ -79,12 +84,14 @@ function Register() {
       formData.append('gender', values.gender);
       formData.append('latitude', location.latitude);
       formData.append('longitude', location.longitude);
+      formData.append('agreedToPrivacyPolicy', values.agreedToPrivacyPolicy);
       
       // Convert base64 to Blob and append to FormData
       const uploadedPhotoBlob = await fetch(uploadedImage).then(r => r.blob());
-      const capturedPhotoBlob = await fetch(capturedImage).then(r => r.blob());
-      
       formData.append('uploadedPhoto', uploadedPhotoBlob, 'uploadedPhoto.jpg');
+
+      // Also send the captured photo for verification, but it won't be stored
+      const capturedPhotoBlob = await fetch(capturedImage).then(r => r.blob());
       formData.append('capturedPhoto', capturedPhotoBlob, 'capturedPhoto.jpg');
   
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
@@ -128,16 +135,37 @@ function Register() {
     });
   };
 
+  const handleFileUpload = (event, setFieldValue) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImage(reader.result);
+        setFieldValue("photo", reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg">
       <VStack spacing={8} align="stretch">
         <Heading textAlign="center">Register</Heading>
         <Formik
-          initialValues={{ username: '', password: '', email: '', fullName: '', age: '', gender: '' }}
+          initialValues={{ 
+            username: '', 
+            password: '', 
+            email: '', 
+            fullName: '', 
+            age: '', 
+            gender: '',
+            agreedToPrivacyPolicy: false,
+            photo: null
+          }}
           validationSchema={RegisterSchema}
           onSubmit={handleSubmit}
         >
-          {({ errors, touched, isSubmitting }) => (
+          {({ errors, touched, isSubmitting, values, setFieldValue }) => (
             <Form>
               <VStack spacing={4}>
                 <Field name="username">
@@ -219,11 +247,38 @@ function Register() {
                   )}
                 </Field>
 
+                <FormControl>
+                  <FormLabel htmlFor="photo">Profile Photo</FormLabel>
+                  <Input
+                    type="file"
+                    id="photo"
+                    accept="image/*"
+                    onChange={(event) => handleFileUpload(event, setFieldValue)}
+                  />
+                </FormControl>
+
+                {uploadedImage && (
+                  <Box>
+                    <img src={uploadedImage} alt="Uploaded profile" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                  </Box>
+                )}
+
+                <Field name="agreedToPrivacyPolicy">
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy}>
+                      <Checkbox {...field} id="agreedToPrivacyPolicy">
+                        I agree to the <Link href="/privacy-policy" isExternal color="blue.500">Privacy Policy</Link>
+                      </Checkbox>
+                      <FormErrorMessage>{errors.agreedToPrivacyPolicy}</FormErrorMessage>
+                    </FormControl>
+                  )}
+                </Field>
+
                 <Button onClick={onOpen} colorScheme="teal" width="full">
-                  {uploadedImage && capturedImage ? 'Retake Face Verification' : 'Start Face Verification'}
+                  {capturedImage ? 'Retake Face Verification' : 'Start Face Verification'}
                 </Button>
 
-                {uploadedImage && capturedImage && (
+                {capturedImage && (
                   <Text color="green.500">Face verification completed</Text>
                 )}
 

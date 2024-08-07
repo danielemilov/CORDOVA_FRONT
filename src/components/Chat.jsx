@@ -39,7 +39,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     if (!currentUser || !otherUser) return;
   
     try {
-      const response = await api.get(`/api/messages/${otherUser._id}?page=${pageNum}&limit=20`);
+      const response = await api.get(`/api/messages/${otherUser.id}?page=${pageNum}&limit=20`);
       const data = response.data;
       setMessages(prevMessages => [...data.messages.reverse(), ...prevMessages]);
       setHasMore(data.hasMore);
@@ -59,7 +59,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   }, [currentUser, otherUser, toast]);
 
   useEffect(() => {
-    if (isOpen && socket && currentUser && currentUser._id && otherUser) {
+    if (isOpen && socket && currentUser && currentUser.id && otherUser) {
       fetchMessages();
   
       socket.on("private message", (message) => {
@@ -67,13 +67,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
       });
 
       socket.on("user typing", (typingUserId) => {
-        if (typingUserId === otherUser._id) {
+        if (typingUserId === otherUser.id) {
           setIsTyping(true);
         }
       });
 
       socket.on("user stop typing", (typingUserId) => {
-        if (typingUserId === otherUser._id) {
+        if (typingUserId === otherUser.id) {
           setIsTyping(false);
         }
       });
@@ -106,7 +106,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     if (!newMessage.trim() || !socket || !currentUser || !otherUser) return;
   
     const messageToSend = {
-      recipientId: otherUser._id,
+      recipientId: otherUser.id,
       content: newMessage,
     };
   
@@ -129,11 +129,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
-    socket.emit("typing", { recipientId: otherUser._id });
+    socket.emit("typing", { recipientId: otherUser.id });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit("stop typing", { recipientId: otherUser._id });
+      socket.emit("stop typing", { recipientId: otherUser.id });
     }, 3000);
   };
 
@@ -145,7 +145,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   };
 
   const handleUnsendMessage = (messageId) => {
-    socket.emit("message unsent", { messageId, recipientId: otherUser._id }, (error) => {
+    socket.emit("message unsent", { messageId, recipientId: otherUser.id }, (error) => {
       if (error) {
         toast({
           title: "Error",
@@ -170,7 +170,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     socket.emit("message edited", {
       messageId: editingMessage._id,
       newContent: editingMessage.content,
-      recipientId: otherUser._id
+      recipientId: otherUser.id
     }, (error, updatedMessage) => {
       if (error) {
         toast({
@@ -203,8 +203,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   };
 
   const renderMessage = (msg, index, messages) => {
-    const isSentByCurrentUser = currentUser && msg.sender._id === currentUser._id;
-    const isFirstMessageInSequence = index === 0 || messages[index - 1].sender._id !== msg.sender._id;
+    const isSentByCurrentUser = currentUser && msg.sender.id === currentUser.id;
+    const isFirstMessageInSequence = index === 0 || messages[index - 1].sender.id !== msg.sender.id;
   
     return (
       <Flex
