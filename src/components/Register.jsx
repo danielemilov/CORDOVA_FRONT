@@ -1,3 +1,4 @@
+// Register.jsx
 import React, { useState } from 'react';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
@@ -18,6 +19,12 @@ import {
   IconButton,
   Checkbox,
   Link,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton
 } from '@chakra-ui/react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
@@ -38,8 +45,6 @@ const RegisterSchema = Yup.object().shape({
   email: Yup.string()
     .email('Invalid email address')
     .required('Email is required'),
-  fullName: Yup.string()
-    .required('Full name is required'),
   age: Yup.number()
     .min(18, 'You must be at least 18 years old')
     .required('Age is required'),
@@ -57,6 +62,7 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isVerificationComplete, setIsVerificationComplete] = useState(false);
+  const [uploadedPhoto, setUploadedPhoto] = useState(null);
 
   const handleSubmit = async (values, actions) => {
     if (!isVerificationComplete) {
@@ -64,15 +70,17 @@ function Register() {
       return;
     }
 
-    const location = await getUserLocation();
-    
     try {
+      const location = await getUserLocation();
       const formData = new FormData();
       Object.keys(values).forEach(key => {
         formData.append(key, values[key]);
       });
       formData.append('latitude', location.latitude);
       formData.append('longitude', location.longitude);
+      if (uploadedPhoto) {
+        formData.append('photo', uploadedPhoto);
+      }
 
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -114,6 +122,10 @@ function Register() {
     });
   };
 
+  const handlePhotoUpload = (event) => {
+    setUploadedPhoto(event.target.files[0]);
+  };
+
   return (
     <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg">
       <VStack spacing={8} align="stretch">
@@ -123,7 +135,6 @@ function Register() {
             username: '', 
             password: '', 
             email: '', 
-            fullName: '', 
             age: '', 
             gender: '',
             agreedToPrivacyPolicy: false,
@@ -179,16 +190,6 @@ function Register() {
                   )}
                 </Field>
 
-                <Field name="fullName">
-                  {({ field }) => (
-                    <FormControl isInvalid={errors.fullName && touched.fullName}>
-                      <FormLabel htmlFor="fullName">Full Name</FormLabel>
-                      <Input {...field} id="fullName" placeholder="Enter your full name" />
-                      <FormErrorMessage>{errors.fullName}</FormErrorMessage>
-                    </FormControl>
-                  )}
-                </Field>
-
                 <Field name="age">
                   {({ field }) => (
                     <FormControl isInvalid={errors.age && touched.age}>
@@ -213,6 +214,11 @@ function Register() {
                   )}
                 </Field>
 
+                <FormControl>
+                  <FormLabel htmlFor="photo">Profile Photo</FormLabel>
+                  <Input type="file" id="photo" onChange={handlePhotoUpload} accept="image/*" />
+                </FormControl>
+
                 <Field name="agreedToPrivacyPolicy">
                   {({ field }) => (
                     <FormControl isInvalid={errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy}>
@@ -224,13 +230,11 @@ function Register() {
                   )}
                 </Field>
 
-                <FaceVerification onVerificationComplete={handleVerificationComplete} />
-
                 {isVerificationComplete && (
                   <Text color="green.500">Face verification completed</Text>
                 )}
 
-<Button
+                <Button
                   mt={4}
                   colorScheme="blue"
                   isLoading={isSubmitting}

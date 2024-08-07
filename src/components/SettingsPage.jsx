@@ -100,7 +100,7 @@ const SettingsPage = ({ user, setUser, isOpen, onClose }) => {
         </ModalBody>
         <ModalFooter>
           <Button colorScheme="blue" mr={3} onClick={handleSubmit}>
-            Save Changes
+            AAAAAAAAAAAAA
           </Button>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
         </ModalFooter>

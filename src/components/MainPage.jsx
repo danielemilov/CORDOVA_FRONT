@@ -16,19 +16,22 @@ import {
   Flex,
   Avatar,
   Heading,
+  IconButton,
+  Input,
 } from "@chakra-ui/react";
-import { SettingsIcon } from "@chakra-ui/icons";
+import { HamburgerIcon, SettingsIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
 import { getDistance } from 'geolib';
 
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
-const SettingsPage = lazy(() => import("./Settings"));
+const Settings = lazy(() => import("./Settings"));
 
 const MainPage = ({ user, setUser, socket, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [filter, setFilter] = useState('');
   const { isOpen: isProfileOpen, onOpen: onProfileOpen, onClose: onProfileClose } = useDisclosure();
   const { isOpen: isChatOpen, onOpen: onChatOpen, onClose: onChatClose } = useDisclosure();
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
@@ -51,8 +54,8 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         ...u,
         distance: user.location && u.location ? 
           getDistance(
-            { latitude: user.location.latitude, longitude: user.location.longitude },
-            { latitude: u.location.latitude, longitude: u.location.longitude }
+            { latitude: user.location.coordinates[1], longitude: user.location.coordinates[0] },
+            { latitude: u.location.coordinates[1], longitude: u.location.coordinates[0] }
           ) / 1000 : null
       }));
 
@@ -113,6 +116,23 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     }
   }, [socket]);
 
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        api.post('/api/users/updateLocation', { latitude, longitude })
+          .then(response => {
+            console.log('Location updated');
+            // Optionally update the user state here
+          })
+          .catch(error => console.error('Error updating location:', error));
+      });
+    } else {
+      console.log("Geolocation is not supported by this browser.");
+    }
+  }, []);
+
   const handleUserClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
     onProfileOpen();
@@ -148,23 +168,39 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     }
   }, [user._id, onLogout, toast]);
 
+  const filteredUsers = users.filter(u => 
+    u.username.toLowerCase().includes(filter.toLowerCase()) ||
+    (u.title && u.title.toLowerCase().includes(filter.toLowerCase()))
+  );
+
   return (
     <Box>
       <Box position="fixed" top={0} left={0} right={0} p={4} bg="black" boxShadow="md" zIndex={10}>
         <Flex justify="space-between" align="center">
+          <IconButton
+            icon={<HamburgerIcon />}
+            onClick={onDrawerOpen}
+            variant="outline"
+            color="white"
+            aria-label="Menu"
+          />
           <Heading fontSize="xl" color="white">MXY</Heading>
           <Avatar 
             src={user.photo} 
             name={user.username} 
             size="sm" 
-            onClick={onDrawerOpen} 
-            cursor="pointer"
           />
         </Flex>
       </Box>
 
       <VStack spacing={4} align="stretch" mt={20} pb={20} px={4}>
-        {users.map((u) => (
+        <Input
+          placeholder="Search users..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          mb={4}
+        />
+        {filteredUsers.map((u) => (
           <UserCard 
             key={u._id}
             user={u} 
@@ -187,7 +223,12 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           <DrawerHeader>Menu</DrawerHeader>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
-              <Button leftIcon={<SettingsIcon />} onClick={onSettingsOpen}>Settings</Button>
+              <Button leftIcon={<SettingsIcon />} onClick={() => {
+                onDrawerClose();
+                onSettingsOpen();
+              }}>
+                Settings
+              </Button>
               <Button onClick={onLogout}>Logout</Button>
               <Button onClick={handleDeleteAccount} colorScheme="red">Delete Account</Button>
             </VStack>
@@ -215,7 +256,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           />
         )}
 
-        <SettingsPage
+        <Settings
           user={user}
           setUser={setUser}
           isOpen={isSettingsOpen}
