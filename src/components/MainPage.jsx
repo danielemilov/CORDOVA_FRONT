@@ -1,4 +1,3 @@
-// MainPage.jsx
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { 
   Box, 
@@ -14,26 +13,18 @@ import {
   DrawerOverlay,
   DrawerContent,
   DrawerCloseButton,
-  IconButton,
-  Flex,
-  Avatar,
-  Select,
-  Input,
-  RangeSlider,
-  RangeSliderTrack,
-  RangeSliderFilledTrack,
-  RangeSliderThumb,
   Text,
-  Stack,
-  Checkbox,
+  Flex,
+  Avatar
 } from "@chakra-ui/react";
-import { HamburgerIcon, SettingsIcon, SearchIcon } from "@chakra-ui/icons";
+import { SettingsIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
-import { getUserLocation } from '../utils';
+import { getDistance } from 'geolib';
 
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
+const SettingsPage = lazy(() => import("./Settings"));
 
 const MainPage = ({ user, setUser, socket, onLogout }) => {
   const [users, setUsers] = useState([]);
@@ -41,59 +32,68 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   const { isOpen: isProfileOpen, onOpen: onProfileOpen, onClose: onProfileClose } = useDisclosure();
   const { isOpen: isChatOpen, onOpen: onChatOpen, onClose: onChatClose } = useDisclosure();
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
-  const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
+  const { isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose } = useDisclosure();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [filters, setFilters] = useState({
-    minAge: 18,
-    maxAge: 100,
-    gender: '',
-    country: '',
-    city: '',
-    lastOnline: false
-  });
 
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
     setIsLoading(true);
     try {
-      const location = await getUserLocation();
-      await api.post('/api/users/updateLocation', location);
-
       const response = await api.get('/api/users', {
-        params: {
-          page,
-          limit: 15,
-          ...filters,
-          latitude: location.latitude,
-          longitude: location.longitude
-        }
+        params: { page, limit: 20 },
       });
+      console.log('Fetched users:', response.data);
+  
+      const newUsers = response.data.filter(u => u._id !== user._id).map(u => ({
+        ...u,
+        distance: user.location && u.location ? 
+          getDistance(
+            { latitude: user.location.latitude, longitude: user.location.longitude },
+            { latitude: u.location.latitude, longitude: u.location.longitude }
+          ) / 1000 : null
+      }));
 
-      const newUsers = response.data || [];
-      console.log('Fetched users:', newUsers);
       setUsers(prevUsers => {
-        const updatedUsers = [...prevUsers, ...newUsers];
-        console.log('Updated users state:', updatedUsers);
-        return updatedUsers;
+        const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
+          const x = acc.find(item => item._id === current._id);
+          if (!x) {
+            return acc.concat([current]);
+          } else {
+            return acc;
+          }
+        }, []);
+        return uniqueUsers;
       });
-      setHasMore(newUsers.length === 15);
+      setHasMore(newUsers.length === 20);
       setPage(prevPage => prevPage + 1);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch users. Please try again later.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      if (error.response && error.response.status === 401) {
+        onLogout();
+        toast({
+          title: "Session Expired",
+          description: "Please log in again.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        window.location.href = '/login';
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch users. Please try again later.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [page, hasMore, filters, toast]);
+  }, [user._id, user.location, toast, page, hasMore, onLogout]);
 
   useEffect(() => {
     fetchUsers();
@@ -102,7 +102,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   useEffect(() => {
     if (socket) {
       socket.on('user status', ({ userId, isOnline }) => {
-        console.log('User status update received:', userId, isOnline);
         setUsers(prevUsers => 
           prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
         );
@@ -149,62 +148,18 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     }
   }, [user._id, onLogout, toast]);
 
-  const handleFilterChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const handleAgeRangeChange = (values) => {
-    setFilters(prev => ({
-      ...prev,
-      minAge: values[0],
-      maxAge: values[1]
-    }));
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      minAge: 18,
-      maxAge: 100,
-      gender: '',
-      country: '',
-      city: '',
-      lastOnline: false
-    });
-  };
-
-  const applyFilters = () => {
-    setUsers([]);
-    setPage(1);
-    setHasMore(true);
-    fetchUsers();
-    onFilterClose();
-  };
-
   return (
     <Box>
       <Box position="fixed" top={0} left={0} right={0} p={4} bg="black" boxShadow="md" zIndex={10}>
-        <Flex justify="space-between" align="center" >
-          <IconButton
-            bg='black'
-            icon={<HamburgerIcon color="white"/>}
-            onClick={onDrawerOpen}
-            aria-label="Open menu"
-          />
+        <Flex justify="space-between" align="center">
           <Heading fontSize="xl" color="white">MXY</Heading>
-          <Flex>
-            <IconButton
-              icon={<SearchIcon color="white" />}
-              onClick={onFilterOpen}
-              aria-label="Open filters"
-              mr={2}
-              bg='black'
-            />
-            <Avatar src={user.photo} name={user.username} size="sm" />
-          </Flex>
+          <Avatar 
+            src={user.photo} 
+            name={user.username} 
+            size="sm" 
+            onClick={onDrawerOpen} 
+            cursor="pointer"
+          />
         </Flex>
       </Box>
 
@@ -232,7 +187,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           <DrawerHeader>Menu</DrawerHeader>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
-              <Button leftIcon={<SettingsIcon />} onClick={() => {/* Implement settings functionality */}}>Settings</Button>
+              <Button leftIcon={<SettingsIcon />} onClick={onSettingsOpen}>Settings</Button>
               <Button onClick={onLogout}>Logout</Button>
               <Button onClick={handleDeleteAccount} colorScheme="red">Delete Account</Button>
             </VStack>
@@ -240,80 +195,32 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         </DrawerContent>
       </Drawer>
 
-      <Drawer isOpen={isFilterOpen} placement="right" onClose={onFilterClose}>
-        <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerHeader>Filters</DrawerHeader>
-          <DrawerBody>
-            <VStack spacing={4} align="stretch">
-              <Box>
-                <Text mb={2}>Age Range: {filters.minAge} - {filters.maxAge}</Text>
-                <RangeSlider
-                  min={18}
-                  max={100}
-                  step={1}
-                  value={[filters.minAge, filters.maxAge]}
-                  onChange={handleAgeRangeChange}
-                >
-                  <RangeSliderTrack>
-                    <RangeSliderFilledTrack />
-                  </RangeSliderTrack>
-                  <RangeSliderThumb index={0} />
-                  <RangeSliderThumb index={1} />
-                </RangeSlider>
-              </Box>
-              <Select name="gender" value={filters.gender} onChange={handleFilterChange}>
-                <option value="">All Genders</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </Select>
-              <Input 
-                name="country" 
-                placeholder="Country" 
-                value={filters.country} 
-                onChange={handleFilterChange} 
-              />
-              <Input 
-                name="city" 
-                placeholder="City" 
-                value={filters.city} 
-                onChange={handleFilterChange} 
-              />
-              <Checkbox 
-                name="lastOnline" 
-                isChecked={filters.lastOnline} 
-                onChange={handleFilterChange}
-              >
-                Last Online
-              </Checkbox>
-              <Flex justify="space-between">
-                <Button onClick={resetFilters}>Reset</Button>
-                <Button colorScheme="teal" onClick={applyFilters}>Apply</Button>
-              </Flex>
-            </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
-
       <Suspense fallback={<Spinner />}>
         {selectedUser && (
-          <>
-            <UserProfile 
-              user={selectedUser}
-              isOpen={isProfileOpen}
-              onClose={onProfileClose}
-            />
-            <Chat 
-              currentUser={user}
-              otherUser={selectedUser}
-              isOpen={isChatOpen}
-              onClose={onChatClose}
-              socket={socket}
-            />
-          </>
+          <UserProfile 
+            user={selectedUser} 
+            isOpen={isProfileOpen} 
+            onClose={onProfileClose}
+            onChatClick={handleChatClick}
+          />
         )}
+
+        {selectedUser && (
+          <Chat
+            currentUser={user}
+            otherUser={selectedUser}
+            isOpen={isChatOpen}
+            onClose={onChatClose}
+            socket={socket}
+          />
+        )}
+
+        <SettingsPage
+          user={user}
+          setUser={setUser}
+          isOpen={isSettingsOpen}
+          onClose={onSettingsClose}
+        />
       </Suspense>
     </Box>
   );

@@ -24,6 +24,7 @@
     "express": "^4.19.2",
     "formik": "^2.4.6",
     "framer-motion": "^11.3.21",
+    "geolib": "^3.3.4",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.2",
     "parser": "^0.1.4",

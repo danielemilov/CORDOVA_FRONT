@@ -11,7 +11,6 @@ import {
   Select,
   FormErrorMessage,
   useToast,
-  useDisclosure,
   Box,
   Text,
   InputGroup,
@@ -55,15 +54,13 @@ const RegisterSchema = Yup.object().shape({
 function Register() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [capturedImage, setCapturedImage] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isVerificationComplete, setIsVerificationComplete] = useState(false);
 
   const handleSubmit = async (values, actions) => {
     const location = await getUserLocation();
     
-    if (!uploadedImage || !capturedImage) {
+    if (!isVerificationComplete) {
       toast({
         title: 'Face Verification Required',
         description: 'Please complete face verification before registering.',
@@ -76,24 +73,12 @@ function Register() {
 
     try {
       const formData = new FormData();
-      formData.append('username', values.username);
-      formData.append('email', values.email);
-      formData.append('password', values.password);
-      formData.append('fullName', values.fullName);
-      formData.append('age', values.age);
-      formData.append('gender', values.gender);
+      Object.keys(values).forEach(key => {
+        formData.append(key, values[key]);
+      });
       formData.append('latitude', location.latitude);
       formData.append('longitude', location.longitude);
-      formData.append('agreedToPrivacyPolicy', values.agreedToPrivacyPolicy);
-      
-      // Convert base64 to Blob and append to FormData
-      const uploadedPhotoBlob = await fetch(uploadedImage).then(r => r.blob());
-      formData.append('uploadedPhoto', uploadedPhotoBlob, 'uploadedPhoto.jpg');
 
-      // Also send the captured photo for verification, but it won't be stored
-      const capturedPhotoBlob = await fetch(capturedImage).then(r => r.blob());
-      formData.append('capturedPhoto', capturedPhotoBlob, 'capturedPhoto.jpg');
-  
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -122,29 +107,15 @@ function Register() {
     }
   };
 
-  const handleVerificationComplete = (uploadedImg, capturedImg) => {
-    setUploadedImage(uploadedImg);
-    setCapturedImage(capturedImg);
-    onClose();
+  const handleVerificationComplete = () => {
+    setIsVerificationComplete(true);
     toast({
-      title: "Images captured",
-      description: "Please click 'Register' to complete the process.",
-      status: "info",
+      title: "Face Verification Completed",
+      description: "You can now proceed with registration.",
+      status: "success",
       duration: 3000,
       isClosable: true,
     });
-  };
-
-  const handleFileUpload = (event, setFieldValue) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImage(reader.result);
-        setFieldValue("photo", reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   return (
@@ -160,12 +131,11 @@ function Register() {
             age: '', 
             gender: '',
             agreedToPrivacyPolicy: false,
-            photo: null
           }}
           validationSchema={RegisterSchema}
           onSubmit={handleSubmit}
         >
-          {({ errors, touched, isSubmitting, values, setFieldValue }) => (
+          {({ errors, touched, isSubmitting }) => (
             <Form>
               <VStack spacing={4}>
                 <Field name="username">
@@ -247,22 +217,6 @@ function Register() {
                   )}
                 </Field>
 
-                <FormControl>
-                  <FormLabel htmlFor="photo">Profile Photo</FormLabel>
-                  <Input
-                    type="file"
-                    id="photo"
-                    accept="image/*"
-                    onChange={(event) => handleFileUpload(event, setFieldValue)}
-                  />
-                </FormControl>
-
-                {uploadedImage && (
-                  <Box>
-                    <img src={uploadedImage} alt="Uploaded profile" style={{ maxWidth: '100%', maxHeight: '200px' }} />
-                  </Box>
-                )}
-
                 <Field name="agreedToPrivacyPolicy">
                   {({ field }) => (
                     <FormControl isInvalid={errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy}>
@@ -274,11 +228,9 @@ function Register() {
                   )}
                 </Field>
 
-                <Button onClick={onOpen} colorScheme="teal" width="full">
-                  {capturedImage ? 'Retake Face Verification' : 'Start Face Verification'}
-                </Button>
+                <FaceVerification onVerificationComplete={handleVerificationComplete} />
 
-                {capturedImage && (
+                {isVerificationComplete && (
                   <Text color="green.500">Face verification completed</Text>
                 )}
 
@@ -296,13 +248,6 @@ function Register() {
           )}
         </Formik>
       </VStack>
-
-      {isOpen && (
-        <FaceVerification
-          onVerificationComplete={handleVerificationComplete}
-          onClose={onClose}
-        />
-      )}
     </Box>
   );
 }
