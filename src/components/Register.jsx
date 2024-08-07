@@ -22,7 +22,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import FaceVerification from './FaceVerification';
-import {getUserLocation} from '../utils'
+import { getUserLocation } from '../utils';
 
 const RegisterSchema = Yup.object().shape({
   username: Yup.string()
@@ -39,6 +39,9 @@ const RegisterSchema = Yup.object().shape({
     .required('Email is required'),
   fullName: Yup.string()
     .required('Full name is required'),
+  age: Yup.number()
+    .min(18, 'You must be at least 18 years old')
+    .required('Age is required'),
   gender: Yup.string()
     .oneOf(['male', 'female', 'other'], 'Please select a valid gender')
     .required('Gender is required'),
@@ -51,11 +54,9 @@ function Register() {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordTouched, setPasswordTouched] = useState(false);
-  const [passwordValid, setPasswordValid] = useState(true);
 
   const handleSubmit = async (values, actions) => {
-    const latlon = await getUserLocation()
+    const location = await getUserLocation();
     
     if (!uploadedImage || !capturedImage) {
       toast({
@@ -74,8 +75,10 @@ function Register() {
       formData.append('email', values.email);
       formData.append('password', values.password);
       formData.append('fullName', values.fullName);
-      formData.append('location', latlon)
-      formData.append('gender', values.gender)
+      formData.append('age', values.age);
+      formData.append('gender', values.gender);
+      formData.append('latitude', location.latitude);
+      formData.append('longitude', location.longitude);
       
       // Convert base64 to Blob and append to FormData
       const uploadedPhotoBlob = await fetch(uploadedImage).then(r => r.blob());
@@ -100,19 +103,9 @@ function Register() {
     } catch (error) {
       console.error('Registration error:', error.response?.data || error);
       
-      let errorTitle = 'Registration Failed';
-      let errorMessage = 'An error occurred during registration.';
-      
-      if (error.response?.data?.message) {
-        errorTitle = error.response.data.message;
-      }
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-    
       toast({
-        title: errorTitle,
-        description: errorMessage,
+        title: 'Registration Failed',
+        description: error.response?.data?.message || 'An error occurred during registration.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -136,17 +129,17 @@ function Register() {
   };
 
   return (
-    <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="2xl" boxShadow="2xl" bg="white">
+    <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg">
       <VStack spacing={8} align="stretch">
-        <Heading textAlign="center" color="teal.600">Register</Heading>
+        <Heading textAlign="center">Register</Heading>
         <Formik
-          initialValues={{ username: '', password: '', email: '', fullName: '', gender: '' }}
+          initialValues={{ username: '', password: '', email: '', fullName: '', age: '', gender: '' }}
           validationSchema={RegisterSchema}
           onSubmit={handleSubmit}
         >
           {({ errors, touched, isSubmitting }) => (
             <Form>
-              <VStack spacing={6}>
+              <VStack spacing={4}>
                 <Field name="username">
                   {({ field }) => (
                     <FormControl isInvalid={errors.username && touched.username}>
@@ -158,8 +151,8 @@ function Register() {
                 </Field>
 
                 <Field name="password">
-                  {({ field, form }) => (
-                    <FormControl isInvalid={form.errors.password && form.touched.password}>
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.password && touched.password}>
                       <FormLabel htmlFor="password">Password</FormLabel>
                       <InputGroup>
                         <Input
@@ -167,14 +160,6 @@ function Register() {
                           id="password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Enter your password"
-                          onBlur={(e) => {
-                            field.onBlur(e);
-                            setPasswordTouched(true);
-                          }}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            setPasswordValid(RegisterSchema.fields.password.isValidSync(e.target.value));
-                          }}
                         />
                         <InputRightElement>
                           <IconButton
@@ -185,12 +170,7 @@ function Register() {
                           />
                         </InputRightElement>
                       </InputGroup>
-                      <FormErrorMessage>{form.errors.password}</FormErrorMessage>
-                      {passwordTouched && !passwordValid && (
-                        <Text fontSize="sm" color="gray.600" mt={1}>
-                          Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&.).
-                        </Text>
-                      )}
+                      <FormErrorMessage>{errors.password}</FormErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -215,6 +195,16 @@ function Register() {
                   )}
                 </Field>
 
+                <Field name="age">
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.age && touched.age}>
+                      <FormLabel htmlFor="age">Age</FormLabel>
+                      <Input {...field} id="age" type="number" placeholder="Enter your age" />
+                      <FormErrorMessage>{errors.age}</FormErrorMessage>
+                    </FormControl>
+                  )}
+                </Field>
+
                 <Field name="gender">
                   {({ field }) => (
                     <FormControl isInvalid={errors.gender && touched.gender}>
@@ -234,21 +224,15 @@ function Register() {
                 </Button>
 
                 {uploadedImage && capturedImage && (
-                  <Text color="blue.500" fontWeight="bold">
-                    Images captured. Click 'Register' to complete the process.
-                   </Text>
-                  )}
+                  <Text color="green.500">Face verification completed</Text>
+                )}
 
                 <Button
                   mt={4}
-                  colorScheme="teal"
+                  colorScheme="blue"
                   isLoading={isSubmitting}
                   type="submit"
                   width="full"
-                  size="lg"
-                  boxShadow="md"
-                  _hover={{ boxShadow: 'lg' }}
-                  isDisabled={!uploadedImage || !capturedImage}
                 >
                   Register
                 </Button>

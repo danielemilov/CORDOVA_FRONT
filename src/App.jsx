@@ -1,23 +1,24 @@
-// App.jsx
-
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, useToast } from "@chakra-ui/react";
 import { io } from "socket.io-client";
 import theme from "./theme";
 import MainPage from "./components/MainPage";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import EmailVerification from "./components/EmailVerification";
+import Settings from "./components/Settings";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
   const [socket, setSocket] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
-   
     const token = localStorage.getItem('token');
     if (user && token && !socket) {
       const newSocket = io(API_BASE_URL, {
@@ -44,13 +45,26 @@ function App() {
         }
       });
 
+      // New event listener for notifications
+      newSocket.on('new notification', (notification) => {
+        if (notification.type === 'new_message') {
+          toast({
+            title: "New Message",
+            description: `New message from ${notification.message.sender.username}`,
+            status: "info",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      });
+
       return () => {
         if (newSocket) {
           newSocket.disconnect();
         }
       };
     }
-  }, [user]);
+  }, [user, toast]);
 
   const handleLogout = () => {
     setUser(null);
@@ -62,27 +76,34 @@ function App() {
     }
   };
 
-
   return (
     <ChakraProvider theme={theme}>
       <Router>
         <Routes>
           {user ? (
-            <Route
-              path="/"
-              element={
-                <MainPage
-                  user={user}
-                  setUser={setUser}
-                  socket={socket}
-                  onLogout={handleLogout}
-                />
-              }
-            />
+            <>
+              <Route
+                path="/"
+                element={
+                  <MainPage
+                    user={user}
+                    setUser={setUser}
+                    socket={socket}
+                    onLogout={handleLogout}
+                  />
+                }
+              />
+              <Route
+                path="/settings"
+                element={<Settings user={user} setUser={setUser} />}
+              />
+            </>
           ) : (
             <>
               <Route path="/login" element={<Login setUser={setUser} />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
             </>
           )}
           <Route path="/verify-email/:token" element={<EmailVerification />} />

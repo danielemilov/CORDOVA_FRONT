@@ -10,31 +10,36 @@ import {
   Spinner,
   Flex,
   Avatar,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Textarea,
 } from "@chakra-ui/react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
-import { FaPaperPlane } from "react-icons/fa";
+import { ArrowBackIcon, DeleteIcon, EditIcon, CheckIcon, CloseIcon } from "@chakra-ui/icons";
+import { FaPaperPlane, FaEllipsisV } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 import api from "../api";
 
 const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
-  console.log("Current user in Chat:", currentUser);
-  console.log("Other user in Chat:", otherUser);
-
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
+  const [editingMessage, setEditingMessage] = useState(null);
   const toast = useToast();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) return;
   
     try {
-      const response = await api.get(`/api/messages/${otherUser._id}?page=${pageNum}&limit=10`);
+      const response = await api.get(`/api/messages/${otherUser._id}?page=${pageNum}&limit=20`);
       const data = response.data;
       setMessages(prevMessages => [...data.messages.reverse(), ...prevMessages]);
       setHasMore(data.hasMore);
@@ -60,9 +65,35 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
       socket.on("private message", (message) => {
         setMessages((prevMessages) => [...prevMessages, message]);
       });
+
+      socket.on("user typing", (typingUserId) => {
+        if (typingUserId === otherUser._id) {
+          setIsTyping(true);
+        }
+      });
+
+      socket.on("user stop typing", (typingUserId) => {
+        if (typingUserId === otherUser._id) {
+          setIsTyping(false);
+        }
+      });
+
+      socket.on("message unsent", ({ messageId }) => {
+        setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
+      });
+
+      socket.on("message edited", (editedMessage) => {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => (msg._id === editedMessage._id ? editedMessage : msg))
+        );
+      });
   
       return () => {
         socket.off("private message");
+        socket.off("user typing");
+        socket.off("user stop typing");
+        socket.off("message unsent");
+        socket.off("message edited");
       };
     }
   }, [isOpen, socket, currentUser, otherUser, fetchMessages]);
@@ -98,6 +129,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
+    socket.emit("typing", { recipientId: otherUser._id });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stop typing", { recipientId: otherUser._id });
+    }, 3000);
   };
 
   const handleKeyDown = (e) => {
@@ -107,7 +144,50 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     }
   };
 
-  if (!isOpen) return null;
+  const handleUnsendMessage = (messageId) => {
+    socket.emit("message unsent", { messageId, recipientId: otherUser._id }, (error) => {
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to unsend message. Please try again.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
+      }
+    });
+  };
+
+  const handleEditMessage = (message) => {
+    setEditingMessage(message);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMessage) return;
+
+    socket.emit("message edited", {
+      messageId: editingMessage._id,
+      newContent: editingMessage.content,
+      recipientId: otherUser._id
+    }, (error, updatedMessage) => {
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to edit message. Please try again.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => (msg._id === updatedMessage._id ? updatedMessage : msg))
+        );
+        setEditingMessage(null);
+      }
+    });
+  };
 
   const formatMessageTime = (timestamp) => {
     const messageDate = new Date(timestamp);
@@ -123,13 +203,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
   };
 
   const renderMessage = (msg, index, messages) => {
-    console.log("Rendering message:", msg);
-    console.log("Current user:", currentUser);
-    console.log("Message sender ID:", msg.sender._id);
-    
     const isSentByCurrentUser = currentUser && msg.sender._id === currentUser._id;
-    console.log("Is sent by current user:", isSentByCurrentUser);
-
     const isFirstMessageInSequence = index === 0 || messages[index - 1].sender._id !== msg.sender._id;
   
     return (
@@ -156,11 +230,56 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
           p={3}
           boxShadow="md"
         >
-          <Text>{msg.content}</Text>
-          <Text fontSize="xs" textAlign="right" mt={1} opacity={0.8}>
-            {formatMessageTime(msg.timestamp)}
-          </Text>
+          {editingMessage && editingMessage._id === msg._id ? (
+            <VStack>
+              <Textarea
+                value={editingMessage.content}
+                onChange={(e) => setEditingMessage({...editingMessage, content: e.target.value})}
+                size="sm"
+              />
+              <HStack>
+                <IconButton
+                  icon={<CheckIcon />}
+                  size="xs"
+                  onClick={handleSaveEdit}
+                  aria-label="Save edit"
+                />
+                <IconButton
+                  icon={<CloseIcon />}
+                  size="xs"
+                  onClick={() => setEditingMessage(null)}
+                  aria-label="Cancel edit"
+                />
+              </HStack>
+            </VStack>
+          ) : (
+            <>
+              <Text>{msg.content}</Text>
+              <Text fontSize="xs" textAlign="right" mt={1} opacity={0.8}>
+                {formatMessageTime(msg.timestamp)}
+              </Text>
+            </>
+          )}
         </Box>
+        {isSentByCurrentUser && (
+          <Menu>
+            <MenuButton
+              as={IconButton}
+              icon={<FaEllipsisV />}
+              variant="ghost"
+              size="xs"
+              ml={2}
+            />
+            <MenuList>
+              <MenuItem icon={<EditIcon />} onClick={() => handleEditMessage(msg)}>
+                Edit
+              </MenuItem>
+              <MenuItem icon={<DeleteIcon />} onClick={() => handleUnsendMessage(msg._id)}>
+                Unsend
+              </MenuItem>
+            </MenuList>
+          </Menu>
+        )}
         {isSentByCurrentUser && isFirstMessageInSequence && (
           <Avatar 
             size="sm" 
@@ -174,6 +293,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
       </Flex>
     );
   };
+
+  if (!isOpen) return null;
 
   return (
     <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="gray.50" zIndex={1000}>
@@ -206,6 +327,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
           </InfiniteScroll>
           <div ref={messagesEndRef} />
         </Box>
+        {isTyping && (
+          <Text fontSize="sm" fontStyle="italic" ml={4} mb={2}>
+            {otherUser.username} is typing...
+          </Text>
+        )}
         <Box p={4} bg="white" boxShadow="0 -2px 10px rgba(0,0,0,0.05)">
           <HStack>
             <Input

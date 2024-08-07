@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Box, Image, Text, Badge, IconButton, HStack, VStack, Tooltip } from '@chakra-ui/react';
 import { ChatIcon } from '@chakra-ui/icons';
+import { formatDistanceToNow } from 'date-fns';
 
 const UserCard = memo(({ user, onUserClick, onChatClick }) => (
   <Box
@@ -21,7 +22,7 @@ const UserCard = memo(({ user, onUserClick, onChatClick }) => (
         alt={user.username}
         objectFit="cover"
         boxSize="60px"
-        borderRadius="l"
+        borderRadius="lg"
         fallbackSrc="https://via.placeholder.com/100"
       />
       <VStack align="start" flex={1} spacing={1}>
@@ -34,6 +35,11 @@ const UserCard = memo(({ user, onUserClick, onChatClick }) => (
         <Text fontSize="xs" color="gray.500" noOfLines={1}>
           {user.location || 'No location'}
         </Text>
+        {!user.isOnline && user.lastSeen && (
+          <Text fontSize="xs" color="gray.500">
+            Last seen: {formatDistanceToNow(new Date(user.lastSeen), { addSuffix: true })}
+          </Text>
+        )}
       </VStack>
       <Tooltip label={user.isOnline ? 'Online' : 'Offline'} placement="top">
         <Badge
