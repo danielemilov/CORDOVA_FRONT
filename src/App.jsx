@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// App.jsx
+import React, { useState, useEffect, useCallback } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import { ChakraProvider, useToast } from "@chakra-ui/react";
 import { io } from "socket.io-client";
@@ -18,7 +19,7 @@ function App() {
   const [socket, setSocket] = useState(null);
   const toast = useToast();
 
-  useEffect(() => {
+  const setupSocket = useCallback(() => {
     const token = localStorage.getItem('token');
     if (user && token && !socket) {
       const newSocket = io(API_BASE_URL, {
@@ -45,7 +46,11 @@ function App() {
         }
       });
 
-      // New event listener for notifications
+      newSocket.on('user status', ({ userId, isOnline }) => {
+        console.log('User status update:', userId, isOnline);
+        // You might want to update the user list here if you're keeping it in the App state
+      });
+
       newSocket.on('new notification', (notification) => {
         if (notification.type === 'new_message') {
           toast({
@@ -58,15 +63,20 @@ function App() {
         }
       });
 
-      return () => {
-        if (newSocket) {
-          newSocket.disconnect();
-        }
-      };
+      return newSocket;
     }
+    return null;
   }, [user, toast]);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    const newSocket = setupSocket();
+    if (newSocket) {
+      setSocket(newSocket);
+      return () => newSocket.disconnect();
+    }
+  }, [setupSocket]);
+
+  const handleLogout = useCallback(() => {
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -74,7 +84,7 @@ function App() {
       socket.disconnect();
       setSocket(null);
     }
-  };
+  }, [socket]);
 
   return (
     <ChakraProvider theme={theme}>

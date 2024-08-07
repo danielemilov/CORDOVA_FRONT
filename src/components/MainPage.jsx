@@ -1,3 +1,4 @@
+// MainPage.jsx
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { 
   Box, 
@@ -71,9 +72,14 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         }
       });
 
-      const newUsers = response.data.users || [];
-      setUsers(prevUsers => [...prevUsers, ...newUsers]);
-      setHasMore(response.data.hasMore);
+      const newUsers = response.data || [];
+      console.log('Fetched users:', newUsers);
+      setUsers(prevUsers => {
+        const updatedUsers = [...prevUsers, ...newUsers];
+        console.log('Updated users state:', updatedUsers);
+        return updatedUsers;
+      });
+      setHasMore(newUsers.length === 15);
       setPage(prevPage => prevPage + 1);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -96,8 +102,9 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   useEffect(() => {
     if (socket) {
       socket.on('user status', ({ userId, isOnline }) => {
+        console.log('User status update received:', userId, isOnline);
         setUsers(prevUsers => 
-          prevUsers.map(u => u.id === userId ? { ...u, isOnline } : u)
+          prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
         );
       });
 
@@ -120,7 +127,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   const handleDeleteAccount = useCallback(async () => {
     if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
       try {
-        await api.delete(`/api/users/${user.id}`);
+        await api.delete(`/api/users/${user._id}`);
         onLogout();
         toast({
           title: "Account Deleted",
@@ -140,7 +147,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         });
       }
     }
-  }, [user.id, onLogout, toast]);
+  }, [user._id, onLogout, toast]);
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -180,9 +187,10 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   return (
     <Box>
       <Box position="fixed" top={0} left={0} right={0} p={4} bg="black" boxShadow="md" zIndex={10}>
-        <Flex justify="space-between" align="center">
+        <Flex justify="space-between" align="center" >
           <IconButton
-            icon={<HamburgerIcon color="white" />}
+            bg='black'
+            icon={<HamburgerIcon color="white"/>}
             onClick={onDrawerOpen}
             aria-label="Open menu"
           />
@@ -193,6 +201,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
               onClick={onFilterOpen}
               aria-label="Open filters"
               mr={2}
+              bg='black'
             />
             <Avatar src={user.photo} name={user.username} size="sm" />
           </Flex>
@@ -202,7 +211,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
       <VStack spacing={4} align="stretch" mt={20} pb={20} px={4}>
         {users.map((u) => (
           <UserCard 
-            key={u.id}
+            key={u._id}
             user={u} 
             onUserClick={handleUserClick}
             onChatClick={handleChatClick}
