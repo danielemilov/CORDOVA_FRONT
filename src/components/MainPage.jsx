@@ -72,7 +72,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         }
       });
 
-      const newUsers = response.data.users;
+      const newUsers = response.data.users || [];  // Ensure newUsers is an array
       setUsers(prevUsers => [...prevUsers, ...newUsers]);
       setHasMore(response.data.hasMore);
       setPage(prevPage => prevPage + 1);
@@ -278,10 +278,12 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
                 isChecked={filters.lastOnline} 
                 onChange={handleFilterChange}
               >
-                Online in last hour
+                Last Online
               </Checkbox>
-              <Button onClick={resetFilters}>Reset Filters</Button>
-              <Button onClick={applyFilters} colorScheme="blue">Apply Filters</Button>
+              <Flex justify="space-between">
+                <Button onClick={resetFilters}>Reset</Button>
+                <Button colorScheme="teal" onClick={applyFilters}>Apply</Button>
+              </Flex>
             </VStack>
           </DrawerBody>
         </DrawerContent>
@@ -289,22 +291,18 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
 
       <Suspense fallback={<Spinner />}>
         {selectedUser && (
-          <UserProfile 
-            user={selectedUser} 
-            isOpen={isProfileOpen} 
-            onClose={onProfileClose}
-            onChatClick={handleChatClick}
-          />
-        )}
-
-        {selectedUser && (
-          <Chat
-            currentUser={user}  
-            otherUser={selectedUser}
-            isOpen={isChatOpen}
-            onClose={onChatClose}
-            socket={socket}
-          />
+          <>
+            <UserProfile 
+              user={selectedUser}
+              isOpen={isProfileOpen}
+              onClose={onProfileClose}
+            />
+            <Chat 
+              user={selectedUser}
+              isOpen={isChatOpen}
+              onClose={onChatClose}
+            />
+          </>
         )}
       </Suspense>
     </Box>
