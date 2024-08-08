@@ -2,14 +2,13 @@ import React, { useState, useEffect, useCallback } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import { ChakraProvider, useToast } from "@chakra-ui/react";
 import { io } from "socket.io-client";
-import theme from "./theme";
+import theme, { GlobalStyle } from "./SharedStyles";
 import MainPage from "./components/MainPage";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import EmailVerification from "./components/EmailVerification";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
-import Header from "./components/Header";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
@@ -75,6 +74,7 @@ function App() {
 
   return (
     <ChakraProvider theme={theme}>
+      <GlobalStyle />
       <Router>
         <Routes>
           {user ? (

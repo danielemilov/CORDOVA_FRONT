@@ -1,82 +1,123 @@
 import React from 'react';
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Image,
-  Badge,
-  Button,
-  IconButton,
-} from '@chakra-ui/react';
-import { ArrowBackIcon, ChatIcon } from '@chakra-ui/icons';
+import styled from 'styled-components';
+import { FaArrowLeft, FaBirthdayCake, FaMapMarkerAlt } from 'react-icons/fa';
+import { Avatar, Username, Description, StatusDot, Button } from '../SharedStyles';
+
+const ProfileWrapper = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  z-index: 1000;
+  overflow-y: auto;
+`;
+
+const Header = styled.header`
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background: #333;
+  color: white;
+`;
+
+const BackButton = styled.button`
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  margin-right: 20px;
+`;
+
+const Content = styled.div`
+  padding: 20px;
+`;
+
+const ProfileAvatar = styled(Avatar)`
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 20px;
+  display: block;
+`;
+
+const ProfileInfo = styled.div`
+  text-align: center;
+`;
+
+const AgeAndLocation = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+`;
+
+const IconWrapper = styled.span`
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+`;
+
+const BirthdayMessage = styled.div`
+  margin-top: 10px;
+  font-size: 14px;
+  color: #FF69B4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ChatButton = styled(Button)`
+  margin-top: 20px;
+  width: 100%;
+`;
+
+const formatDistance = (distance) => {
+  if (distance === null || distance === undefined) return 'Unknown distance';
+  if (distance < 1) return 'Less than 1 km away';
+  if (distance < 10) return `${distance.toFixed(1)} km away`;
+  return `${Math.round(distance)} km away`;
+};
 
 const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
   if (!isOpen) return null;
 
   return (
-    <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="white" zIndex={1000}>
-      <VStack align="stretch" h="100%">
-        <Box p={4} bg="black" color="white">
-          <HStack>
-            <IconButton
-              icon={<ArrowBackIcon />}
-              onClick={onClose}
-              variant="ghost"
-              color="white"
-              aria-label="Go back"
-            />
-            <Text fontWeight="bold">{user.username}'s Profile</Text>
-          </HStack>
-        </Box>
-        <VStack spacing={4} p={4} overflowY="auto">
-          <Image
-            src={user.photo || 'https://via.placeholder.com/200'}
-            alt={user.username}
-            borderRadius="full"
-            boxSize="200px"
-            objectFit="cover"
-          />
-          <Text fontWeight="bold" fontSize="2xl">{user.fullName || user.username}</Text>
-          <Badge colorScheme={user.isOnline ? "green" : "red"} fontSize="md" px={2} py={1}>
-            {user.isOnline ? "Online" : "Offline"}
-          </Badge>
-          <VStack spacing={2} align="center" w="100%">
-            {user.title && (
-              <Text fontSize="lg" fontWeight="medium" color="gray.700">
-                {user.title}
-              </Text>
-            )}
-            {user.location && (
-              <Text fontSize="md" color="gray.600">
-                📍 {user.location.city || 'Unknown location'}
-              </Text>
-            )}
+    <ProfileWrapper>
+      <Header>
+        <BackButton onClick={onClose}><FaArrowLeft /></BackButton>
+        <Username>{user.username}'s Profile</Username>
+      </Header>
+      <Content>
+        <ProfileAvatar src={user.photo || 'https://via.placeholder.com/120'} alt={user.username} />
+        <ProfileInfo>
+          <Username>{user.username} <StatusDot online={user.isOnline} /></Username>
+          <AgeAndLocation>
             {user.age && (
-              <Text fontSize="md" color="gray.600">
-                🎂 {user.age} years old
-              </Text>
+              <IconWrapper>
+                {user.age} years
+              </IconWrapper>
             )}
-          </VStack>
-          {user.description && (
-            <Box w="100%" bg="gray.50" p={4} borderRadius="md">
-              <Text fontSize="md" color="gray.700" textAlign="center">
-                {user.description}
-              </Text>
-            </Box>
+            <IconWrapper>
+              <FaMapMarkerAlt />
+              {formatDistance(user.distance)}
+            </IconWrapper>
+          </AgeAndLocation>
+          {user.birthDate && (
+            <BirthdayMessage>
+              <FaBirthdayCake style={{ marginRight: '5px' }} />
+              Birthday today!
+            </BirthdayMessage>
           )}
-          <Button
-            colorScheme="green"
-            w="100%"
-            size="lg"
-            onClick={() => onChatClick(user)}
-            leftIcon={<ChatIcon />}
-          >
-            Chat with {user.username}
-          </Button>
-        </VStack>
-      </VStack>
-    </Box>
+          <Description>{user.description}</Description>
+        </ProfileInfo>
+        <ChatButton onClick={() => onChatClick(user)}>
+          Chat with {user.username}
+        </ChatButton>
+      </Content>
+    </ProfileWrapper>
   );
 };
 

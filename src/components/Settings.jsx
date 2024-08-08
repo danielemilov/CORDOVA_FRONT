@@ -9,8 +9,6 @@ import {
   Button,
   useToast,
   Avatar,
-  IconButton,
-  Flex,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -19,11 +17,11 @@ import {
   ModalBody,
   ModalCloseButton,
 } from '@chakra-ui/react';
-import { ArrowBackIcon } from '@chakra-ui/icons';
 import api from '../api';
 
 function Settings({ user, setUser, isOpen, onClose }) {
   const [formData, setFormData] = useState({
+    username: '',
     description: '',
     age: '',
   });
@@ -33,6 +31,7 @@ function Settings({ user, setUser, isOpen, onClose }) {
   useEffect(() => {
     if (user) {
       setFormData({
+        username: user.username || '',
         description: user.description || '',
         age: user.age || '',
       });
@@ -46,8 +45,8 @@ function Settings({ user, setUser, isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(`/api/users/profile`, formData);
-      setUser(response.data);
+      const response = await api.put('/api/users/profile', formData);
+      setUser(response.data.user);
       toast({
         title: "Profile Updated",
         status: "success",
@@ -100,44 +99,35 @@ function Settings({ user, setUser, isOpen, onClose }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="md">
+    <Modal isOpen={isOpen} onClose={onClose}>
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>
-          <Flex align="center">
-            <IconButton
-              icon={<ArrowBackIcon />}
-              onClick={onClose}
-              variant="ghost"
-              mr={2}
-              aria-label="Go back"
-            />
-            <Heading size="lg">Settings</Heading>
-          </Flex>
-        </ModalHeader>
+        <ModalHeader>Settings</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <VStack spacing={6} align="stretch">
-            <Flex direction="column" align="center">
-              <Avatar size="2xl" name={user.username} src={user.photo} mb={4} />
-              <FormControl>
-                <FormLabel htmlFor="photo" cursor="pointer" mb={2}>
-                  <Button as="span" colorScheme="blue" size="sm">
-                    Change Profile Photo
-                  </Button>
-                </FormLabel>
-                <Input
-                  type="file"
-                  id="photo"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  disabled={isUploading}
-                  display="none"
-                />
-              </FormControl>
-            </Flex>
+          <VStack spacing={6}>
+            <Avatar size="2xl" name={user.username} src={user.photo} />
+            <FormControl>
+              <FormLabel htmlFor="photo">Change Profile Photo</FormLabel>
+              <Input
+                type="file"
+                id="photo"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                disabled={isUploading}
+              />
+            </FormControl>
             <form onSubmit={handleSubmit} style={{ width: '100%' }}>
               <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel htmlFor="username">Username</FormLabel>
+                  <Input
+                    id="username"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                  />
+                </FormControl>
                 <FormControl>
                   <FormLabel htmlFor="description">Description</FormLabel>
                   <Input

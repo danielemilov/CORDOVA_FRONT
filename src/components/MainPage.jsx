@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Box,
   VStack,
-  Button,
   useToast,
   Spinner,
   useDisclosure,
@@ -13,7 +12,6 @@ import {
   DrawerContent,
   DrawerCloseButton,
   Flex,
-  Avatar,
   Heading,
   IconButton,
   Input,
@@ -22,21 +20,161 @@ import { HamburgerIcon, SettingsIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
 import { getUserLocation } from '../utils';
+import { GlobalStyle } from '../SharedStyles';
+import styled from 'styled-components';
+import { FaSearch, FaBars, FaUser } from 'react-icons/fa';
+
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
 const Settings = lazy(() => import("./Settings"));
+
+const MainWrapper = styled.div`
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Roboto', sans-serif;
+`;
+
+const Header = styled.header`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 15px 20px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 1000;
+`;
+
+const Logo = styled.h1`
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+`;
+
+const MenuButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #333;
+  cursor: pointer;
+`;
+
+const SearchWrapper = styled.div`
+  position: relative;
+  margin-top: 70px;
+  margin-bottom: 20px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 12px 20px;
+  padding-left: 40px;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  background-color: #f0f0f0;
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #333;
+  }
+`;
+
+const SearchIcon = styled(FaSearch)`
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+`;
+
+const UserList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+`;
+
+const LoadMoreButton = styled.button`
+  margin-top: 20px;
+  width: 100%;
+  padding: 12px;
+  background-color: #333;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #555;
+  }
+`;
+
+const Menu = styled.div`
+  position: fixed;
+  top: 0;
+  left: ${props => props.isOpen ? '0' : '-300px'};
+  width: 300px;
+  height: 100%;
+  background-color: #fff;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  transition: left 0.3s ease;
+  z-index: 1001;
+`;
+
+const MenuHeader = styled.div`
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+`;
+
+const ProfilePic = styled.img`
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin-right: 15px;
+`;
+
+const Username = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+`;
+
+const MenuItems = styled.ul`
+  list-style-type: none;
+  padding: 0;
+`;
+
+const MenuItem = styled.li`
+  padding: 15px 20px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: #f0f0f0;
+  }
+`;
 
 const MainPage = ({ user, setUser, socket, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState('');
-  const { isOpen: isProfileOpen, onOpen: onProfileOpen, onClose: onProfileClose } = useDisclosure();
-  const { isOpen: isChatOpen, onOpen: onChatOpen, onClose: onChatClose } = useDisclosure();
-  const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
-  const { isOpen: isSettingsOpen, onOpen: onSettingsOpen, onClose: onSettingsClose } = useDisclosure();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const toast = useToast();
 
@@ -134,88 +272,91 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
 
   const handleUserClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
-    onProfileOpen();
-  }, [onProfileOpen]);
+    setIsProfileOpen(true);
+  }, []);
 
   const handleChatClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
-    onChatOpen();
-  }, [onChatOpen]);
+    setIsChatOpen(true);
+  }, []);
+
+  const onProfileOpen = () => {
+    setIsProfileOpen(true);
+  };
+
+  const onChatOpen = () => {
+    setIsChatOpen(true);
+  };
 
   const filteredUsers = users.filter(u => 
     u.username.toLowerCase().includes(filter.toLowerCase()) ||
-    (u.title && u.title.toLowerCase().includes(filter.toLowerCase()))
+    (u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
   );
 
   return (
-    <Box>
-      <Box position="fixed" top={0} left={0} right={0} p={4} bg="black" boxShadow="md" zIndex={10}>
-        <Flex justify="space-between" align="center">
-          <IconButton
-            icon={<HamburgerIcon />}
-            onClick={onDrawerOpen}
-            variant="outline"
-            color="white"
-            aria-label="Menu"
+    <>
+      <GlobalStyle />
+      <MainWrapper>
+        <Header>
+          <MenuButton onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            <FaBars />
+          </MenuButton>
+          <Logo>MXY</Logo>
+          <div style={{width: '24px'}} /> {/* Placeholder for balance */}
+        </Header>
+        <SearchWrapper>
+          <SearchIcon />
+          <SearchInput
+            placeholder="Search users..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
           />
-          <Heading fontSize="xl" color="white">MXY</Heading>
-          <Avatar 
-            src={user.photo} 
-            name={user.username} 
-            size="sm" 
-          />
-        </Flex>
-      </Box>
-
-      <VStack spacing={4} align="stretch" mt={20} pb={20} px={4}>
-        <Input
-          placeholder="Search users..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          mb={4}
-        />
-        {filteredUsers.map((u) => (
-          <UserCard 
-            key={u._id}
-            user={u} 
-            onUserClick={handleUserClick}
-            onChatClick={handleChatClick}
-          />
-        ))}
-        {isLoading && <Spinner />}
+        </SearchWrapper>
+        <UserList>
+          {filteredUsers.map((u) => (
+            <UserCard 
+              key={u._id}
+              user={u} 
+              onUserClick={() => {
+                setSelectedUser(u);
+                setIsProfileOpen(true);
+              }}
+              onChatClick={() => {
+                setSelectedUser(u);
+                setIsChatOpen(true);
+              }}
+            />
+          ))}
+        </UserList>
+        {isLoading && <p>Loading...</p>}
         {!isLoading && hasMore && (
-          <Button onClick={fetchUsers} colorScheme="teal">
+          <LoadMoreButton onClick={fetchUsers}>
             Load More
-          </Button>
+          </LoadMoreButton>
         )}
-      </VStack>
+      </MainWrapper>
 
-      <Drawer isOpen={isDrawerOpen} placement="left" onClose={onDrawerClose}>
-        <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerHeader>Menu</DrawerHeader>
-          <DrawerBody>
-            <VStack spacing={4} align="stretch">
-              <Button leftIcon={<SettingsIcon />} onClick={() => {
-                onDrawerClose();
-                onSettingsOpen();
-              }}>
-                Settings
-              </Button>
-              <Button onClick={onLogout}>Logout</Button>
-            </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+      <Menu isOpen={isMenuOpen}>
+        <MenuHeader>
+          <ProfilePic src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
+          <Username>{user.username}</Username>
+        </MenuHeader>
+        <MenuItems>
+          <MenuItem onClick={() => setIsSettingsOpen(true)}>Edit Profile</MenuItem>
+          <MenuItem onClick={onLogout}>Logout</MenuItem>
+        </MenuItems>
+      </Menu>
 
-      <Suspense fallback={<Spinner />}>
+      <Suspense fallback={<div>Loading...</div>}>
         {selectedUser && (
           <UserProfile 
             user={selectedUser} 
             isOpen={isProfileOpen} 
-            onClose={onProfileClose}
-            onChatClick={handleChatClick}
+            onClose={() => setIsProfileOpen(false)}
+            onChatClick={() => {
+              setIsProfileOpen(false);
+              setIsChatOpen(true);
+            }}
           />
         )}
 
@@ -224,7 +365,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
             currentUser={user}
             otherUser={selectedUser}
             isOpen={isChatOpen}
-            onClose={onChatClose}
+            onClose={() => setIsChatOpen(false)}
             socket={socket}
           />
         )}
@@ -233,10 +374,10 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           user={user}
           setUser={setUser}
           isOpen={isSettingsOpen}
-          onClose={onSettingsClose}
+          onClose={() => setIsSettingsOpen(false)}
         />
       </Suspense>
-    </Box>
+    </>
   );
 };
 
