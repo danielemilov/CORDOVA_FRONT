@@ -92,19 +92,21 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       });
       return;
     }
-
+  
     try {
       const formData = new FormData();
       formData.append('uploadedImage', dataURItoBlob(uploadedImage));
       formData.append('capturedImage', dataURItoBlob(capturedImage));
-
+  
+      const token = localStorage.getItem('token'); // Get the token from localStorage
+  
       const response = await axios.post('/api/verify-face', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // Add the auth token
+          'Authorization': `Bearer ${token}`
         }
       });
-
+  
       if (response.data.isVerified) {
         onVerificationComplete(uploadedImage);
         onClose();
