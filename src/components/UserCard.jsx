@@ -2,6 +2,13 @@ import React from 'react';
 import { Box, Image, Text, Badge, IconButton, HStack, VStack, Tooltip } from '@chakra-ui/react';
 import { ChatIcon } from '@chakra-ui/icons';
 
+const formatDistance = (distance) => {
+  if (distance === null || distance === undefined) return 'Unknown distance';
+  if (distance < 1) return 'Less than 1 km away';
+  if (distance < 10) return `${distance.toFixed(1)} km away`;
+  return `${Math.round(distance)} km away`;
+};
+
 const UserCard = ({ user, onUserClick, onChatClick }) => (
   <Box 
     borderWidth="1px" 
@@ -32,16 +39,12 @@ const UserCard = ({ user, onUserClick, onChatClick }) => (
           {user.title || 'No title'}
         </Text>
         <Text fontSize="xs" color="gray.500">
-  {user.location && user.location.coordinates ? 
-    (user.distance !== null 
-      ? `📍 ${user.distance.toFixed(2)} km away` 
-      : `📍 ${user.location.city || 'Unknown city'}`)
-    : '📍 Location unknown'}
-</Text>
+          📍 {formatDistance(user.distance)}
+        </Text>
       </VStack>
       <Tooltip label={user.isOnline ? 'Online' : 'Offline'} placement="top">
         <Badge 
-          colorScheme={user.isOnline ? 'green' : 'red'} 
+          colorScheme={user.isOnline ? "green" : "red"} 
           position="absolute" 
           top="2" 
           right="2"

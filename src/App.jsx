@@ -1,4 +1,3 @@
-// App.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import { ChakraProvider, useToast } from "@chakra-ui/react";
@@ -77,7 +76,6 @@ function App() {
   return (
     <ChakraProvider theme={theme}>
       <Router>
-        {user && <Header user={user} onLogout={handleLogout} />}
         <Routes>
           {user ? (
             <Route

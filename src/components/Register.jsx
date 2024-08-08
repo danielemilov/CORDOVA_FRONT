@@ -14,13 +14,6 @@ import {
   Text,
   Checkbox,
   Link,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
   RadioGroup,
   Radio,
   HStack,
@@ -47,7 +40,7 @@ const RegisterSchema = Yup.object().shape({
     .max(new Date(Date.now() - 567648000000), 'You must be at least 18 years old')
     .required('Birth date is required'),
   gender: Yup.string()
-    .oneOf(['male', 'female'], 'Please select a gender')
+    .oneOf(['male', 'female', 'other'], 'Please select a gender')
     .required('Gender is required'),
   agreedToPrivacyPolicy: Yup.boolean()
     .oneOf([true], 'You must agree to the privacy policy')
@@ -59,11 +52,11 @@ function Register() {
   const toast = useToast();
   const [isVerificationComplete, setIsVerificationComplete] = useState(false);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [showFaceVerification, setShowFaceVerification] = useState(false);
 
   const handleSubmit = async (values, actions) => {
     if (!isVerificationComplete) {
-      onOpen();
+      setShowFaceVerification(true);
       return;
     }
 
@@ -71,12 +64,20 @@ function Register() {
       const location = await getUserLocation();
       const formData = new FormData();
       Object.keys(values).forEach(key => {
-        formData.append(key, key === 'birthDate' ? values[key].toISOString() : values[key]);
+        if (key === 'birthDate') {
+          const birthDate = new Date(values[key]);
+          formData.append(key, birthDate.toISOString());
+        } else {
+          formData.append(key, values[key]);
+        }
       });
       formData.append('latitude', location.latitude);
       formData.append('longitude', location.longitude);
+      
       if (uploadedPhoto) {
-        formData.append('photo', uploadedPhoto);
+        const response = await fetch(uploadedPhoto);
+        const blob = await response.blob();
+        formData.append('photo', blob, 'user_photo.jpg');
       }
 
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
@@ -110,7 +111,7 @@ function Register() {
   const handleVerificationComplete = (photo) => {
     setIsVerificationComplete(true);
     setUploadedPhoto(photo);
-    onClose();
+    setShowFaceVerification(false);
     toast({
       title: "Face Verification Completed",
       description: "You can now proceed with registration.",
@@ -125,11 +126,11 @@ function Register() {
       <VStack spacing={8} align="stretch">
         <Heading textAlign="center">Register</Heading>
         <Formik
-          initialValues={{ 
-            username: '', 
-            password: '', 
-            email: '', 
-            birthDate: '', 
+          initialValues={{
+            username: '',
+            email: '',
+            password: '',
+            birthDate: '',
             gender: '',
             agreedToPrivacyPolicy: false,
           }}
@@ -142,19 +143,9 @@ function Register() {
                 <Field name="username">
                   {({ field }) => (
                     <FormControl isInvalid={errors.username && touched.username}>
-                      <FormLabel htmlFor="username">Username</FormLabel>
-                      <Input {...field} id="username" placeholder="Enter your username" />
+                      <FormLabel>Username</FormLabel>
+                      <Input {...field} />
                       <FormErrorMessage>{errors.username}</FormErrorMessage>
-                    </FormControl>
-                  )}
-                </Field>
-
-                <Field name="password">
-                  {({ field }) => (
-                    <FormControl isInvalid={errors.password && touched.password}>
-                      <FormLabel htmlFor="password">Password</FormLabel>
-                      <Input {...field} id="password" type="password" placeholder="Enter your password" />
-                      <FormErrorMessage>{errors.password}</FormErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -162,9 +153,19 @@ function Register() {
                 <Field name="email">
                   {({ field }) => (
                     <FormControl isInvalid={errors.email && touched.email}>
-                      <FormLabel htmlFor="email">Email</FormLabel>
-                      <Input {...field} id="email" type="email" placeholder="Enter your email" />
+                      <FormLabel>Email</FormLabel>
+                      <Input {...field} type="email" />
                       <FormErrorMessage>{errors.email}</FormErrorMessage>
+                    </FormControl>
+                  )}
+                </Field>
+
+                <Field name="password">
+                  {({ field }) => (
+                    <FormControl isInvalid={errors.password && touched.password}>
+                      <FormLabel>Password</FormLabel>
+                      <Input {...field} type="password" />
+                      <FormErrorMessage>{errors.password}</FormErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -172,8 +173,8 @@ function Register() {
                 <Field name="birthDate">
                   {({ field }) => (
                     <FormControl isInvalid={errors.birthDate && touched.birthDate}>
-                      <FormLabel htmlFor="birthDate">Birth Date</FormLabel>
-                      <Input {...field} id="birthDate" type="date" />
+                      <FormLabel>Birth Date</FormLabel>
+                      <Input {...field} type="date" />
                       <FormErrorMessage>{errors.birthDate}</FormErrorMessage>
                     </FormControl>
                   )}
@@ -182,14 +183,12 @@ function Register() {
                 <Field name="gender">
                   {({ field }) => (
                     <FormControl isInvalid={errors.gender && touched.gender}>
-                      <FormLabel htmlFor="gender">Gender</FormLabel>
-                      <RadioGroup
-                        {...field}
-                        onChange={(value) => setFieldValue('gender', value)}
-                      >
+                      <FormLabel>Gender</FormLabel>
+                      <RadioGroup {...field} onChange={(value) => setFieldValue('gender', value)}>
                         <HStack spacing={4}>
                           <Radio value="male">Male</Radio>
                           <Radio value="female">Female</Radio>
+                          <Radio value="other">Other</Radio>
                         </HStack>
                       </RadioGroup>
                       <FormErrorMessage>{errors.gender}</FormErrorMessage>
@@ -200,8 +199,8 @@ function Register() {
                 <Field name="agreedToPrivacyPolicy">
                   {({ field }) => (
                     <FormControl isInvalid={errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy}>
-                      <Checkbox {...field} id="agreedToPrivacyPolicy">
-                        I agree to the <Link href="/privacy-policy" isExternal color="blue.500">Privacy Policy</Link>
+                      <Checkbox {...field}>
+                        I agree to the <Link color="blue.500" href="/privacy-policy">Privacy Policy</Link>
                       </Checkbox>
                       <FormErrorMessage>{errors.agreedToPrivacyPolicy}</FormErrorMessage>
                     </FormControl>
@@ -227,16 +226,12 @@ function Register() {
         </Formik>
       </VStack>
 
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Face Verification</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <FaceVerification onVerificationComplete={handleVerificationComplete} onClose={onClose} />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      {showFaceVerification && (
+        <FaceVerification
+          onVerificationComplete={handleVerificationComplete}
+          onClose={() => setShowFaceVerification(false)}
+        />
+      )}
     </Box>
   );
 }

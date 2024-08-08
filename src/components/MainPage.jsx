@@ -1,4 +1,3 @@
-// MainPage.jsx
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Box,
@@ -22,8 +21,7 @@ import {
 import { HamburgerIcon, SettingsIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
-import { getDistance } from 'geolib';
-
+import { getUserLocation } from '../utils';
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
 const Settings = lazy(() => import("./Settings"));
@@ -41,66 +39,40 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   const [hasMore, setHasMore] = useState(true);
   
   const toast = useToast();
-  useEffect(() => {
-    const updateUserLocation = async () => {
-      if ("geolocation" in navigator) {
-        try {
-          const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject);
-          });
-          
-          const { latitude, longitude } = position.coords;
-          await api.post('/api/users/update-location', { latitude, longitude });
-          
-          toast({
-            title: "Location Updated",
-            description: "Your location has been successfully updated.",
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-          });
-        } catch (error) {
-          console.error('Error updating location:', error);
-          toast({
-            title: "Location Update Failed",
-            description: "Unable to update your location. Please check your settings and try again.",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-        }
-      } else {
-        toast({
-          title: "Geolocation Unavailable",
-          description: "Your browser doesn't support geolocation.",
-          status: "warning",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    };
 
+  const updateUserLocation = useCallback(async () => {
+    try {
+      const { latitude, longitude } = await getUserLocation();
+      await api.post('/api/users/updateLocation', { latitude, longitude });
+      console.log("Location updated successfully");
+    } catch (error) {
+      console.error('Error updating location:', error);
+    }
+  }, []);
+
+  useEffect(() => {
     updateUserLocation();
-  }, [toast]);
+    const intervalId = setInterval(updateUserLocation, 5 * 60 * 1000); // Update every 5 minutes
+    return () => clearInterval(intervalId);
+  }, [updateUserLocation]);
 
 
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
     setIsLoading(true);
     try {
-      const response = await api.get('/api/users', {
-        params: { page, limit: 20 },
+      const { latitude, longitude } = await getUserLocation();
+      console.log('Fetching users with params:', { page, limit: 20, latitude, longitude });
+      const response = await api.get('/api/users/nearby', {
+        params: { 
+          page, 
+          limit: 20, 
+          latitude,
+          longitude
+        },
       });
-      console.log('Fetched users:', response.data);
-
-      const newUsers = response.data.users.filter(u => u._id !== user._id).map(u => ({
-        ...u,
-        distance: user.location && u.location ? 
-          getDistance(
-            { latitude: user.location.coordinates[1], longitude: user.location.coordinates[0] },
-            { latitude: u.location.coordinates[1], longitude: u.location.coordinates[0] }
-          ) / 1000 : null
-      }));
+      console.log("Fetched users response:", response.data);
+      const newUsers = response.data.users.filter(u => u._id !== user._id);
 
       setUsers(prevUsers => {
         const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
@@ -117,16 +89,16 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
       setPage(prevPage => prevPage + 1);
     } catch (error) {
       console.error('Error fetching users:', error);
-      if (error.response && error.response.status === 401) {
-        onLogout();
+      if (error.response?.data?.errors) {
+        console.error('Validation errors:', error.response.data.errors);
+        const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
         toast({
-          title: "Session Expired",
-          description: "Please log in again.",
+          title: "Error",
+          description: `Failed to fetch users: ${errorMessages}`,
           status: "error",
           duration: 5000,
           isClosable: true,
         });
-        window.location.href = '/login';
       } else {
         toast({
           title: "Error",
@@ -139,12 +111,12 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user._id, user.location, toast, page, hasMore, onLogout]);
+  }, [user._id, toast, page, hasMore]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
-  
+
 
   useEffect(() => {
     if (socket) {
@@ -160,23 +132,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     }
   }, [socket]);
 
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(function(position) {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        api.post('/api/users/updateLocation', { latitude, longitude })
-          .then(response => {
-            console.log('Location updated');
-            // Optionally update the user state here
-          })
-          .catch(error => console.error('Error updating location:', error));
-      });
-    } else {
-      console.log("Geolocation is not supported by this browser.");
-    }
-  }, []);
-
   const handleUserClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
     onProfileOpen();
@@ -186,31 +141,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     setSelectedUser(clickedUser);
     onChatOpen();
   }, [onChatOpen]);
-
-  const handleDeleteAccount = useCallback(async () => {
-    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
-      try {
-        await api.delete(`/api/users/${user._id}`);
-        onLogout();
-        toast({
-          title: "Account Deleted",
-          description: "Your account has been successfully deleted.",
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
-      } catch (error) {
-        console.error('Error deleting account:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete account. Please try again.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    }
-  }, [user._id, onLogout, toast]);
 
   const filteredUsers = users.filter(u => 
     u.username.toLowerCase().includes(filter.toLowerCase()) ||
@@ -274,7 +204,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
                 Settings
               </Button>
               <Button onClick={onLogout}>Logout</Button>
-              <Button onClick={handleDeleteAccount} colorScheme="red">Delete Account</Button>
             </VStack>
           </DrawerBody>
         </DrawerContent>

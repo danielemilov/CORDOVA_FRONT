@@ -95,19 +95,14 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
   
     try {
       const formData = new FormData();
-      formData.append('uploadedImage', dataURItoBlob(uploadedImage));
-      formData.append('capturedImage', dataURItoBlob(capturedImage));
+      formData.append('uploadedPhoto', dataURItoBlob(uploadedImage), 'uploadedPhoto.jpg');
+      formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
   
-      const token = localStorage.getItem('token'); // Get the token from localStorage
-  
-      const response = await axios.post('/api/verify-face', formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.post(`${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
   
-      if (response.data.isVerified) {
+      if (response.data.isMatch) {
         onVerificationComplete(uploadedImage);
         onClose();
       } else {
@@ -121,9 +116,13 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       }
     } catch (error) {
       console.error('Verification error:', error);
+      let errorMessage = 'An error occurred during verification. Please try again.';
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
       toast({
         title: 'Error',
-        description: 'An error occurred during verification. Please try again.',
+        description: errorMessage,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -209,8 +208,7 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                   <Box
                     position="absolute"
                     top="50%"
-                    left="50%"
-                    transform="translate(-50%, -50%)"
+                    left="50%"transform="translate(-50%, -50%)"
                     width="70%"
                     height="90%"
                     border="3px solid white"

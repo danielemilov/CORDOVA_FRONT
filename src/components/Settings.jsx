@@ -1,4 +1,3 @@
-// Settings.jsx
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -10,18 +9,23 @@ import {
   Button,
   useToast,
   Avatar,
-  Center,
+  IconButton,
+  Flex,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
 } from '@chakra-ui/react';
+import { ArrowBackIcon } from '@chakra-ui/icons';
 import api from '../api';
 
-function Settings({ user, setUser }) {
+function Settings({ user, setUser, isOpen, onClose }) {
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    title: '',
     description: '',
     age: '',
-    gender: '',
   });
   const [isUploading, setIsUploading] = useState(false);
   const toast = useToast();
@@ -29,12 +33,8 @@ function Settings({ user, setUser }) {
   useEffect(() => {
     if (user) {
       setFormData({
-        fullName: user.fullName || '',
-        email: user.email || '',
-        title: user.title || '',
         description: user.description || '',
         age: user.age || '',
-        gender: user.gender || '',
       });
     }
   }, [user]);
@@ -46,9 +46,8 @@ function Settings({ user, setUser }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(`/api/users/${user._id}`, formData);
+      const response = await api.put(`/api/users/profile`, formData);
       setUser(response.data);
-      localStorage.setItem('user', JSON.stringify(response.data));
       toast({
         title: "Profile Updated",
         status: "success",
@@ -56,6 +55,7 @@ function Settings({ user, setUser }) {
         isClosable: true,
       });
     } catch (error) {
+      console.error('Error updating profile:', error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to update profile",
@@ -65,124 +65,111 @@ function Settings({ user, setUser }) {
       });
     }
   };
-// Settings.jsx (continued)
 
-const handlePhotoUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const formData = new FormData();
-  formData.append('photo', file);
+    const formData = new FormData();
+    formData.append('photo', file);
 
-  setIsUploading(true);
-  try {
-    const response = await api.post('/api/users/upload-photo', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    setUser(prevUser => ({ ...prevUser, photo: response.data.photoUrl }));
-    localStorage.setItem('user', JSON.stringify({ ...user, photo: response.data.photoUrl }));
-    toast({
-      title: "Photo Updated",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
-  } catch (error) {
-    toast({
-      title: "Error",
-      description: error.response?.data?.message || "Failed to update photo",
-      status: "error",
-      duration: 3000,
-      isClosable: true,
-    });
-  } finally {
-    setIsUploading(false);
-  }
-};
+    setIsUploading(true);
+    try {
+      const response = await api.post('/api/users/upload-photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setUser(prevUser => ({ ...prevUser, photo: response.data.user.photo }));
+      toast({
+        title: "Photo Updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update photo",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-return (
-  <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg">
-    <VStack spacing={6}>
-      <Heading>Settings</Heading>
-      <Center>
-        <Avatar size="2xl" name={user.fullName} src={user.photo} />
-      </Center>
-      <FormControl>
-        <FormLabel htmlFor="photo">Change Profile Photo</FormLabel>
-        <Input
-          type="file"
-          id="photo"
-          accept="image/*"
-          onChange={handlePhotoUpload}
-          disabled={isUploading}
-        />
-      </FormControl>
-      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-        <VStack spacing={4}>
-          <FormControl>
-            <FormLabel htmlFor="fullName">Full Name</FormLabel>
-            <Input
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="md">
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>
+          <Flex align="center">
+            <IconButton
+              icon={<ArrowBackIcon />}
+              onClick={onClose}
+              variant="ghost"
+              mr={2}
+              aria-label="Go back"
             />
-          </FormControl>
-          <FormControl>
-            <FormLabel htmlFor="email">Email</FormLabel>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-            />
-          </FormControl>
-          <FormControl>
-            <FormLabel htmlFor="title">Title</FormLabel>
-            <Input
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-            />
-          </FormControl>
-          <FormControl>
-            <FormLabel htmlFor="description">Description</FormLabel>
-            <Input
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-            />
-          </FormControl>
-          <FormControl>
-            <FormLabel htmlFor="age">Age</FormLabel>
-            <Input
-              id="age"
-              name="age"
-              type="number"
-              value={formData.age}
-              onChange={handleChange}
-            />
-          </FormControl>
-          <FormControl>
-            <FormLabel htmlFor="gender">Gender</FormLabel>
-            <Input
-              id="gender"
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-            />
-          </FormControl>
-          <Button type="submit" colorScheme="blue" width="full">
-            Save Changes
-          </Button>
-        </VStack>
-      </form>
-    </VStack>
-  </Box>
-);
+            <Heading size="lg">Settings</Heading>
+          </Flex>
+        </ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing={6} align="stretch">
+            <Flex direction="column" align="center">
+              <Avatar size="2xl" name={user.username} src={user.photo} mb={4} />
+              <FormControl>
+                <FormLabel htmlFor="photo" cursor="pointer" mb={2}>
+                  <Button as="span" colorScheme="blue" size="sm">
+                    Change Profile Photo
+                  </Button>
+                </FormLabel>
+                <Input
+                  type="file"
+                  id="photo"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  disabled={isUploading}
+                  display="none"
+                />
+              </FormControl>
+            </Flex>
+            <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel htmlFor="description">Description</FormLabel>
+                  <Input
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel htmlFor="age">Age</FormLabel>
+                  <Input
+                    id="age"
+                    name="age"
+                    type="number"
+                    value={formData.age}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <Button type="submit" colorScheme="blue" width="full">
+                  Save Changes
+                </Button>
+              </VStack>
+            </form>
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <Button onClick={onClose}>Close</Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
 }
 
 export default Settings;
