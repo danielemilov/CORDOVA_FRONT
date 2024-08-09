@@ -122,6 +122,8 @@ function Login({ onLogin }) {
       });
       if (response.data && response.data.token) {
         localStorage.setItem('token', response.data.token);
+
+
         onLogin(response.data.user);
         navigate('/');
       }

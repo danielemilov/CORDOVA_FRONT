@@ -20,7 +20,6 @@ import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
 
-// Styled components
 const ChatContainer = styled(Box)`
   position: fixed;
   top: 0;
@@ -116,8 +115,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       socket.on("private message", (message) => {
         console.log("Received private message:", message);
         if (
-          message.sender.id === otherUser.id ||
-          message.recipient.id === otherUser.id
+          message.sender._id === otherUser._id ||
+          message.recipient._id === otherUser._id
         ) {
           setMessages((prevMessages) => [message, ...prevMessages]);
         }
@@ -147,7 +146,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   
     const formData = new FormData();
-    formData.append("sender", currentUser._id); // Add the sender field
+    formData.append("sender", currentUser._id);
     formData.append("recipientId", otherUser._id);
     formData.append("content", newMessage);
     if (file) {
@@ -155,7 +154,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   
     try {
-      console.log("Sending message:", { recipientId: otherUser.id, content: newMessage });
+      console.log("Sending message:", { recipientId: otherUser._id, content: newMessage });
       const response = await api.post("/api/messages", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -168,7 +167,20 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       setNewMessage("");
       setFile(null);
   
-      socket.emit("private message", sentMessage);
+      socket.emit("private message", sentMessage, (error, message) => {
+        if (error) {
+          console.error("Error sending message:", error);
+          toast({
+            title: "Error",
+            description: "Failed to send message. Please try again.",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          console.log("Message sent successfully:", message);
+        }
+      });
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -180,7 +192,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   }, [newMessage, file, otherUser, socket, toast, currentUser]);
-  
   
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
@@ -213,7 +224,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   };
 
   const renderMessage = (msg) => {
-    const isSentByCurrentUser = msg.sender.id === currentUser.id;
+    const isSentByCurrentUser = msg.sender._id === currentUser._id;
 
     return (
       <Flex
@@ -260,6 +271,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       </Flex>
     );
   };
+
   return (
     <ChatContainer>
       <Header>
