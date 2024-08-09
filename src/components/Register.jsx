@@ -7,7 +7,6 @@ import {
   Heading,
   FormControl,
   FormLabel,
-  Input,
   FormErrorMessage,
   useToast,
   Box,
@@ -22,6 +21,124 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import FaceVerification from './FaceVerification';
 import { getUserLocation } from '../utils';
+import styled from 'styled-components';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+
+const RegisterWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #f7f7f7;
+  padding: 20px;
+`;
+
+const RegisterForm = styled(Box)`
+  width: 100%;
+  max-width: 400px;
+  background-color: white;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+`;
+
+const Title = styled(Heading)`
+  font-size: 34px;
+  font-weight: 100;
+  color: #333;
+  text-align: center;
+  margin-bottom: 30px;
+`;
+
+const StyledInput = styled.input`
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 25px;
+  background-color: #f0f0f0;
+  font-size: 16px;
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #333;
+  }
+`;
+
+const StyledButton = styled(Button)`
+  width: 100%;
+  padding: 12px;
+  margin-top: 20px;
+  background-color: #333;
+  color: #27b600;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #555;
+  }
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+`;
+
+const ErrorMessage = styled(Text)`
+  color: red;
+  text-align: center;
+  margin-top: 10px;
+`;
+
+const LinkText = styled(Link)`
+  color: #ff0000;
+  text-decoration: none;
+  margin-top: 20px;
+  text-align: center;
+  display: block;
+  
+
+  &:hover {
+    text-decoration: none;
+  }
+`;
+
+const PasswordWrapper = styled.div`
+  position: relative;
+`;
+
+const TogglePasswordVisibility = styled.button`
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+`;
+
+const StyledSelect = styled.select`
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 25px;
+  background-color: #f0f0f0;
+  font-size: 16px;
+  appearance: none;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #333;
+  }
+`;
 
 const RegisterSchema = Yup.object().shape({
   username: Yup.string()
@@ -53,6 +170,7 @@ function Register() {
   const [isVerificationComplete, setIsVerificationComplete] = useState(false);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [showFaceVerification, setShowFaceVerification] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (values, actions) => {
     if (!isVerificationComplete) {
@@ -122,9 +240,9 @@ function Register() {
   };
 
   return (
-    <Box maxW="md" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg" boxShadow="lg">
-      <VStack spacing={8} align="stretch">
-        <Heading textAlign="center">Register</Heading>
+    <RegisterWrapper>
+      <RegisterForm>
+        <Title>FE!N</Title>
         <Formik
           initialValues={{
             username: '',
@@ -143,9 +261,8 @@ function Register() {
                 <Field name="username">
                   {({ field }) => (
                     <FormControl isInvalid={errors.username && touched.username}>
-                      <FormLabel>Username</FormLabel>
-                      <Input {...field} />
-                      <FormErrorMessage>{errors.username}</FormErrorMessage>
+                      <StyledInput {...field} placeholder="Username" />
+                      <ErrorMessage>{errors.username}</ErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -153,9 +270,8 @@ function Register() {
                 <Field name="email">
                   {({ field }) => (
                     <FormControl isInvalid={errors.email && touched.email}>
-                      <FormLabel>Email</FormLabel>
-                      <Input {...field} type="email" />
-                      <FormErrorMessage>{errors.email}</FormErrorMessage>
+                      <StyledInput {...field} type="email" placeholder="Email" />
+                      <ErrorMessage>{errors.email}</ErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -163,9 +279,20 @@ function Register() {
                 <Field name="password">
                   {({ field }) => (
                     <FormControl isInvalid={errors.password && touched.password}>
-                      <FormLabel>Password</FormLabel>
-                      <Input {...field} type="password" />
-                      <FormErrorMessage>{errors.password}</FormErrorMessage>
+                      <PasswordWrapper>
+                        <StyledInput 
+                          {...field} 
+                          type={showPassword ? 'text' : 'password'} 
+                          placeholder="Password" 
+                        />
+                        <TogglePasswordVisibility
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </TogglePasswordVisibility>
+                      </PasswordWrapper>
+                      <ErrorMessage>{errors.password}</ErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -173,9 +300,8 @@ function Register() {
                 <Field name="birthDate">
                   {({ field }) => (
                     <FormControl isInvalid={errors.birthDate && touched.birthDate}>
-                      <FormLabel>Birth Date</FormLabel>
-                      <Input {...field} type="date" />
-                      <FormErrorMessage>{errors.birthDate}</FormErrorMessage>
+                      <StyledInput {...field} type="date" />
+                      <ErrorMessage>{errors.birthDate}</ErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -183,15 +309,13 @@ function Register() {
                 <Field name="gender">
                   {({ field }) => (
                     <FormControl isInvalid={errors.gender && touched.gender}>
-                      <FormLabel>Gender</FormLabel>
-                      <RadioGroup {...field} onChange={(value) => setFieldValue('gender', value)}>
-                        <HStack spacing={4}>
-                          <Radio value="male">Male</Radio>
-                          <Radio value="female">Female</Radio>
-                          <Radio value="other">Other</Radio>
-                        </HStack>
-                      </RadioGroup>
-                      <FormErrorMessage>{errors.gender}</FormErrorMessage>
+                      <StyledSelect {...field}>
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </StyledSelect>
+                      <ErrorMessage>{errors.gender}</ErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -202,7 +326,7 @@ function Register() {
                       <Checkbox {...field}>
                         I agree to the <Link color="blue.500" href="/privacy-policy">Privacy Policy</Link>
                       </Checkbox>
-                      <FormErrorMessage>{errors.agreedToPrivacyPolicy}</FormErrorMessage>
+                      <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>
                     </FormControl>
                   )}
                 </Field>
@@ -211,20 +335,20 @@ function Register() {
                   <Text color="green.500">Face verification completed</Text>
                 )}
 
-                <Button
+                <StyledButton
                   mt={4}
-                  colorScheme="blue"
                   isLoading={isSubmitting}
                   type="submit"
                   width="full"
                 >
                   Register
-                </Button>
+                </StyledButton>
               </VStack>
             </Form>
           )}
         </Formik>
-      </VStack>
+        <LinkText to="/login">Already have an account? Login</LinkText>
+      </RegisterForm>
 
       {showFaceVerification && (
         <FaceVerification
@@ -232,7 +356,7 @@ function Register() {
           onClose={() => setShowFaceVerification(false)}
         />
       )}
-    </Box>
+    </RegisterWrapper>
   );
 }
 

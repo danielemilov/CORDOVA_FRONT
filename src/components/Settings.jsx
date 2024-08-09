@@ -9,15 +9,64 @@ import {
   Button,
   useToast,
   Avatar,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
+  Text,
+  Flex,
 } from '@chakra-ui/react';
+import styled from 'styled-components';
 import api from '../api';
+
+const SettingsWrapper = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f7f7f7;
+  overflow-y: auto;
+  padding: 20px;
+  z-index: 1000;
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+`;
+
+const SettingsForm = styled.form`
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+`;
+
+const StyledInput = styled(Input)`
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 25px;
+  padding: 10px 15px;
+`;
+
+const StyledButton = styled(Button)`
+  background-color: #333;
+  color: #27b600;
+  border: none;
+  border-radius: 25px;
+  padding: 10px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #555;
+  }
+`;
 
 function Settings({ user, setUser, isOpen, onClose }) {
   const [formData, setFormData] = useState({
@@ -47,12 +96,7 @@ function Settings({ user, setUser, isOpen, onClose }) {
     try {
       const response = await api.put('/api/users/profile', formData);
       setUser(response.data.user);
-      toast({
-        title: "Profile Updated",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      onClose(response.data.user);
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
@@ -98,67 +142,70 @@ function Settings({ user, setUser, isOpen, onClose }) {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Settings</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing={6}>
-            <Avatar size="2xl" name={user.username} src={user.photo} />
+    <SettingsWrapper>
+      <CloseButton onClick={onClose}>&times;</CloseButton>
+      <SettingsForm onSubmit={handleSubmit}>
+        <VStack spacing={6}>
+          <Heading as="h2" size="xl" textAlign="center">Edit Profile</Heading>
+          
+          <Flex direction="column" align="center">
+            <Avatar size="2xl" name={user.username} src={user.photo} mb={4} />
             <FormControl>
-              <FormLabel htmlFor="photo">Change Profile Photo</FormLabel>
+              <FormLabel htmlFor="photo" cursor="pointer">
+                <StyledButton as="span">
+                  {isUploading ? 'Uploading...' : 'Change Profile Photo'}
+                </StyledButton>
+              </FormLabel>
               <Input
                 type="file"
                 id="photo"
                 accept="image/*"
                 onChange={handlePhotoUpload}
-                disabled={isUploading}
+                hidden
               />
             </FormControl>
-            <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-              <VStack spacing={4}>
-                <FormControl>
-                  <FormLabel htmlFor="username">Username</FormLabel>
-                  <Input
-                    id="username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="description">Description</FormLabel>
-                  <Input
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="age">Age</FormLabel>
-                  <Input
-                    id="age"
-                    name="age"
-                    type="number"
-                    value={formData.age}
-                    onChange={handleChange}
-                  />
-                </FormControl>
-                <Button type="submit" colorScheme="blue" width="full">
-                  Save Changes
-                </Button>
-              </VStack>
-            </form>
-          </VStack>
-        </ModalBody>
-        <ModalFooter>
-          <Button onClick={onClose}>Close</Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+          </Flex>
+
+          <FormControl>
+            <FormLabel htmlFor="username">Username</FormLabel>
+            <StyledInput
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+            />
+          </FormControl>
+
+          <FormControl>
+            <FormLabel htmlFor="description">Description</FormLabel>
+            <StyledInput
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+            />
+          </FormControl>
+
+          <FormControl>
+            <FormLabel htmlFor="age">Age</FormLabel>
+            <StyledInput
+              id="age"
+              name="age"
+              type="number"
+              value={formData.age}
+              onChange={handleChange}
+            />
+          </FormControl>
+
+          <StyledButton type="submit" width="full">
+            Save Changes
+          </StyledButton>
+        </VStack>
+      </SettingsForm>
+    </SettingsWrapper>
   );
 }
 

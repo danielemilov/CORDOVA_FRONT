@@ -5,24 +5,27 @@ import {
   useToast,
   Spinner,
   useDisclosure,
-  Drawer,
-  DrawerBody,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
   Flex,
   Heading,
   IconButton,
   Input,
 } from "@chakra-ui/react";
-import { HamburgerIcon, SettingsIcon } from "@chakra-ui/icons";
+import { CloseIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
 import { getUserLocation } from '../utils';
-import { GlobalStyle } from '../SharedStyles';
 import styled from 'styled-components';
-import { FaSearch, FaBars, FaUser } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUser, FaTimes } from 'react-icons/fa';
+import { 
+  Card, 
+  Avatar, 
+  Username, 
+  Description, 
+  StatusDot, 
+  Distance, 
+  Button, 
+  GlobalStyle 
+} from '../SharedStyles';
 
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
@@ -63,6 +66,12 @@ const MenuButton = styled.button`
   font-size: 20px;
   color: #ffffff;
   cursor: pointer;
+`;
+
+const CloseMenuButton = styled(MenuButton)`
+  position: absolute;
+  top: 10px;
+  right: 10px;
 `;
 
 const SearchWrapper = styled.div`
@@ -122,21 +131,22 @@ const LoadMoreButton = styled.button`
 const Menu = styled.div`
   position: fixed;
   top: 0;
-  left: ${props => props.isOpen ? '0' : '-300px'};
+  left: 0;
   width: 300px;
   height: 100%;
   background-color: #000000;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
   color: white;
-  transition: left 0.3s ease;
+  transition: transform 0.3s ease;
+  transform: ${props => props.isOpen ? 'translateX(0)' : 'translateX(-100%)'};
   z-index: 1001;
+  overflow-y: auto;
 `;
 
 const MenuHeader = styled.div`
   padding: 20px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #333;
 `;
 
 const ProfilePic = styled.img`
@@ -144,11 +154,7 @@ const ProfilePic = styled.img`
   height: 60px;
   border-radius: 50%;
   margin-right: 15px;
-`;
-
-const Username = styled.h2`
-  font-size: 18px;
-  font-weight: 600;
+  object-fit: cover;
 `;
 
 const MenuItems = styled.ul`
@@ -162,7 +168,7 @@ const MenuItem = styled.li`
   transition: background-color 0.3s ease;
 
   &:hover {
-    background-color: #f0f0f0;
+    background-color: #333;
   }
 `;
 
@@ -192,10 +198,9 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
 
   useEffect(() => {
     updateUserLocation();
-    const intervalId = setInterval(updateUserLocation, 5 * 60 * 1000); // Update every 5 minutes
+    const intervalId = setInterval(updateUserLocation, 5 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, [updateUserLocation]);
-
 
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
@@ -257,7 +262,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     fetchUsers();
   }, [fetchUsers]);
 
-
   useEffect(() => {
     if (socket) {
       socket.on('user status', ({ userId, isOnline }) => {
@@ -290,21 +294,100 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     setIsChatOpen(true);
   };
 
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isMenuOpen && !event.target.closest('.menu')) {
+        closeMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   const filteredUsers = users.filter(u => 
     u.username.toLowerCase().includes(filter.toLowerCase()) ||
     (u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
   );
+
+  const handleSettingsClose = useCallback(async (updatedUser) => {
+    if (updatedUser) {
+      try {
+        // Update the user on the server
+        const response = await api.put('/api/users/profile', updatedUser);
+        const serverUpdatedUser = response.data.user;
+  
+        // Update local state and localStorage
+        setUser(serverUpdatedUser);
+        localStorage.setItem('user', JSON.stringify(serverUpdatedUser));
+  
+        // Emit a user update event to all connected clients
+        if (socket) {
+          socket.emit('user update', serverUpdatedUser);
+        }
+  
+        toast({
+          title: "Profile Updated",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update profile. Please try again.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }
+    setIsSettingsOpen(false);
+  }, [setUser, socket, toast]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('user update', (updatedUser) => {
+        setUsers(prevUsers => 
+          prevUsers.map(u => u._id === updatedUser._id ? { ...u, ...updatedUser } : u)
+        );
+      });
+  
+      return () => {
+        socket.off('user update');
+      };
+    }
+  }, [socket]);
+
+  // Effect to update user from localStorage on component mount
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser) {
+      setUser(storedUser);
+    }
+  }, [setUser]);
 
   return (
     <>
       <GlobalStyle />
       <MainWrapper>
         <Header>
-          <MenuButton onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          <MenuButton onClick={toggleMenu}>
             <FaBars />
           </MenuButton>
           <Logo>FE!N</Logo>
-          <div style={{width: '24px'}} /> {/* Placeholder for balance */}
+          <div style={{width: '24px'}} />
         </Header>
         <SearchWrapper>
           <SearchIcon />
@@ -314,6 +397,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
             onChange={(e) => setFilter(e.target.value)}
           />
         </SearchWrapper>
+
         <UserList>
           {filteredUsers.map((u) => (
             <UserCard 
@@ -338,14 +422,23 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         )}
       </MainWrapper>
 
-      <Menu isOpen={isMenuOpen}>
+      <Menu isOpen={isMenuOpen} className="menu">
+        <CloseMenuButton onClick={closeMenu}>
+          <FaTimes />
+        </CloseMenuButton>
         <MenuHeader>
           <ProfilePic src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
           <Username>{user.username}</Username>
         </MenuHeader>
         <MenuItems>
-          <MenuItem onClick={() => setIsSettingsOpen(true)}>Edit Profile</MenuItem>
-          <MenuItem onClick={onLogout}>Logout</MenuItem>
+          <MenuItem onClick={() => {
+            setIsSettingsOpen(true);
+            closeMenu();
+          }}>Edit Profile</MenuItem>
+          <MenuItem onClick={() => {
+            onLogout();
+            closeMenu();
+          }}>Logout</MenuItem>
         </MenuItems>
       </Menu>
 
@@ -376,7 +469,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           user={user}
           setUser={setUser}
           isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+          onClose={handleSettingsClose}
         />
       </Suspense>
     </>
