@@ -111,23 +111,26 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     if (isOpen && socket && currentUser && otherUser) {
       console.log("Chat component opened, fetching messages");
       fetchMessages();
-
+  
       socket.on("private message", (message) => {
         console.log("Received private message:", message);
         if (
-          message.sender._id === otherUser._id ||
-          message.recipient._id === otherUser._id
+          message.sender?._id === otherUser._id ||
+          message.recipient?._id === otherUser._id
         ) {
           setMessages((prevMessages) => [message, ...prevMessages]);
+        } else {
+          console.warn("Message received with invalid sender or recipient:", message);
         }
       });
-
+  
       return () => {
         console.log("Cleaning up socket listeners");
         socket.off("private message");
       };
     }
   }, [isOpen, socket, currentUser, otherUser, fetchMessages]);
+  
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -224,8 +227,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   };
 
   const renderMessage = (msg) => {
+    if (!msg?.sender?._id) {
+      console.warn("Invalid message received:", msg);
+      return null; // Skip rendering invalid messages
+    }
+  
     const isSentByCurrentUser = msg.sender._id === currentUser._id;
-
+  
     return (
       <Flex
         key={msg._id}
@@ -271,6 +279,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       </Flex>
     );
   };
+  
 
   return (
     <ChatContainer>
