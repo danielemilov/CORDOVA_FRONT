@@ -1,13 +1,66 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Box, VStack, HStack, Text, Input, IconButton, useToast, Spinner, Flex, Avatar, Image,
+  Box,
+  VStack,
+  HStack,
+  Text,
+  Input,
+  IconButton,
+  useToast,
+  Spinner,
+  Flex,
+  Avatar,
+  Image,
 } from "@chakra-ui/react";
 import { ArrowBackIcon, AttachmentIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
-import api from '../api';
-import { useSocket } from '../contexts/SocketContext';
+import { format, isToday, isYesterday, isThisWeek } from "date-fns";
+import api from "../api";
+import { useSocket } from "../contexts/SocketContext";
+import styled from "styled-components";
+
+// Styled components
+const ChatContainer = styled(Box)`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f7f7f7;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+`;
+
+const Header = styled(Box)`
+  background-color: #000000;
+  color: white;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+const MessageContainer = styled(Box)`
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column-reverse;
+`;
+
+const MessageBubble = styled(Box)`
+  max-width: 70%;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  margin-bottom: 0.5rem;
+`;
+
+const InputContainer = styled(Box)`
+  padding: 1rem;
+  background-color: white;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+`;
 
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -26,13 +79,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     if (!currentUser || !otherUser) return;
   
     try {
-      const response = await api.get(`/api/messages/${otherUser._id}`, {
+      const response = await api.get(`/api/messages/${otherUser.id}`, {
         params: { page: pageNum, limit: 20 },
       });
       const data = response.data;
-      setMessages(prevMessages => [...data.messages.reverse(), ...prevMessages]);
+      setMessages((prevMessages) => [...prevMessages, ...data.messages]);
       setHasMore(data.hasMore);
-      setPage(prevPage => prevPage + 1);
+      setPage((prevPage) => prevPage + 1);
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast({
@@ -52,8 +105,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       fetchMessages();
 
       socket.on("private message", (message) => {
-        if (message.sender._id === otherUser._id || message.recipient._id === otherUser._id) {
-          setMessages(prevMessages => [...prevMessages, message]);
+        if (
+          message.sender.id === otherUser.id ||
+          message.recipient.id === otherUser.id
+        ) {
+          setMessages((prevMessages) => [message, ...prevMessages]);
         }
       });
 
@@ -68,27 +124,28 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [messages]);
 
   const handleSendMessage = useCallback(async () => {
-    if ((!newMessage.trim() && !file) || !socket || !currentUser || !otherUser) return;
-  
+    if ((!newMessage.trim() && !file) || !socket || !currentUser || !otherUser)
+      return;
+
     const formData = new FormData();
-    formData.append('recipientId', otherUser._id);
-    formData.append('content', newMessage);
+    formData.append("recipientId", otherUser.id);
+    formData.append("content", newMessage);
     if (file) {
-      formData.append('file', file);
+      formData.append("file", file);
     }
-  
+
     try {
-      const response = await api.post('/api/messages/send', formData, {
+      const response = await api.post("/api/messages", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
-      
+
       const sentMessage = response.data;
-      setMessages(prevMessages => [...prevMessages, sentMessage]);
+      setMessages((prevMessages) => [sentMessage, ...prevMessages]);
       setNewMessage("");
       setFile(null);
-      
+
       socket.emit("private message", sentMessage);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -122,19 +179,19 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const formatMessageTime = (timestamp) => {
     const messageDate = new Date(timestamp);
     if (isToday(messageDate)) {
-      return format(messageDate, 'h:mm a');
+      return format(messageDate, "h:mm a");
     } else if (isYesterday(messageDate)) {
-      return `Yesterday ${format(messageDate, 'h:mm a')}`;
+      return `Yesterday ${format(messageDate, "h:mm a")}`;
     } else if (isThisWeek(messageDate)) {
-      return format(messageDate, 'EEEE h:mm a');
+      return format(messageDate, "EEEE h:mm a");
     } else {
-      return format(messageDate, 'dd.MM.yyyy h:mm a');
+      return format(messageDate, "dd.MM.yyyy h:mm a");
     }
   };
 
   const renderMessage = (msg) => {
-    const isSentByCurrentUser = msg.sender._id === currentUser._id;
-  
+    const isSentByCurrentUser = msg.sender.id === currentUser.id;
+
     return (
       <Flex
         key={msg._id}
@@ -142,120 +199,123 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         mb={2}
       >
         {!isSentByCurrentUser && (
-          <Avatar 
-            size="sm" 
-            name={msg.sender.username} 
-            src={msg.sender.photo} 
-            mr={2} 
-            alignSelf="flex-end" 
+          <Avatar
+            size="sm"
+            name={msg.sender.username}
+            src={msg.sender.photo}
+            mr={2}
+            alignSelf="flex-end"
           />
         )}
-        <Box
-          maxWidth="70%"
+        <MessageBubble
           bg={isSentByCurrentUser ? "blue.100" : "green.100"}
           color={isSentByCurrentUser ? "blue.800" : "green.800"}
-          borderRadius={isSentByCurrentUser ? "20px 20px 0 20px" : "20px 20px 20px 0"}
-          p={3}
-          boxShadow="md"
         >
           {msg.media && (
-            <Image src={msg.media} alt="Uploaded media" maxWidth="100%" mb={2} borderRadius="md" />
+            <Image
+              src={msg.media}
+              alt="Uploaded media"
+              maxWidth="100%"
+              mb={2}
+              borderRadius="md"
+            />
           )}
           <Text>{msg.content}</Text>
           <Text fontSize="xs" textAlign="right" mt={1} opacity={0.8}>
             {formatMessageTime(msg.timestamp)}
           </Text>
-        </Box>
+        </MessageBubble>
         {isSentByCurrentUser && (
-          <Avatar 
-            size="sm" 
-            name={currentUser.username} 
-            src={currentUser.photo} 
-            ml={2} 
-            alignSelf="flex-end" 
+          <Avatar
+            size="sm"
+            name={currentUser.username}
+            src={currentUser.photo}
+            ml={2}
+            alignSelf="flex-end"
           />
         )}
       </Flex>
     );
   };
-
   return (
-    <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="gray.50" zIndex={1000}>
-      <Flex direction="column" h="100%">
-        <Box p={4} bg="black" color="white" boxShadow="md">
-          <HStack>
-            <IconButton
-              icon={<ArrowBackIcon />}
-              onClick={onClose}
-              variant="ghost"
-              color="white"
-              aria-label="Go back"
-              _hover={{ bg: "green.600" }}
-            />
-            <Avatar src={otherUser.photo} name={otherUser.username} size="sm" />
+    <ChatContainer>
+      <Header>
+        <HStack>
+          <IconButton
+            icon={<ArrowBackIcon />}
+            onClick={onClose}
+            variant="ghost"
+            color="white"
+            aria-label="Go back"
+            _hover={{ bg: "green.600" }}
+          />
+          <Avatar size="md" name={otherUser.username} src={otherUser.photo} />
+          <VStack align="flex-start" spacing={0}>
             <Text fontWeight="bold">{otherUser.username}</Text>
-          </HStack>
-        </Box>
-        <Box flex={1} overflowY="auto" p={4} id="scrollableDiv">
+            <Text fontSize="sm" color="gray.300">
+              {otherUser.isOnline ? "Online" : "Offline"}
+            </Text>
+          </VStack>
+        </HStack>
+      </Header>
+      <MessageContainer
+        id="scrollableDiv"
+        style={{
+          display: "flex",
+          flexDirection: "column-reverse",
+          overflow: "auto",
+        }}
+      >
+        {isLoading ? (
+          <Spinner size="lg" margin="auto" />
+        ) : (
           <InfiniteScroll
             dataLength={messages.length}
-            next={() => fetchMessages(page)}
+            next={fetchMessages}
             hasMore={hasMore}
-            loader={<Spinner />}
-            scrollableTarget="scrollableDiv"
-            style={{ display: 'flex', flexDirection: 'column-reverse' }}
+            loader={<Spinner size="lg" margin="auto" />}
+            style={{ display: "flex", flexDirection: "column-reverse" }}
             inverse={true}
-            endMessage={
-              <Text textAlign="center" mt={4} color="gray.500">
-                No more messages
-              </Text>
-            }
+            scrollableTarget="scrollableDiv"
           >
             {messages.map(renderMessage)}
           </InfiniteScroll>
-          <div ref={messagesEndRef} />
-        </Box>
-        <Box p={4} bg="white" boxShadow="0 -2px 10px rgba(0,0,0,0.05)">
-          <HStack>
-            <Input
-              ref={inputRef}
-              value={newMessage}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message"
-              bg="gray.100"
-              borderRadius="full"
-              _focus={{ boxShadow: "outline" }}
-            />
-            <IconButton
-              icon={<AttachmentIcon />}
-              onClick={() => fileInputRef.current.click()}
-              aria-label="Attach file"
-              borderRadius="full"
-            />
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-            />
-            <IconButton
-              icon={<FaPaperPlane />}
-              onClick={handleSendMessage}
-              isDisabled={!newMessage.trim() && !file}
-              colorScheme="blue"
-              aria-label="Send message"
-              borderRadius="full"
-            />
-          </HStack>
-          {file && (
-            <Text mt={2} fontSize="sm">
-              File selected: {file.name}
-            </Text>
-          )}
-        </Box>
-      </Flex>
-    </Box>
+        )}
+        <div ref={messagesEndRef} />
+      </MessageContainer>
+      <InputContainer>
+        <HStack spacing={2}>
+          <Input
+            ref={inputRef}
+            placeholder="Type a message..."
+            value={newMessage}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+          />
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+          <IconButton
+            icon={<AttachmentIcon />}
+            onClick={() => fileInputRef.current.click()}
+            variant="ghost"
+            aria-label="Attach file"
+            _hover={{ bg: "green.100" }}
+          />
+          <IconButton
+            icon={<FaPaperPlane />}
+            onClick={handleSendMessage}
+            variant="solid"
+            colorScheme="green"
+            aria-label="Send message"
+            _hover={{ bg: "green.600" }}
+          />
+        </HStack>
+      </InputContainer>
+    </ChatContainer>
   );
 };
 

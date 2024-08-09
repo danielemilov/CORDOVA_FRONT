@@ -14,6 +14,7 @@ import { useSocket } from '../contexts/SocketContext';
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
 const Settings = lazy(() => import("./Settings"));
+const Conversations = lazy(() => import("./Conversations"));
 
 const MainWrapper = styled.div`
   max-width: 600px;
@@ -167,6 +168,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showConversations, setShowConversations] = useState(false);
   
   const toast = useToast();
   const socket = useSocket();
@@ -293,6 +295,12 @@ const MainPage = ({ user, setUser, onLogout }) => {
     (u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
   );
 
+  const handleConversationSelect = useCallback((user) => {
+    setSelectedUser(user);
+    setShowConversations(false);
+    setIsChatOpen(true);
+  }, []);
+
   return (
     <>
       <GlobalStyle />
@@ -313,16 +321,27 @@ const MainPage = ({ user, setUser, onLogout }) => {
           />
         </SearchWrapper>
 
-        <UserList>
-          {filteredUsers.map((u) => (
-            <UserCard 
-              key={u._id}
-              user={u} 
-              onUserClick={() => handleUserClick(u)}
-              onChatClick={() => handleChatClick(u)}
-            />
-          ))}
-        </UserList>
+        <Button onClick={() => setShowConversations(!showConversations)} width="100%" mb={4}>
+          {showConversations ? 'Show Users' : 'Show Conversations'}
+        </Button>
+
+        {showConversations ? (
+          <Suspense fallback={<Spinner />}>
+            <Conversations onSelectConversation={handleConversationSelect} />
+          </Suspense>
+        ) : (
+          <UserList>
+            {filteredUsers.map((u) => (
+              <UserCard 
+                key={u._id}
+                user={u} 
+                onUserClick={() => handleUserClick(u)}
+                onChatClick={() => handleChatClick(u)}
+              />
+            ))}
+          </UserList>
+        )}
+        
         {isLoading && <Spinner />}
         {!isLoading && hasMore && (
           <LoadMoreButton onClick={fetchUsers}>
@@ -332,7 +351,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
       </MainWrapper>
 
       <Menu $isOpen={isMenuOpen} className="menu">
-      <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
+        <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
           <FaTimes />
         </CloseMenuButton>
         <MenuHeader>
@@ -364,14 +383,14 @@ const MainPage = ({ user, setUser, onLogout }) => {
           />
         )}
 
-        {selectedUser && (
-          <Chat
-            currentUser={user}
-            otherUser={selectedUser}
-            isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
-          />
-        )}
+{selectedUser && (
+  <Chat
+    currentUser={user}
+    otherUser={selectedUser}
+    isOpen={isChatOpen}
+    onClose={() => setIsChatOpen(false)}
+  />
+)}
 
         <Settings
           user={user}
