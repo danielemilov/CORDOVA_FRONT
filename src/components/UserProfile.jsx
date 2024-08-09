@@ -18,7 +18,7 @@ const Header = styled.header`
   display: flex;
   align-items: center;
   padding: 20px;
-  background: #333;
+  background: #000000;
   color: white;
 `;
 
@@ -39,10 +39,12 @@ const ProfileAvatar = styled(Avatar)`
   height: 120px;
   margin: 0 auto 20px;
   display: block;
-`;
+
+`;  
 
 const ProfileInfo = styled.div`
   text-align: center;
+  
 `;
 
 const AgeAndLocation = styled.div`
@@ -71,7 +73,9 @@ const BirthdayMessage = styled.div`
 
 const ChatButton = styled(Button)`
   margin-top: 20px;
-  width: 100%;
+  width: fit-content;
+  margin-left: 10.2rem;
+  background-color: #003104;
 `;
 
 const formatDistance = (distance) => {

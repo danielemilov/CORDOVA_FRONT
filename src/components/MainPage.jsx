@@ -32,6 +32,7 @@ const MainWrapper = styled.div`
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
+  background-color: #f7f7f7;
   font-family: 'Roboto', sans-serif;
 `;
 
@@ -45,22 +46,22 @@ const Header = styled.header`
   left: 0;
   right: 0;
   padding: 15px 20px;
-  background-color: #ffffff;
+  background-color: #000000;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 1000;
 `;
 
 const Logo = styled.h1`
-  font-size: 24px;
-  font-weight: 700;
-  color: #333;
+  font-size: 34px;
+  font-weight: 100;
+  color: #d1ffd1;
 `;
 
 const MenuButton = styled.button`
   background: none;
   border: none;
-  font-size: 24px;
-  color: #333;
+  font-size: 20px;
+  color: #ffffff;
   cursor: pointer;
 `;
 
@@ -105,7 +106,7 @@ const LoadMoreButton = styled.button`
   width: 100%;
   padding: 12px;
   background-color: #333;
-  color: white;
+  color: #27b600;
   border: none;
   border-radius: 25px;
   font-size: 16px;
@@ -124,8 +125,9 @@ const Menu = styled.div`
   left: ${props => props.isOpen ? '0' : '-300px'};
   width: 300px;
   height: 100%;
-  background-color: #fff;
+  background-color: #000000;
   box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  color: white;
   transition: left 0.3s ease;
   z-index: 1001;
 `;
@@ -301,7 +303,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
           <MenuButton onClick={() => setIsMenuOpen(!isMenuOpen)}>
             <FaBars />
           </MenuButton>
-          <Logo>MXY</Logo>
+          <Logo>FE!N</Logo>
           <div style={{width: '24px'}} /> {/* Placeholder for balance */}
         </Header>
         <SearchWrapper>

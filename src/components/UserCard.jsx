@@ -3,17 +3,17 @@ import styled from 'styled-components';
 import { FaBirthdayCake, FaMapMarkerAlt, FaComment } from 'react-icons/fa';
 
 const Card = styled.div`
-  background: white;
+  background: #e7e7e7;
   border-radius: 15px;
   padding: 15px;
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 
   &:hover {
     transform: translateY(-5px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 10px rgb(137, 137, 137);
   }
 `;
 
@@ -70,8 +70,9 @@ const Detail = styled.span`
 const ChatButton = styled.button`
   background: none;
   border: none;
-  color: #4CAF50;
-  font-size: 24px;
+  color: #00000033;
+  font-size: 19px;
+  margin-top: 60px;
   cursor: pointer;
   transition: all 0.3s ease;
 
