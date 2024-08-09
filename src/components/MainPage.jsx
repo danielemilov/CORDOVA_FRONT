@@ -173,6 +173,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const toast = useToast();
   const socket = useSocket();
 
+
+
   const updateUserLocation = useCallback(async () => {
     try {
       const { latitude, longitude } = await getUserLocation();
@@ -182,12 +184,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
       console.error('Error updating location:', error);
     }
   }, []);
-
-  useEffect(() => {
-    updateUserLocation();
-    const intervalId = setInterval(updateUserLocation, 5 * 60 * 1000);
-    return () => clearInterval(intervalId);
-  }, [updateUserLocation]);
 
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
@@ -203,6 +199,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
           longitude
         },
       });
+    
       console.log("Fetched users response:", response.data);
       const newUsers = response.data.users.filter(u => u._id !== user._id);
 

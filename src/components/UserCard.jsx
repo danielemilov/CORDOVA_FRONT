@@ -111,7 +111,7 @@ const UserCard = ({ user, onUserClick, onChatClick }) => (
         </Detail>
       </Details>
       <Notification userId={user._id} />
-    </UserInfo>
+      </UserInfo>
     <ChatButton onClick={(e) => {
       e.stopPropagation();
       onChatClick(user);

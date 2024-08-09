@@ -76,14 +76,22 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const socket = useSocket();
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
-    if (!currentUser || !otherUser) return;
+    if (!currentUser || !otherUser) {
+      console.error("Current user or other user is not defined");
+      return;
+    }
   
     try {
-      const response = await api.get(`/api/messages/${otherUser.id}`, {
+      console.log(`Fetching messages for page ${pageNum}`);
+      const response = await api.get(`/api/messages/${otherUser._id}`, {
         params: { page: pageNum, limit: 20 },
       });
+      console.log("Fetched messages response:", response.data);
       const data = response.data;
-      setMessages((prevMessages) => [...prevMessages, ...data.messages]);
+      setMessages((prevMessages) => {
+        const newMessages = Array.isArray(data.messages) ? data.messages : [];
+        return [...prevMessages, ...newMessages];
+      });
       setHasMore(data.hasMore);
       setPage((prevPage) => prevPage + 1);
     } catch (error) {
@@ -102,9 +110,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen && socket && currentUser && otherUser) {
+      console.log("Chat component opened, fetching messages");
       fetchMessages();
 
       socket.on("private message", (message) => {
+        console.log("Received private message:", message);
         if (
           message.sender.id === otherUser.id ||
           message.recipient.id === otherUser.id
@@ -114,6 +124,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
 
       return () => {
+        console.log("Cleaning up socket listeners");
         socket.off("private message");
       };
     }
@@ -124,23 +135,33 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [messages]);
 
   const handleSendMessage = useCallback(async () => {
-    if ((!newMessage.trim() && !file) || !socket || !currentUser || !otherUser)
+    if ((!newMessage.trim() && !file) || !socket || !currentUser || !otherUser) {
+      console.error("Cannot send message: missing data", {
+        newMessage: newMessage.trim(),
+        file,
+        socket: !!socket,
+        currentUser: !!currentUser,
+        otherUser: !!otherUser,
+      });
       return;
+    }
 
     const formData = new FormData();
-    formData.append("recipientId", otherUser.id);
+    formData.append("recipientId", otherUser._id);
     formData.append("content", newMessage);
     if (file) {
       formData.append("file", file);
     }
 
     try {
+      console.log("Sending message:", { recipientId: otherUser.id, content: newMessage });
       const response = await api.post("/api/messages", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
+      console.log("Message sent response:", response.data);
       const sentMessage = response.data;
       setMessages((prevMessages) => [sentMessage, ...prevMessages]);
       setNewMessage("");

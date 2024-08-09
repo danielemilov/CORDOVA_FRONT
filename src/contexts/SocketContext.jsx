@@ -1,3 +1,4 @@
+// SocketContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import io from 'socket.io-client';
 
@@ -19,9 +20,25 @@ export const SocketProvider = ({ children }) => {
         reconnectionDelay: 1000,
       });
 
-      setSocket(newSocket);
+      newSocket.on('connect', () => {
+        console.log('Connected to WebSocket');
+        setSocket(newSocket);
+      });
 
-      return () => newSocket.disconnect();
+      newSocket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+      });
+
+      newSocket.on('disconnect', (reason) => {
+        console.log('Disconnected from WebSocket:', reason);
+        if (reason === 'io server disconnect') {
+          newSocket.connect();
+        }
+      });
+
+      return () => {
+        newSocket.disconnect();
+      };
     }
   }, []);
 
