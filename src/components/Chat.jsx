@@ -145,14 +145,15 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
       return;
     }
-
+  
     const formData = new FormData();
+    formData.append("sender", currentUser._id); // Add the sender field
     formData.append("recipientId", otherUser._id);
     formData.append("content", newMessage);
     if (file) {
       formData.append("file", file);
     }
-
+  
     try {
       console.log("Sending message:", { recipientId: otherUser.id, content: newMessage });
       const response = await api.post("/api/messages", formData, {
@@ -160,13 +161,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           "Content-Type": "multipart/form-data",
         },
       });
-
+  
       console.log("Message sent response:", response.data);
       const sentMessage = response.data;
       setMessages((prevMessages) => [sentMessage, ...prevMessages]);
       setNewMessage("");
       setFile(null);
-
+  
       socket.emit("private message", sentMessage);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -179,7 +180,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   }, [newMessage, file, otherUser, socket, toast, currentUser]);
-
+  
+  
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
   };
