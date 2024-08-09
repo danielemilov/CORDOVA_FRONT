@@ -1,31 +1,26 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Input,
-  IconButton,
-  useToast,
-  Spinner,
-  Flex,
-  Avatar,
+  Box, VStack, HStack, Text, Input, IconButton, useToast, Spinner, Flex, Avatar, Image,
 } from "@chakra-ui/react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, AttachmentIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 import api from '../api';
+import { useSocket } from '../contexts/SocketContext';
 
-const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
+const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [file, setFile] = useState(null);
   const toast = useToast();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const socket = useSocket();
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) return;
@@ -35,9 +30,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
         params: { page: pageNum, limit: 20 },
       });
       const data = response.data;
-      setMessages(prevMessages => [...prevMessages, ...data.messages]);
+      setMessages(prevMessages => [...data.messages.reverse(), ...prevMessages]);
       setHasMore(data.hasMore);
-      setPage(pageNum + 1);
+      setPage(prevPage => prevPage + 1);
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast({
@@ -57,7 +52,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
       fetchMessages();
 
       socket.on("private message", (message) => {
-        setMessages((prevMessages) => [...prevMessages, message]);
+        if (message.sender._id === otherUser._id || message.recipient._id === otherUser._id) {
+          setMessages(prevMessages => [...prevMessages, message]);
+        }
       });
 
       return () => {
@@ -70,33 +67,47 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = useCallback(() => {
-    if (!newMessage.trim() || !socket || !currentUser || !otherUser) return;
+  const handleSendMessage = useCallback(async () => {
+    if ((!newMessage.trim() && !file) || !socket || !currentUser || !otherUser) return;
   
-    const messageToSend = {
-      recipientId: otherUser._id,
-      content: newMessage,
-    };
+    const formData = new FormData();
+    formData.append('recipientId', otherUser._id);
+    formData.append('content', newMessage);
+    if (file) {
+      formData.append('file', file);
+    }
   
-    socket.emit("private message", messageToSend, (error, sentMessage) => {
-      if (error) {
-        console.error("Error sending message:", error);
-        toast({
-          title: "Error",
-          description: "Failed to send message. Please try again.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      } else {
-        setMessages((prevMessages) => [...prevMessages, sentMessage]);
-        setNewMessage("");
-      }
-    });
-  }, [newMessage, otherUser, socket, toast, currentUser]);
-  
+    try {
+      const response = await api.post('/api/messages/send', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      const sentMessage = response.data;
+      setMessages(prevMessages => [...prevMessages, sentMessage]);
+      setNewMessage("");
+      setFile(null);
+      
+      socket.emit("private message", sentMessage);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }, [newMessage, file, otherUser, socket, toast, currentUser]);
+
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
+  };
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
   };
 
   const handleKeyDown = (e) => {
@@ -121,7 +132,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
     }
   };
 
-  const renderMessage = (msg, index, arr) => {
+  const renderMessage = (msg) => {
     const isSentByCurrentUser = msg.sender._id === currentUser._id;
   
     return (
@@ -147,6 +158,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
           p={3}
           boxShadow="md"
         >
+          {msg.media && (
+            <Image src={msg.media} alt="Uploaded media" maxWidth="100%" mb={2} borderRadius="md" />
+          )}
           <Text>{msg.content}</Text>
           <Text fontSize="xs" textAlign="right" mt={1} opacity={0.8}>
             {formatMessageTime(msg.timestamp)}
@@ -191,8 +205,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
             scrollableTarget="scrollableDiv"
             style={{ display: 'flex', flexDirection: 'column-reverse' }}
             inverse={true}
+            endMessage={
+              <Text textAlign="center" mt={4} color="gray.500">
+                No more messages
+              </Text>
+            }
           >
-            {messages.map((msg, index, arr) => renderMessage(msg, index, arr))}
+            {messages.map(renderMessage)}
           </InfiniteScroll>
           <div ref={messagesEndRef} />
         </Box>
@@ -209,14 +228,31 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose, socket }) => {
               _focus={{ boxShadow: "outline" }}
             />
             <IconButton
+              icon={<AttachmentIcon />}
+              onClick={() => fileInputRef.current.click()}
+              aria-label="Attach file"
+              borderRadius="full"
+            />
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+            <IconButton
               icon={<FaPaperPlane />}
               onClick={handleSendMessage}
-              isDisabled={!newMessage.trim()}
+              isDisabled={!newMessage.trim() && !file}
               colorScheme="blue"
               aria-label="Send message"
               borderRadius="full"
             />
           </HStack>
+          {file && (
+            <Text mt={2} fontSize="sm">
+              File selected: {file.name}
+            </Text>
+          )}
         </Box>
       </Flex>
     </Box>

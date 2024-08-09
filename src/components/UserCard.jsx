@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { FaBirthdayCake, FaMapMarkerAlt, FaComment } from 'react-icons/fa';
+import Notification from './Notification';
 
 const Card = styled.div`
   background: #e7e7e7;
@@ -41,7 +42,7 @@ const StatusDot = styled.span`
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: ${props => props.online ? '#4CAF50' : '#9E9E9E'};
+  background-color: ${props => props.$online ? '#4CAF50' : '#9E9E9E'};
   margin-left: 10px;
 `;
 
@@ -83,7 +84,7 @@ const ChatButton = styled.button`
 
 const formatDistance = (distance) => {
   if (distance === null || distance === undefined) return 'Unknown distance';
-  if (distance < 1) return 'Less than 1 km away';
+  if (distance < 1) return `${Math.round(distance * 1000)} meters away`;
   if (distance < 10) return `${distance.toFixed(1)} km away`;
   return `${Math.round(distance)} km away`;
 };
@@ -94,7 +95,7 @@ const UserCard = ({ user, onUserClick, onChatClick }) => (
     <UserInfo>
       <Username>
         {user.username}
-        <StatusDot online={user.isOnline} />
+        <StatusDot $online={user.isOnline} />
       </Username>
       <Description>{user.description}</Description>
       <Details>
@@ -109,6 +110,7 @@ const UserCard = ({ user, onUserClick, onChatClick }) => (
           {formatDistance(user.distance)}
         </Detail>
       </Details>
+      <Notification userId={user._id} />
     </UserInfo>
     <ChatButton onClick={(e) => {
       e.stopPropagation();

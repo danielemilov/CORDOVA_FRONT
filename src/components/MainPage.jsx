@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
-  Box,
-  VStack,
-  useToast,
-  Spinner,
-  useDisclosure,
-  Flex,
-  Heading,
-  IconButton,
-  Input,
+  Box, VStack, useToast, Spinner, useDisclosure, Flex, Heading, IconButton, Input,
 } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import api from "../api";
@@ -16,16 +8,8 @@ import UserCard from "./UserCard";
 import { getUserLocation } from '../utils';
 import styled from 'styled-components';
 import { FaSearch, FaBars, FaUser, FaTimes } from 'react-icons/fa';
-import { 
-  Card, 
-  Avatar, 
-  Username, 
-  Description, 
-  StatusDot, 
-  Distance, 
-  Button, 
-  GlobalStyle 
-} from '../SharedStyles';
+import { Card, Avatar, Username, Description, StatusDot, Distance, Button, GlobalStyle } from '../SharedStyles';
+import { useSocket } from '../contexts/SocketContext';
 
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
@@ -137,7 +121,7 @@ const Menu = styled.div`
   background-color: #000000;
   color: white;
   transition: transform 0.3s ease;
-  transform: ${props => props.isOpen ? 'translateX(0)' : 'translateX(-100%)'};
+  transform: ${props => props.$isOpen ? 'translateX(0)' : 'translateX(-100%)'};
   z-index: 1001;
   overflow-y: auto;
 `;
@@ -172,7 +156,7 @@ const MenuItem = styled.li`
   }
 `;
 
-const MainPage = ({ user, setUser, socket, onLogout }) => {
+const MainPage = ({ user, setUser, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState('');
@@ -185,6 +169,7 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const toast = useToast();
+  const socket = useSocket();
 
   const updateUserLocation = useCallback(async () => {
     try {
@@ -234,25 +219,13 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
       setPage(prevPage => prevPage + 1);
     } catch (error) {
       console.error('Error fetching users:', error);
-      if (error.response?.data?.errors) {
-        console.error('Validation errors:', error.response.data.errors);
-        const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
-        toast({
-          title: "Error",
-          description: `Failed to fetch users: ${errorMessages}`,
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to fetch users. Please try again later.",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
+      toast({
+        title: "Error",
+        description: "Failed to fetch users. Please try again later.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -286,56 +259,15 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     setIsChatOpen(true);
   }, []);
 
-  const onProfileOpen = () => {
-    setIsProfileOpen(true);
-  };
-
-  const onChatOpen = () => {
-    setIsChatOpen(true);
-  };
-
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
-  const closeMenu = () => {
-    setIsMenuOpen(false);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isMenuOpen && !event.target.closest('.menu')) {
-        closeMenu();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMenuOpen]);
-
-  const filteredUsers = users.filter(u => 
-    u.username.toLowerCase().includes(filter.toLowerCase()) ||
-    (u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
-  );
-
   const handleSettingsClose = useCallback(async (updatedUser) => {
     if (updatedUser) {
       try {
-        // Update the user on the server
         const response = await api.put('/api/users/profile', updatedUser);
-        const serverUpdatedUser = response.data.user;
-  
-        // Update local state and localStorage
-        setUser(serverUpdatedUser);
-        localStorage.setItem('user', JSON.stringify(serverUpdatedUser));
-  
-        // Emit a user update event to all connected clients
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
         if (socket) {
-          socket.emit('user update', serverUpdatedUser);
+          socket.emit('user update', response.data.user);
         }
-  
         toast({
           title: "Profile Updated",
           status: "success",
@@ -356,34 +288,17 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
     setIsSettingsOpen(false);
   }, [setUser, socket, toast]);
 
-  useEffect(() => {
-    if (socket) {
-      socket.on('user update', (updatedUser) => {
-        setUsers(prevUsers => 
-          prevUsers.map(u => u._id === updatedUser._id ? { ...u, ...updatedUser } : u)
-        );
-      });
-  
-      return () => {
-        socket.off('user update');
-      };
-    }
-  }, [socket]);
-
-  // Effect to update user from localStorage on component mount
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (storedUser) {
-      setUser(storedUser);
-    }
-  }, [setUser]);
+  const filteredUsers = users.filter(u => 
+    u.username.toLowerCase().includes(filter.toLowerCase()) ||
+    (u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
+  );
 
   return (
     <>
       <GlobalStyle />
       <MainWrapper>
         <Header>
-          <MenuButton onClick={toggleMenu}>
+          <MenuButton onClick={() => setIsMenuOpen(true)}>
             <FaBars />
           </MenuButton>
           <Logo>FE!N</Logo>
@@ -403,18 +318,12 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
             <UserCard 
               key={u._id}
               user={u} 
-              onUserClick={() => {
-                setSelectedUser(u);
-                setIsProfileOpen(true);
-              }}
-              onChatClick={() => {
-                setSelectedUser(u);
-                setIsChatOpen(true);
-              }}
+              onUserClick={() => handleUserClick(u)}
+              onChatClick={() => handleChatClick(u)}
             />
           ))}
         </UserList>
-        {isLoading && <p>Loading...</p>}
+        {isLoading && <Spinner />}
         {!isLoading && hasMore && (
           <LoadMoreButton onClick={fetchUsers}>
             Load More
@@ -422,8 +331,8 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         )}
       </MainWrapper>
 
-      <Menu isOpen={isMenuOpen} className="menu">
-        <CloseMenuButton onClick={closeMenu}>
+      <Menu $isOpen={isMenuOpen} className="menu">
+      <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
           <FaTimes />
         </CloseMenuButton>
         <MenuHeader>
@@ -433,11 +342,11 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
         <MenuItems>
           <MenuItem onClick={() => {
             setIsSettingsOpen(true);
-            closeMenu();
+            setIsMenuOpen(false);
           }}>Edit Profile</MenuItem>
           <MenuItem onClick={() => {
             onLogout();
-            closeMenu();
+            setIsMenuOpen(false);
           }}>Logout</MenuItem>
         </MenuItems>
       </Menu>
@@ -461,7 +370,6 @@ const MainPage = ({ user, setUser, socket, onLogout }) => {
             otherUser={selectedUser}
             isOpen={isChatOpen}
             onClose={() => setIsChatOpen(false)}
-            socket={socket}
           />
         )}
 

@@ -97,7 +97,9 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
       <Content>
         <ProfileAvatar src={user.photo || 'https://via.placeholder.com/120'} alt={user.username} />
         <ProfileInfo>
-          <Username>{user.username} <StatusDot online={user.isOnline} /></Username>
+          <Username>{user.username} <StatusDot $online={user.isOnline} />
+
+</Username>
           <AgeAndLocation>
             {user.age && (
               <IconWrapper>

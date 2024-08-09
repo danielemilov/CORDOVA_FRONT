@@ -62,7 +62,7 @@ export const StatusDot = styled.span`
   border-radius: 50%;
   display: inline-block;
   margin-right: 5px;
-  background-color: ${props => props.online ? '#4CAF50' : '#9E9E9E'};
+  background-color: ${props => props.$online ? '#4CAF50' : '#9E9E9E'};
 `;
 
 export const Distance = styled.span`

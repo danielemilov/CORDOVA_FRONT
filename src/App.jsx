@@ -9,6 +9,7 @@ import EmailVerification from "./components/EmailVerification";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import { theme, GlobalStyle } from "./SharedStyles";
+import { SocketProvider } from './contexts/SocketContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
@@ -75,35 +76,36 @@ function App() {
   return (
     <ChakraProvider theme={theme}>
       <GlobalStyle />
-      <Router>
-        <Routes>
-          {user ? (
+      <SocketProvider value={socket}>
+        <Router>
+          <Routes>
+            {user ? (
+              <Route
+                path="/"
+                element={
+                  <MainPage
+                    user={user}
+                    setUser={setUser}
+                    onLogout={handleLogout}
+                  />
+                }
+              />
+            ) : (
+              <>
+                <Route path="/login" element={<Login onLogin={handleLogin} />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
+              </>
+            )}
+            <Route path="/verify-email/:token" element={<EmailVerification />} />
             <Route
-              path="/"
-              element={
-                <MainPage
-                  user={user}
-                  setUser={setUser}
-                  socket={socket}
-                  onLogout={handleLogout}
-                />
-              }
+              path="*"
+              element={user ? <Navigate to="/" /> : <Navigate to="/login" />}
             />
-          ) : (
-            <>
-              <Route path="/login" element={<Login onLogin={handleLogin} />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password/:token" element={<ResetPassword />} />
-            </>
-          )}
-          <Route path="/verify-email/:token" element={<EmailVerification />} />
-          <Route
-            path="*"
-            element={user ? <Navigate to="/" /> : <Navigate to="/login" />}
-          />
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </SocketProvider>
     </ChakraProvider>
   );
 }
