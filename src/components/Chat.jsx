@@ -137,44 +137,33 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [messages]);
 
   const handleSendMessage = useCallback(async () => {
-    if (!newMessage.trim() && !file) {
-      console.error("Cannot send empty message");
-      return;
-    }
+    if (!newMessage.trim() && !file) return;
     
-    if (!currentUser || !otherUser) {
-      console.error("Current user or other user is not defined");
-      return;
-    }
-  
-    if (!socket) {
-      console.error("Socket is not available");
-      return;
-    }
-  
-    const formData = new FormData();
-    formData.append("sender", currentUser._id);
-    formData.append("recipient", otherUser._id);
-    formData.append("content", newMessage);
-    if (file) {
-      formData.append("file", file);
-    }
-  
     try {
-      console.log("Sending message:", { recipient: otherUser._id, content: newMessage });
-      const response = await api.post("/api/messages", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      const messageData = {
+        recipient: otherUser._id, // Make sure this is the correct ID
+        content: newMessage,
+      };
+  
+      console.log("Sending message:", messageData);
+      
+      socket.emit("private message", messageData, (error, sentMessage) => {
+        if (error) {
+          console.error("Error sending message:", error);
+          toast({
+            title: "Error",
+            description: "Failed to send message. Please try again.",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          console.log("Message sent successfully:", sentMessage);
+          setMessages((prevMessages) => [sentMessage, ...prevMessages]);
+          setNewMessage("");
+          setFile(null);
+        }
       });
-  
-      console.log("Message sent response:", response.data);
-      const sentMessage = response.data;
-      setMessages((prevMessages) => [sentMessage, ...prevMessages]);
-      setNewMessage("");
-      setFile(null);
-  
-      socket.emit("private message", sentMessage);
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -185,7 +174,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         isClosable: true,
       });
     }
-  }, [newMessage, file, otherUser, socket, toast, currentUser]);
+  }, [newMessage, file, otherUser, socket, toast]);
   
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);

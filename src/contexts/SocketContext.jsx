@@ -16,6 +16,7 @@ export const SocketProvider = ({ children }) => {
     if (token) {
       const newSocket = io(API_BASE_URL, {
         auth: { token },
+        transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
