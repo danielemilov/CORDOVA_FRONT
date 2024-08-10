@@ -173,8 +173,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const toast = useToast();
   const socket = useSocket();
 
-
-
   const updateUserLocation = useCallback(async () => {
     try {
       const { latitude, longitude } = await getUserLocation();
@@ -202,7 +200,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
     
       console.log("Fetched users response:", response.data);
       const newUsers = response.data.users.filter(u => u._id !== user._id);
-
+  
       setUsers(prevUsers => {
         const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
           const x = acc.find(item => item._id === current._id);
@@ -231,8 +229,12 @@ const MainPage = ({ user, setUser, onLogout }) => {
   }, [user._id, toast, page, hasMore]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    const fetchData = async () => {
+      await updateUserLocation();
+      fetchUsers();
+    };
+    fetchData();
+  }, [updateUserLocation, fetchUsers]);
 
   useEffect(() => {
     if (socket) {
@@ -241,7 +243,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
           prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
         );
       });
-
+  
       return () => {
         socket.off('user status');
       };
@@ -380,14 +382,14 @@ const MainPage = ({ user, setUser, onLogout }) => {
           />
         )}
 
-{selectedUser && (
-  <Chat
-    currentUser={user}
-    otherUser={selectedUser}
-    isOpen={isChatOpen}
-    onClose={() => setIsChatOpen(false)}
-  />
-)}
+        {selectedUser && (
+         <Chat
+         currentUser={user}
+         otherUser={selectedUser}
+         isOpen={isChatOpen}
+         onClose={() => setIsChatOpen(false)}
+       />
+        )}
 
         <Settings
           user={user}

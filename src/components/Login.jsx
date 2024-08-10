@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
 import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import api from '../api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
@@ -117,13 +117,10 @@ function Login({ onLogin }) {
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password }, {
-        withCredentials: true
-      });
+      const response = await api.post('/api/auth/login', { email, password });
       if (response.data && response.data.token) {
         localStorage.setItem('token', response.data.token);
-
-
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         onLogin(response.data.user);
         navigate('/');
       }

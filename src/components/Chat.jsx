@@ -137,27 +137,31 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [messages]);
 
   const handleSendMessage = useCallback(async () => {
-    if ((!newMessage.trim() && !file) || !socket || !currentUser || !otherUser) {
-      console.error("Cannot send message: missing data", {
-        newMessage: newMessage.trim(),
-        file,
-        socket: !!socket,
-        currentUser: !!currentUser,
-        otherUser: !!otherUser,
-      });
+    if (!newMessage.trim() && !file) {
+      console.error("Cannot send empty message");
+      return;
+    }
+    
+    if (!currentUser || !otherUser) {
+      console.error("Current user or other user is not defined");
+      return;
+    }
+  
+    if (!socket) {
+      console.error("Socket is not available");
       return;
     }
   
     const formData = new FormData();
     formData.append("sender", currentUser._id);
-    formData.append("recipientId", otherUser._id);
+    formData.append("recipient", otherUser._id);
     formData.append("content", newMessage);
     if (file) {
       formData.append("file", file);
     }
   
     try {
-      console.log("Sending message:", { recipientId: otherUser._id, content: newMessage });
+      console.log("Sending message:", { recipient: otherUser._id, content: newMessage });
       const response = await api.post("/api/messages", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -170,20 +174,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       setNewMessage("");
       setFile(null);
   
-      socket.emit("private message", sentMessage, (error, message) => {
-        if (error) {
-          console.error("Error sending message:", error);
-          toast({
-            title: "Error",
-            description: "Failed to send message. Please try again.",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-        } else {
-          console.log("Message sent successfully:", message);
-        }
-      });
+      socket.emit("private message", sentMessage);
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -227,9 +218,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   };
 
   const renderMessage = (msg) => {
-    if (!msg?.sender?._id) {
+    if (!msg || !msg.sender) {
       console.warn("Invalid message received:", msg);
-      return null; // Skip rendering invalid messages
+      return null;
     }
   
     const isSentByCurrentUser = msg.sender._id === currentUser._id;
@@ -243,7 +234,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         {!isSentByCurrentUser && (
           <Avatar
             size="sm"
-            name={msg.sender.username}
+            name={msg.sender.username || "Unknown"}
             src={msg.sender.photo}
             mr={2}
             alignSelf="flex-end"
