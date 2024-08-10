@@ -73,6 +73,29 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const socket = useSocket();
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+
+
+  useEffect(() => {
+    if (socket) {
+      setIsSocketConnected(true);
+      
+      socket.on("connect", () => {
+        console.log("Socket connected");
+        setIsSocketConnected(true);
+      });
+
+      socket.on("disconnect", () => {
+        console.log("Socket disconnected");
+        setIsSocketConnected(false);
+      });
+
+      return () => {
+        socket.off("connect");
+        socket.off("disconnect");
+      };
+    }
+  }, [socket]);
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
@@ -138,13 +161,24 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !file) return;
+    if (!isSocketConnected) {
+      console.error("Socket is not connected");
+      toast({
+        title: "Error",
+        description: "Unable to send message. Please try again later.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
     
     try {
       const messageData = {
-        recipient: otherUser._id, // Make sure this is the correct ID
+        recipient: otherUser._id,
         content: newMessage,
       };
-  
+
       console.log("Sending message:", messageData);
       
       socket.emit("private message", messageData, (error, sentMessage) => {
@@ -174,7 +208,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         isClosable: true,
       });
     }
-  }, [newMessage, file, otherUser, socket, toast]);
+  }, [newMessage, file, otherUser, socket, isSocketConnected, toast]);
   
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
