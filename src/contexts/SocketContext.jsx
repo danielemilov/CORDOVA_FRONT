@@ -27,6 +27,10 @@ export const SocketProvider = ({ children }) => {
         setSocket(newSocket);
       });
 
+      newSocket.on('connect_error', (err) => {
+        console.error('WebSocket connection error:', err);
+      });
+
       newSocket.on('disconnect', (reason) => {
         console.log('Disconnected from WebSocket:', reason);
         if (reason === 'io server disconnect') {

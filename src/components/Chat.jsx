@@ -1,16 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Input,
-  IconButton,
-  useToast,
-  Spinner,
-  Flex,
-  Avatar,
-  Image,
+  Box, VStack, HStack, Text, Input, IconButton, useToast, Spinner, Flex, Avatar, Image,
 } from "@chakra-ui/react";
 import { ArrowBackIcon, AttachmentIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
@@ -44,7 +34,7 @@ const MessageContainer = styled(Box)`
   overflow-y: auto;
   padding: 1rem;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
 `;
 
 const MessageBubble = styled(Box)`
@@ -70,69 +60,56 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [file, setFile] = useState(null);
   const toast = useToast();
   const messagesEndRef = useRef(null);
+  const messageContainerRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const socket = useSocket();
-  const [isSocketConnected, setIsSocketConnected] = useState(false);
 
-  useEffect(() => {
-    if (socket) {
-      setIsSocketConnected(true);
+// In Chat.jsx
 
-      socket.on("connect", () => {
-        console.log("Socket connected");
-        setIsSocketConnected(true);
-      });
+const fetchMessages = useCallback(async (pageNum = 1) => {
+  if (!currentUser || !otherUser) {
+    console.error("Current user or other user is not defined");
+    return;
+  }
 
-      socket.on("disconnect", () => {
-        console.log("Socket disconnected");
-        setIsSocketConnected(false);
-      });
+  try {
+    console.log(`Fetching messages for page ${pageNum}`);
+    const response = await api.get(`/api/messages/${otherUser._id}`, {
+      params: { page: pageNum, limit: 5 },
+    });
+    console.log("Fetched messages response:", response.data);
+    const data = response.data;
+    setMessages((prevMessages) => {
+      const newMessages = Array.isArray(data.messages) ? data.messages : [];
+      return [...prevMessages, ...newMessages];
+    });
+    setHasMore(data.hasMore);
+    setPage((prevPage) => prevPage + 1);
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    toast({
+      title: "Error",
+      description: "Failed to load messages. Please try again.",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+}, [currentUser, otherUser, toast]);
+useEffect(() => {
+  if (socket) {
+    socket.on('private message', (message) => {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    });
 
-      return () => {
-        socket.off("connect");
-        socket.off("disconnect");
-      };
-    }
-  }, [socket]);
-
-  const fetchMessages = useCallback(
-    async (pageNum = 1) => {
-      if (!currentUser || !otherUser) {
-        console.error("Current user or other user is not defined");
-        return;
-      }
-
-      try {
-        console.log(`Fetching messages for page ${pageNum}`);
-        const response = await api.get(`/api/messages/${otherUser._id}`, {
-          params: { page: pageNum, limit: 20 },
-        });
-        console.log("Fetched messages response:", response.data);
-        const data = response.data;
-        setMessages((prevMessages) => {
-          const newMessages = Array.isArray(data.messages) ? data.messages : [];
-          return [...prevMessages, ...newMessages];
-        });
-        setHasMore(data.hasMore);
-        setPage((prevPage) => prevPage + 1);
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-        toast({
-          title: "Error",
-          description:
-            error.response?.data?.message ||
-            "Failed to load messages. Please try again.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [currentUser, otherUser, toast]
-  );
+    return () => {
+      socket.off('private message');
+    };
+  }
+}, [socket]);
 
   useEffect(() => {
     if (isOpen && socket && currentUser && otherUser) {
@@ -141,14 +118,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
       socket.on("private message", (message) => {
         console.log("Received private message:", message);
-        if (
-          message.sender?._id === otherUser._id ||
-          message.recipient?._id === otherUser._id
-        ) {
-          setMessages((prevMessages) => [...prevMessages, message]);
-        } else {
-          console.warn("Message received with invalid sender or recipient:", message);
-        }
+        setMessages((prevMessages) => [...prevMessages, message]);
+        scrollToBottom();
       });
 
       return () => {
@@ -158,33 +129,33 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   }, [isOpen, socket, currentUser, otherUser, fetchMessages]);
 
-  useEffect(() => {
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !file) return;
-    if (!isSocketConnected) {
-      console.error("Socket is not connected");
-      toast({
-        title: "Error",
-        description: "Unable to send message. Please try again later.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
+  
     try {
+      let mediaUrl = null;
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post('/api/upload', formData);
+        mediaUrl = response.data.url;
+      }
+  
       const messageData = {
         recipient: otherUser._id,
-        content: newMessage,
+        content: newMessage.trim(),
+        media: mediaUrl,
       };
-
-      console.log("Sending message:", messageData);
-
-      socket.emit("private message", messageData, (error, sentMessage) => {
+  
+      socket.emit('private message', messageData, (error, sentMessage) => {
         if (error) {
           console.error("Error sending message:", error);
           toast({
@@ -195,45 +166,23 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             isClosable: true,
           });
         } else {
-          console.log("Message sent successfully:", sentMessage);
           setMessages((prevMessages) => [...prevMessages, sentMessage]);
           setNewMessage("");
           setFile(null);
+          scrollToBottom();
         }
       });
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Error uploading file:", error);
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: "Failed to upload file. Please try again.",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
     }
-  }, [newMessage, file, otherUser, socket, isSocketConnected, toast]);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on("private message", (message) => {
-        setMessages((prevMessages) => [...prevMessages, message]);
-
-        if (message.sender._id !== currentUser._id) {
-          toast({
-            title: "New Message",
-            description: `${message.sender.username}: ${message.content}`,
-            status: "info",
-            duration: 3000,
-            isClosable: true,
-          });
-        }
-      });
-
-      return () => {
-        socket.off("private message");
-      };
-    }
-  }, [socket, currentUser._id, toast]);
+  }, [newMessage, file, otherUser._id, socket, toast]);
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
@@ -249,8 +198,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       handleSendMessage();
     }
   };
-
-  if (!isOpen) return null;
 
   const formatMessageTime = (timestamp) => {
     const messageDate = new Date(timestamp);
@@ -270,13 +217,18 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       console.warn("Invalid message received:", msg);
       return null;
     }
-
+  
     const isSentByCurrentUser = msg.sender._id === currentUser._id;
-
+  
+    console.log('Message:', msg);
+    console.log('Current User:', currentUser);
+    console.log('Is sent by current user:', isSentByCurrentUser);
+  
     return (
       <Flex
         key={msg._id}
         justifyContent={isSentByCurrentUser ? "flex-end" : "flex-start"}
+        mb={4}
       >
         {!isSentByCurrentUser && (
           <Avatar
@@ -287,9 +239,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             alignSelf="flex-end"
           />
         )}
-        <MessageBubble
-          bg={isSentByCurrentUser ? "blue.100" : "red.100"}
-          color={isSentByCurrentUser ? "blue.800" : "red.800"}
+        <Box
+          bg={isSentByCurrentUser ? "blue.100" : "green.100"}
+          color={isSentByCurrentUser ? "blue.800" : "green.800"}
+          borderRadius="lg"
+          p={3}
+          maxWidth="70%"
         >
           {msg.media && (
             <Image
@@ -304,7 +259,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           <Text fontSize="xs" color="gray.500" mt={1} textAlign="right">
             {formatMessageTime(msg.timestamp)}
           </Text>
-        </MessageBubble>
+        </Box>
         {isSentByCurrentUser && (
           <Avatar
             size="sm"
@@ -317,6 +272,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       </Flex>
     );
   };
+
+  if (!isOpen) return null;
 
   return (
     <ChatContainer>
@@ -338,7 +295,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         </HStack>
       </Header>
 
-      <MessageContainer>
+      <MessageContainer ref={messageContainerRef} id="scrollableDiv">
         {isLoading ? (
           <Flex justifyContent="center" alignItems="center" height="100%">
             <Spinner size="xl" />
@@ -353,16 +310,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
                 <Spinner size="md" />
               </Flex>
             }
-            inverse
             scrollableTarget="scrollableDiv"
-            style={{ display: "flex", flexDirection: "column-reverse" }}
+            inverse={true}
+            style={{ display: 'flex', flexDirection: 'column-reverse' }}
           >
             <VStack spacing={4} align="stretch">
               {messages.map((msg) => renderMessage(msg))}
             </VStack>
-            <div ref={messagesEndRef} />
           </InfiniteScroll>
         )}
+        <div ref={messagesEndRef} />
       </MessageContainer>
 
       <InputContainer>

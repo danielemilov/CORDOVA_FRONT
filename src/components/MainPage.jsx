@@ -169,6 +169,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [hasMore, setHasMore] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showConversations, setShowConversations] = useState(false);
+  const [activeChat, setActiveChat] = useState(null);
   
   const toast = useToast();
   const socket = useSocket();
@@ -188,7 +189,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setIsLoading(true);
     try {
       const { latitude, longitude } = await getUserLocation();
-      console.log('Fetching users with params:', { page, limit: 20, latitude, longitude });
       const response = await api.get('/api/users/nearby', {
         params: { 
           page, 
@@ -198,7 +198,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
         },
       });
     
-      console.log("Fetched users response:", response.data);
       const newUsers = response.data.users.filter(u => u._id !== user._id);
   
       setUsers(prevUsers => {
@@ -243,12 +242,25 @@ const MainPage = ({ user, setUser, onLogout }) => {
           prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
         );
       });
+
+      socket.on('private message', (message) => {
+        if (activeChat !== message.sender._id) {
+          toast({
+            title: "New Message",
+            description: `${message.sender.username}: ${message.content}`,
+            status: "info",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+      });
   
       return () => {
         socket.off('user status');
+        socket.off('private message');
       };
     }
-  }, [socket]);
+  }, [socket, activeChat, toast]);
 
   const handleUserClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
@@ -258,6 +270,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const handleChatClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
     setIsChatOpen(true);
+    setActiveChat(clickedUser._id);
   }, []);
 
   const handleSettingsClose = useCallback(async (updatedUser) => {
@@ -298,6 +311,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setSelectedUser(user);
     setShowConversations(false);
     setIsChatOpen(true);
+    setActiveChat(user._id);
   }, []);
 
   return (
@@ -349,7 +363,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
         )}
       </MainWrapper>
 
-      <Menu $isOpen={isMenuOpen} className="menu">
+      <Menu $isOpen={isMenuOpen}>
         <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
           <FaTimes />
         </CloseMenuButton>
@@ -378,17 +392,21 @@ const MainPage = ({ user, setUser, onLogout }) => {
             onChatClick={() => {
               setIsProfileOpen(false);
               setIsChatOpen(true);
+              setActiveChat(selectedUser._id);
             }}
           />
         )}
 
         {selectedUser && (
          <Chat
-         currentUser={user}
-         otherUser={selectedUser}
-         isOpen={isChatOpen}
-         onClose={() => setIsChatOpen(false)}
-       />
+           currentUser={user}
+           otherUser={selectedUser}
+           isOpen={isChatOpen}
+           onClose={() => {
+             setIsChatOpen(false);
+             setActiveChat(null);
+           }}
+         />
         )}
 
         <Settings
