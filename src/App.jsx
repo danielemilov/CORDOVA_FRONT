@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
-import { ChakraProvider, useToast } from "@chakra-ui/react";
-import { io } from "socket.io-client";
+import { ChakraProvider } from "@chakra-ui/react";
 import MainPage from "./components/MainPage";
 import Login from "./components/Login";
 import Register from "./components/Register";
@@ -11,52 +10,8 @@ import ResetPassword from "./components/ResetPassword";
 import { theme, GlobalStyle } from "./SharedStyles";
 import { SocketProvider } from './contexts/SocketContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-
 function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
-  const [socket, setSocket] = useState(null);
-  const toast = useToast();
-
-  const setupSocket = useCallback(() => {
-    const token = localStorage.getItem('token');
-    if (user && token && !socket) {
-      const newSocket = io(API_BASE_URL, {
-        auth: { token },
-        transports: ['websocket'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-      });
-
-      newSocket.on('connect', () => {
-        console.log('Connected to WebSocket');
-        setSocket(newSocket);
-      });
-
-      newSocket.on('connect_error', (err) => {
-        console.error('WebSocket connection error:', err);
-      });
-
-      newSocket.on('disconnect', (reason) => {
-        console.log('Disconnected from WebSocket:', reason);
-        if (reason === 'io server disconnect') {
-          newSocket.connect();
-        }
-      });
-
-      return newSocket;
-    }
-    return null;
-  }, [user]);
-
-  useEffect(() => {
-    const newSocket = setupSocket();
-    if (newSocket) {
-      setSocket(newSocket);
-      return () => newSocket.disconnect();
-    }
-  }, [setupSocket]);
 
   const handleLogin = useCallback((userData) => {
     setUser(userData);
@@ -67,16 +22,12 @@ function App() {
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    if (socket) {
-      socket.disconnect();
-      setSocket(null);
-    }
-  }, [socket]);
+  }, []);
 
   return (
     <ChakraProvider theme={theme}>
       <GlobalStyle />
-      <SocketProvider value={socket}>
+      <SocketProvider>
         <Router>
           <Routes>
             {user ? (

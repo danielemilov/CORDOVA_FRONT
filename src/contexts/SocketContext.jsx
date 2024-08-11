@@ -1,4 +1,3 @@
-// SocketContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
@@ -16,7 +15,7 @@ export const SocketProvider = ({ children }) => {
     if (token) {
       const newSocket = io(API_BASE_URL, {
         auth: { token },
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
@@ -29,6 +28,8 @@ export const SocketProvider = ({ children }) => {
 
       newSocket.on('connect_error', (err) => {
         console.error('WebSocket connection error:', err);
+        // Attempt to reconnect using polling if WebSocket fails
+        newSocket.io.opts.transports = ['polling', 'websocket'];
       });
 
       newSocket.on('disconnect', (reason) => {
