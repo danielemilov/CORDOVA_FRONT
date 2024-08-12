@@ -43,11 +43,13 @@ const Conversations = ({ onSelectConversation, filter }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await api.get('/api/conversations');
+      console.log('Fetching conversations...');
+      const response = await api.get('/api/messages/conversations');
+      console.log('Conversations response:', response.data);
       setConversations(response.data);
     } catch (error) {
-      console.error('Error fetching conversations:', error);
-      setError(error.message || 'Failed to fetch conversations');
+      console.error('Error fetching conversations:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Failed to fetch conversations');
       toast({
         title: "Error",
         description: "Failed to fetch conversations. Please try again.",
@@ -72,6 +74,20 @@ const Conversations = ({ onSelectConversation, filter }) => {
       };
     }
   }, [socket]);
+
+  useEffect(() => {
+    console.log('Current conversations state:', conversations);
+  }, [conversations]);
+
+  useEffect(() => {
+    console.log('Current conversations state:', conversations);
+    if (conversations.length === 0) {
+      console.log('No conversations found. This could be due to:');
+      console.log('1. The user has no messages');
+      console.log('2. There\'s an issue with the aggregation pipeline');
+      console.log('3. The conversations are not being properly returned from the server');
+    }
+  }, [conversations]);
 
   const handleNewMessage = useCallback((message) => {
     setConversations((prevConversations) => {
