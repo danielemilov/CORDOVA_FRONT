@@ -15,8 +15,21 @@ const ConversationItem = styled(Box)`
   }
 `;
 
+const UnreadBadge = styled(Badge)`
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  border-radius: 50%;
+  padding: 0.25rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 const Conversations = ({ onSelectConversation }) => {
-    const [conversations, setConversations] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const socket = useSocket();
   const toast = useToast();
@@ -43,7 +56,7 @@ const Conversations = ({ onSelectConversation }) => {
       console.error('Error fetching conversations:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to fetch conversations",
+        description: "Failed to fetch conversations",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -56,17 +69,11 @@ const Conversations = ({ onSelectConversation }) => {
   const handleNewMessage = (message) => {
     setConversations((prevConversations) => {
       const updatedConversations = prevConversations.map((conv) => {
-        if (
-          conv.user._id === message.sender._id ||
-          conv.user._id === message.recipient._id
-        ) {
+        if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
           return {
             ...conv,
             lastMessage: message,
-            unreadCount:
-              conv.user._id === message.sender._id
-                ? conv.unreadCount + 1
-                : conv.unreadCount,
+            unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount,
           };
         }
         return conv;
@@ -91,8 +98,9 @@ const Conversations = ({ onSelectConversation }) => {
     <VStack spacing={0} align="stretch">
       {conversations.map((conversation) => (
         <ConversationItem
-          key={conversation.user.id}
+          key={conversation.user._id}
           onClick={() => onSelectConversation(conversation.user)}
+          position="relative"
         >
           <HStack spacing={4}>
             <Avatar
@@ -111,9 +119,9 @@ const Conversations = ({ onSelectConversation }) => {
               </Text>
             </Box>
             {conversation.unreadCount > 0 && (
-              <Badge colorScheme="red" borderRadius="full" px={2}>
+              <UnreadBadge colorScheme="red">
                 {conversation.unreadCount}
-              </Badge>
+              </UnreadBadge>
             )}
           </HStack>
         </ConversationItem>
