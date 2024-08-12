@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { Box, VStack, HStack, Text, Avatar, Badge, Spinner, useToast, Button } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, Avatar, Spinner, useToast, Button } from '@chakra-ui/react';
 import api from '../api';
 import { useSocket } from '../contexts/SocketContext';
 import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
@@ -15,21 +15,27 @@ const ConversationItem = styled(Box)`
   }
 `;
 
-const UnreadBadge = styled(Badge)`
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+const UnreadBadge = styled.div`
+  background-color: #FF4136;
+  color: white;
   border-radius: 50%;
-  padding: 0.25rem;
-  min-width: 1.5rem;
-  min-height: 1.5rem;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12px;
+  margin-left: 10px;
 `;
 
 const LastMessage = styled(Text)`
-  font-weight: ${props => props.unread ? 'bold' : 'normal'};
+  color: ${props => props.$unread ? '#000' : '#666'};
+  font-weight: ${props => props.$unread ? 'bold' : 'normal'};
+`;
+
+const TimeStamp = styled(Text)`
+  font-size: 12px;
+  color: #999;
 `;
 
 const Conversations = ({ onSelectConversation, filter }) => {
@@ -43,9 +49,7 @@ const Conversations = ({ onSelectConversation, filter }) => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('Fetching conversations...');
       const response = await api.get('/api/messages/conversations');
-      console.log('Conversations response:', response.data);
       setConversations(response.data);
     } catch (error) {
       console.error('Error fetching conversations:', error.response?.data || error.message);
@@ -74,20 +78,6 @@ const Conversations = ({ onSelectConversation, filter }) => {
       };
     }
   }, [socket]);
-
-  useEffect(() => {
-    console.log('Current conversations state:', conversations);
-  }, [conversations]);
-
-  useEffect(() => {
-    console.log('Current conversations state:', conversations);
-    if (conversations.length === 0) {
-      console.log('No conversations found. This could be due to:');
-      console.log('1. The user has no messages');
-      console.log('2. There\'s an issue with the aggregation pipeline');
-      console.log('3. The conversations are not being properly returned from the server');
-    }
-  }, [conversations]);
 
   const handleNewMessage = useCallback((message) => {
     setConversations((prevConversations) => {
@@ -125,6 +115,34 @@ const Conversations = ({ onSelectConversation, filter }) => {
     );
   }, [conversations, filter]);
 
+  const handleConversationClick = useCallback(async (conversation) => {
+    try {
+      await api.post(`/api/messages/mark-read/${conversation.user._id}`);
+      setConversations((prevConversations) =>
+        prevConversations.map((conv) =>
+          conv.user._id === conversation.user._id
+            ? { ...conv, unreadCount: 0 }
+            : conv
+        )
+      );
+      setUnreadConversations(0);
+      setUnreadMessages((prevUnread) => ({
+        ...prevUnread,
+        [conversation.user._id]: 0,
+      }));
+      onSelectConversation(conversation.user);
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to mark messages as read. Please try again.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }, [onSelectConversation, toast]);
+
   if (isLoading) {
     return (
       <Box textAlign="center" py={4}>
@@ -156,33 +174,33 @@ const Conversations = ({ onSelectConversation, filter }) => {
       {filteredConversations.map((conversation) => (
         <ConversationItem
           key={conversation.user._id}
-          onClick={() => {
-            console.log('Conversation selected:', conversation);
-            onSelectConversation(conversation.user);
-          }}
-          position="relative"
+          onClick={() => handleConversationClick(conversation)}
         >
-          <HStack spacing={4}>
+          <HStack spacing={4} align="flex-start">
             <Avatar
               src={conversation.user.photo}
               name={conversation.user.username}
+              size="md"
             />
             <Box flex={1}>
-              <HStack justify="space-between">
+              <HStack justify="space-between" align="center">
                 <Text fontWeight="bold">{conversation.user.username}</Text>
-                <Text fontSize="xs" color="gray.500">
-                  {formatLastMessageTime(conversation.lastMessage.timestamp)}
-                </Text>
+                <HStack>
+                  {conversation.unreadCount > 0 && (
+                    <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
+                  )}
+                  <TimeStamp>
+                    {formatLastMessageTime(conversation.lastMessage.timestamp)}
+                  </TimeStamp>
+                </HStack>
               </HStack>
-              <LastMessage fontSize="sm" color="gray.500" noOfLines={1} unread={conversation.unreadCount > 0}>
+              <LastMessage 
+                $unread={conversation.unreadCount > 0} 
+                noOfLines={1}
+              >
                 {conversation.lastMessage.content}
               </LastMessage>
             </Box>
-            {conversation.unreadCount > 0 && (
-              <UnreadBadge colorScheme="red">
-                {conversation.unreadCount}
-              </UnreadBadge>
-            )}
           </HStack>
         </ConversationItem>
       ))}

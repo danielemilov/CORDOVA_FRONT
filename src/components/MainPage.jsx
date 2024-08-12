@@ -16,7 +16,6 @@ const Chat = lazy(() => import("./Chat"));
 const Settings = lazy(() => import("./Settings"));
 const Conversations = lazy(() => import("./Conversations"));
 
-
 const MainWrapper = styled.div`
   max-width: 600px;
   margin: 0 auto;
@@ -186,6 +185,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [showConversations, setShowConversations] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
   const [unreadConversations, setUnreadConversations] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState({});
   
   const toast = useToast();
   const socket = useSocket();
@@ -213,9 +213,9 @@ const MainPage = ({ user, setUser, onLogout }) => {
           longitude
         },
       });
-    
+      
       const newUsers = response.data.users.filter(u => u._id !== user._id);
-  
+    
       setUsers(prevUsers => {
         const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
           const x = acc.find(item => item._id === current._id);
@@ -229,8 +229,38 @@ const MainPage = ({ user, setUser, onLogout }) => {
       });
       setHasMore(newUsers.length === 20);
       setPage(prevPage => prevPage + 1);
+  
+      // Fetch unread message counts for each user
+      const unreadCounts = await Promise.all(
+        newUsers.map(async (u) => {
+          try {
+            const response = await api.get(`/api/messages/unread/${u._id}`);
+            return { userId: u._id, count: response.data.unreadCount };
+          } catch (error) {
+            console.error(`Error fetching unread count for user ${u._id}:`, error);
+            return { userId: u._id, count: 0 };
+          }
+        })
+      );
+      
+      setUnreadMessages(prevUnread => {
+        const newUnread = { ...prevUnread };
+        unreadCounts.forEach(({ userId, count }) => {
+          newUnread[userId] = count;
+        });
+        return newUnread;
+      });
+  
     } catch (error) {
       console.error('Error fetching users:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error setting up request:', error.message);
+      }
       toast({
         title: "Error",
         description: "Failed to fetch users. Please try again later.",
@@ -241,7 +271,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user._id, toast, page, hasMore]);
+  }, [user._id, toast, page, hasMore, getUserLocation]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -262,6 +292,10 @@ const MainPage = ({ user, setUser, onLogout }) => {
       socket.on('private message', (message) => {
         if (activeChat !== message.sender._id) {
           setUnreadConversations(prev => prev + 1);
+          setUnreadMessages(prevUnread => ({
+            ...prevUnread,
+            [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
+          }));
           toast({
             title: "New Message",
             description: `${message.sender.username}: ${message.content}`,
@@ -289,6 +323,10 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setIsChatOpen(true);
     setActiveChat(clickedUser._id);
     setUnreadConversations(prev => Math.max(0, prev - 1));
+    setUnreadMessages(prevUnread => ({
+      ...prevUnread,
+      [clickedUser._id]: 0
+    }));
   }, []);
 
   const handleSettingsClose = useCallback(async (updatedUser) => {
@@ -330,16 +368,20 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setShowConversations(false);
     setIsChatOpen(true);
     setActiveChat(user._id);
-    setUnreadConversations(prev => Math.max(0, prev - 1));
+    setUnreadConversations(0);
+    setUnreadMessages((prevUnread) => ({
+      ...prevUnread,
+      [user._id]: 0,
+    }));
   }, []);
 
   const toggleView = () => {
-    console.log('Toggling view. Current state:', showConversations);
     setShowConversations(!showConversations);
     if (!showConversations) {
       setFilter('');
+      setUnreadConversations(0);
+      setUnreadMessages({});
     }
-    console.log('New state:', !showConversations);
   };
 
   return (
@@ -363,20 +405,20 @@ const MainPage = ({ user, setUser, onLogout }) => {
         </SearchWrapper>
 
         <ToggleButton onClick={toggleView}>
-  {showConversations ? 'Show Users' : 'Show Conversations'}
-  {!showConversations && unreadConversations > 0 && (
-    <UnreadBadge>{unreadConversations}</UnreadBadge>
-  )}
-</ToggleButton>
+          {showConversations ? 'Show Users' : 'Show Conversations'}
+          {!showConversations && unreadConversations > 0 && (
+            <UnreadBadge>{unreadConversations}</UnreadBadge>
+          )}
+        </ToggleButton>
 
         {showConversations ? (
-  <Suspense fallback={<Spinner />}>
-    <Conversations 
-      onSelectConversation={handleConversationSelect}
-      filter={filter}
-    />
-  </Suspense>
-) : (
+          <Suspense fallback={<Spinner />}>
+            <Conversations 
+              onSelectConversation={handleConversationSelect}
+              filter={filter}
+            />
+          </Suspense>
+        ) : (
           <UserList>
             {filteredUsers.map((u) => (
               <UserCard 
@@ -384,6 +426,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
                 user={u} 
                 onUserClick={() => handleUserClick(u)}
                 onChatClick={() => handleChatClick(u)}
+                unreadCount={unreadMessages[u._id] || 0}
               />
             ))}
           </UserList>

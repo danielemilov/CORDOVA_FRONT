@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 import { FaBirthdayCake, FaMapMarkerAlt, FaComment } from 'react-icons/fa';
-import Notification from './Notification';
 
 const Card = styled.div`
   background: #e7e7e7;
@@ -69,17 +68,35 @@ const Detail = styled.span`
 `;
 
 const ChatButton = styled.button`
-  background: none;
+  background: ${props => props.$hasUnread ? '#4CAF50' : 'none'};
   border: none;
-  color: #00000033;
+  color: ${props => props.$hasUnread ? 'white' : '#00000033'};
   font-size: 19px;
   margin-top: 60px;
   cursor: pointer;
   transition: all 0.3s ease;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 
   &:hover {
     transform: scale(1.1);
   }
+`;
+
+const UnreadBadge = styled.span`
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 12px;
 `;
 
 const formatDistance = (distance) => {
@@ -89,7 +106,7 @@ const formatDistance = (distance) => {
   return `${Math.round(distance)} km away`;
 };
 
-const UserCard = ({ user, onUserClick, onChatClick }) => (
+const UserCard = ({ user, onUserClick, onChatClick, unreadCount }) => (
   <Card onClick={() => onUserClick(user)}>
     <Avatar src={user.photo || 'https://via.placeholder.com/70'} alt={user.username} />
     <UserInfo>
@@ -110,13 +127,16 @@ const UserCard = ({ user, onUserClick, onChatClick }) => (
           {formatDistance(user.distance)}
         </Detail>
       </Details>
-      <Notification userId={user._id} />
-      </UserInfo>
-    <ChatButton onClick={(e) => {
-      e.stopPropagation();
-      onChatClick(user);
-    }}>
+    </UserInfo>
+    <ChatButton 
+      $hasUnread={unreadCount > 0}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChatClick(user);
+      }}
+    >
       <FaComment />
+      {unreadCount > 0 && <UnreadBadge>{unreadCount}</UnreadBadge>}
     </ChatButton>
   </Card>
 );

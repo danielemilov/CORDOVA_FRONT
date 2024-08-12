@@ -39,12 +39,10 @@ const ProfileAvatar = styled(Avatar)`
   height: 120px;
   margin: 0 auto 20px;
   display: block;
-
-`;  
+`;
 
 const ProfileInfo = styled.div`
   text-align: center;
-  
 `;
 
 const AgeAndLocation = styled.div`
@@ -74,8 +72,10 @@ const BirthdayMessage = styled.div`
 const ChatButton = styled(Button)`
   margin-top: 20px;
   width: fit-content;
-  margin-left: 10.2rem;
-  background-color: #003104;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  background-color: #4CAF50;
 `;
 
 const formatDistance = (distance) => {
@@ -97,17 +97,16 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
       <Content>
         <ProfileAvatar src={user.photo || 'https://via.placeholder.com/120'} alt={user.username} />
         <ProfileInfo>
-          <Username>{user.username} <StatusDot $online={user.isOnline} />
-
-</Username>
+          <Username>{user.username} <StatusDot $online={user.isOnline} /></Username>
           <AgeAndLocation>
             {user.age && (
               <IconWrapper>
+                <FaBirthdayCake style={{ marginRight: '5px' }} />
                 {user.age} years
               </IconWrapper>
             )}
             <IconWrapper>
-              <FaMapMarkerAlt />
+              <FaMapMarkerAlt style={{ marginRight: '5px' }} />
               {formatDistance(user.distance)}
             </IconWrapper>
           </AgeAndLocation>
