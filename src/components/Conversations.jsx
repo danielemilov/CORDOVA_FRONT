@@ -42,6 +42,8 @@ const Conversations = ({ onSelectConversation, filter }) => {
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unreadConversations, setUnreadConversations] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState({});
   const socket = useSocket();
   const toast = useToast();
 
@@ -51,6 +53,14 @@ const Conversations = ({ onSelectConversation, filter }) => {
       setError(null);
       const response = await api.get('/api/messages/conversations');
       setConversations(response.data);
+      let unreadCount = 0;
+      const unreadMap = {};
+      response.data.forEach((conv) => {
+        unreadCount += conv.unreadCount;
+        unreadMap[conv.user._id] = conv.unreadCount;
+      });
+      setUnreadConversations(unreadCount);
+      setUnreadMessages(unreadMap);
     } catch (error) {
       console.error('Error fetching conversations:', error.response?.data || error.message);
       setError(error.response?.data?.message || 'Failed to fetch conversations');
@@ -93,6 +103,11 @@ const Conversations = ({ onSelectConversation, filter }) => {
       });
       return updatedConversations;
     });
+    setUnreadConversations((prevUnread) => prevUnread + 1);
+    setUnreadMessages((prevUnread) => ({
+      ...prevUnread,
+      [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1,
+    }));
   }, []);
 
   const formatLastMessageTime = useCallback((timestamp) => {
@@ -125,7 +140,7 @@ const Conversations = ({ onSelectConversation, filter }) => {
             : conv
         )
       );
-      setUnreadConversations(0);
+      setUnreadConversations((prevUnread) => prevUnread - conversation.unreadCount);
       setUnreadMessages((prevUnread) => ({
         ...prevUnread,
         [conversation.user._id]: 0,
