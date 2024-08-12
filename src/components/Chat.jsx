@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Box, VStack, HStack, Text, Input, IconButton, useToast, Spinner, Flex, Avatar, Image,
-} from "@chakra-ui/react";
+import { IconButton, useToast, Spinner } from "@chakra-ui/react";
 import { ArrowBackIcon, AttachmentIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
-
 import styled from "styled-components";
 
-const ChatContainer = styled(Box)`
+const ChatContainer = styled.div`
   position: fixed;
   top: 0;
   left: 0;
@@ -23,52 +20,90 @@ const ChatContainer = styled(Box)`
   flex-direction: column;
 `;
 
-const Header = styled(Box)`
+const Header = styled.div`
   background-color: #000000;
   color: white;
   padding: 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
 `;
 
-const MessageContainer = styled(Box)`
+const Avatar = styled.img`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+`;
+
+const Username = styled.span`
+  font-weight: bold;
+`;
+
+const MessageContainer = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
 `;
 
-const MessageBubble = styled(Box)`
+const MessageWrapper = styled.div`
+  display: flex;
+  justify-content: ${props => props.isSentByCurrentUser ? 'flex-end' : 'flex-start'};
+  margin-bottom: 10px;
+`;
+
+const MessageBubble = styled.div`
   max-width: 70%;
-  padding: 0.5rem 1rem;
+  padding: 10px;
   border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  margin-bottom: 0.5rem;
-  background-color: ${props => props.$isSender ? '#e3f2fd' : '#f5f5f5'};
-  align-self: ${props => props.$isSender ? 'flex-end' : 'flex-start'};
+  background-color: ${props => props.isSentByCurrentUser ? '#ffcccb' : '#add8e6'};
+  color: ${props => props.isSentByCurrentUser ? '#8b0000' : '#00008b'};
 `;
 
-const InputContainer = styled(Box)`
+const MessageContent = styled.p`
+  margin: 0;
+  white-space: pre-wrap;
+`;
+
+const MessageTime = styled.span`
+  font-size: 0.8em;
+  color: #666;
+  display: block;
+  text-align: right;
+  margin-top: 5px;
+`;
+
+const InputContainer = styled.div`
   padding: 1rem;
   background-color: white;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
 `;
 
-const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
+const Input = styled.input`
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  margin-right: 10px;
+`;
+
+  const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [file, setFile] = useState(null);
-  const [isTyping, setIsTyping] = useState(false);
   const toast = useToast();
-  const messagesEndRef = useRef(null);
   const messageContainerRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const socket = useSocket();
-  const typingTimeout = useRef(null);
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
@@ -77,17 +112,18 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
 
     try {
+      setIsLoading(true);
       console.log(`Fetching messages for page ${pageNum}`);
       const response = await api.get(`/api/messages/${otherUser._id}`, {
-        params: { page: pageNum, limit: 5 },
+        params: { page: pageNum, limit: 20 },
       });
       console.log("Fetched messages response:", response.data);
-      const data = response.data;
+      const { messages, hasMore } = response.data;
       setMessages((prevMessages) => {
-        const newMessages = Array.isArray(data.messages) ? data.messages : [];
-        return [...prevMessages, ...newMessages];
+        const newMessages = Array.isArray(messages) ? messages : [];
+        return pageNum === 1 ? newMessages : [...prevMessages, ...newMessages];
       });
-      setHasMore(data.hasMore);
+      setHasMore(hasMore);
       setPage((prevPage) => prevPage + 1);
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -104,36 +140,31 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [currentUser, otherUser, toast]);
 
   useEffect(() => {
-    if (isOpen && socket && currentUser && otherUser) {
+    if (isOpen && currentUser && otherUser) {
       console.log("Chat component opened, fetching messages");
-      fetchMessages();
+      setMessages([]);
+      setPage(1);
+      setHasMore(true);
+      fetchMessages(1);
+    }
+  }, [isOpen, currentUser, otherUser, fetchMessages]);
 
-      socket.on("private message", (message) => {
-        console.log("Received private message:", message);
-        setMessages((prevMessages) => [...prevMessages, message]);
-        scrollToBottom();
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('private message', (message) => {
+        setMessages((prevMessages) => [message, ...prevMessages]);
       });
 
       return () => {
-        console.log("Cleaning up socket listeners");
-        socket.off("private message");
+        socket.off('private message');
       };
     }
-  }, [isOpen, socket, currentUser, otherUser, fetchMessages]);
-
-
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  }, [socket]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !file) return;
-
+  
     try {
       let mediaUrl = null;
       if (file) {
@@ -142,13 +173,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         const response = await api.post('/api/upload', formData);
         mediaUrl = response.data.url;
       }
-
+  
       const messageData = {
         recipient: otherUser._id,
         content: newMessage.trim(),
         media: mediaUrl,
       };
-
+  
       socket.emit('private message', messageData, (error, sentMessage) => {
         if (error) {
           console.error("Error sending message:", error);
@@ -160,20 +191,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             isClosable: true,
           });
         } else {
-          setMessages((prevMessages) => [...prevMessages, sentMessage]);
+          setMessages((prevMessages) => [sentMessage, ...prevMessages]);
           setNewMessage("");
           setFile(null);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
-          scrollToBottom();
         }
       });
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Error uploading file:", error);
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: "Failed to upload file. Please try again.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -181,26 +208,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   }, [newMessage, file, otherUser._id, socket, toast]);
 
-  useEffect(() => {
-    if (socket) {
-      socket.on('private message', (message) => {
-        setMessages((prevMessages) => [...prevMessages, message]);
-        scrollToBottom();
-      });
-  
-      return () => {
-        socket.off('private message');
-      };
-    }
-  }, [socket]);
-
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
-    socket.emit('typing', { recipientId: otherUser._id });
-    clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => {
-      socket.emit('stop typing', { recipientId: otherUser._id });
-    }, 3000);
   };
 
   const handleFileChange = (e) => {
@@ -233,53 +242,22 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       return null;
     }
   
-    const isSentByCurrentUser = msg.sender._id === currentUser._id;
+    const isSentByCurrentUser = msg.sender._id === currentUser.id;
   
     console.log('Message:', msg);
     console.log('Current User:', currentUser);
     console.log('Is sent by current user:', isSentByCurrentUser);
   
     return (
-      <Flex
-        key={msg._id}
-        justifyContent={isSentByCurrentUser ? "flex-end" : "flex-start"}
-        mb={4}
-      >
-        {!isSentByCurrentUser && (
-          <Avatar
-            size="sm"
-            name={msg.sender.username || "Unknown"}
-            src={msg.sender.photo}
-            mr={2}
-            alignSelf="flex-end"
-          />
-        )}
-        <MessageBubble $isSender={isSentByCurrentUser}>
-
+      <MessageWrapper key={msg._id} isSentByCurrentUser={isSentByCurrentUser}>
+        <MessageBubble isSentByCurrentUser={isSentByCurrentUser}>
           {msg.media && (
-            <Image
-              src={msg.media}
-              alt="Uploaded media"
-              maxWidth="100%"
-              mb={2}
-              borderRadius="md"
-            />
+            <img src={msg.media} alt="Uploaded media" style={{ maxWidth: '100%', marginBottom: '10px', borderRadius: '10px' }} />
           )}
-          <Text whiteSpace="pre-wrap">{msg.content}</Text>
-          <Text fontSize="xs" color="gray.500" mt={1} textAlign="right">
-            {formatMessageTime(msg.timestamp)}
-          </Text>
+          <MessageContent>{msg.content}</MessageContent>
+          <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
         </MessageBubble>
-        {isSentByCurrentUser && (
-          <Avatar
-            size="sm"
-            name={msg.sender.username || "Unknown"}
-            src={msg.sender.photo}
-            ml={2}
-            alignSelf="flex-end"
-          />
-        )}
-      </Flex>
+      </MessageWrapper>
     );
   };
 
@@ -288,81 +266,67 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   return (
     <ChatContainer>
       <Header>
-        <HStack>
-          <IconButton
-            icon={<ArrowBackIcon />}
-            aria-label="Back"
-            onClick={onClose}
-            variant="ghost"
-            colorScheme="whiteAlpha"
-          />
-          <Avatar
-            size="sm"
-            name={otherUser.username || "Unknown"}
-            src={otherUser.photo}
-          />
-          <Text>{otherUser.username}</Text>
-        </HStack>
+        <IconButton
+          icon={<ArrowBackIcon />}
+          aria-label="Back"
+          onClick={onClose}
+          variant="ghost"
+          colorScheme="whiteAlpha"
+        />
+        <Avatar src={otherUser.photo} alt={otherUser.username} />
+        <Username>{otherUser.username}</Username>
       </Header>
 
       <MessageContainer ref={messageContainerRef} id="scrollableDiv">
-        {isLoading ? (
-          <Flex justifyContent="center" alignItems="center" height="100%">
+        {isLoading && messages.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <Spinner size="xl" />
-          </Flex>
+          </div>
         ) : (
           <InfiniteScroll
             dataLength={messages.length}
             next={() => fetchMessages(page)}
             hasMore={hasMore}
             loader={
-              <Flex justifyContent="center" mt={4}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
                 <Spinner size="md" />
-              </Flex>
+              </div>
             }
             scrollableTarget="scrollableDiv"
             inverse={true}
             style={{ display: 'flex', flexDirection: 'column-reverse' }}
           >
-            <VStack spacing={4} align="stretch">
-              {messages.map((msg) => renderMessage(msg))}
-            </VStack>
+            {messages.map((msg) => renderMessage(msg))}
           </InfiniteScroll>
         )}
-        <div ref={messagesEndRef} />
       </MessageContainer>
 
       <InputContainer>
-        <HStack spacing={2}>
-          <Input
-            placeholder="Type a message..."
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            ref={inputRef}
-            variant="filled"
-            flex={1}
-          />
-          <input
-            type="file"
-            style={{ display: "none" }}
-            ref={fileInputRef}
-            onChange={handleFileChange}
-          />
-          {isTyping && <Text fontSize="sm" color="gray.500">User is typing...</Text>}
-          <IconButton
-            icon={<AttachmentIcon />}
-            onClick={() => fileInputRef.current.click()}
-            variant="ghost"
-            aria-label="Attach file"
-          />
-          <IconButton
-            icon={<FaPaperPlane />}
-            colorScheme="blue"
-            onClick={handleSendMessage}
-            aria-label="Send message"
-          />
-        </HStack>
+        <Input
+          placeholder="Type a message..."
+          value={newMessage}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          ref={inputRef}
+        />
+        <input
+          type="file"
+          style={{ display: "none" }}
+          ref={fileInputRef}
+          onChange={handleFileChange}
+        />
+        <IconButton
+          icon={<AttachmentIcon />}
+          onClick={() => fileInputRef.current.click()}
+          variant="ghost"
+          aria-label="Attach file"
+        />
+        <IconButton
+          icon={<FaPaperPlane />}
+          colorScheme="blue"
+          onClick={handleSendMessage}
+          aria-label="Send message"
+        />
       </InputContainer>
     </ChatContainer>
   );
