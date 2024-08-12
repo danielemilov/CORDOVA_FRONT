@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import { Box, VStack, HStack, Text, Avatar, Badge, Spinner, useToast } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, Avatar, Badge, Spinner, useToast, Button } from '@chakra-ui/react';
 import api from '../api';
 import { useSocket } from '../contexts/SocketContext';
-import { format } from 'date-fns';
+import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 
 const ConversationItem = styled(Box)`
   padding: 1rem;
@@ -28,15 +28,41 @@ const UnreadBadge = styled(Badge)`
   justify-content: center;
 `;
 
-const Conversations = ({ onSelectConversation }) => {
+const LastMessage = styled(Text)`
+  font-weight: ${props => props.unread ? 'bold' : 'normal'};
+`;
+
+const Conversations = ({ onSelectConversation, filter }) => {
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const socket = useSocket();
   const toast = useToast();
 
+  const fetchConversations = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await api.get('/api/conversations');
+      setConversations(response.data);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      setError(error.message || 'Failed to fetch conversations');
+      toast({
+        title: "Error",
+        description: "Failed to fetch conversations. Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [fetchConversations]);
 
   useEffect(() => {
     if (socket) {
@@ -47,26 +73,7 @@ const Conversations = ({ onSelectConversation }) => {
     }
   }, [socket]);
 
-  const fetchConversations = async () => {
-    try {
-      setIsLoading(true);
-      const response = await api.get('/api/messages/conversations');
-      setConversations(response.data);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch conversations",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleNewMessage = (message) => {
+  const handleNewMessage = useCallback((message) => {
     setConversations((prevConversations) => {
       const updatedConversations = prevConversations.map((conv) => {
         if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
@@ -80,26 +87,63 @@ const Conversations = ({ onSelectConversation }) => {
       });
       return updatedConversations;
     });
-  };
+  }, []);
 
-  const formatLastMessageTime = (timestamp) => {
-    return format(new Date(timestamp), 'MMM d, h:mm a');
-  };
+  const formatLastMessageTime = useCallback((timestamp) => {
+    const date = new Date(timestamp);
+    if (isToday(date)) {
+      return format(date, 'h:mm a');
+    } else if (isYesterday(date)) {
+      return 'Yesterday';
+    } else if (isThisWeek(date)) {
+      return format(date, 'EEEE');
+    } else {
+      return format(date, 'MMM d');
+    }
+  }, []);
+
+  const filteredConversations = useMemo(() => {
+    return conversations.filter(conv => 
+      conv.user.username.toLowerCase().includes(filter.toLowerCase()) ||
+      (conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+    );
+  }, [conversations, filter]);
 
   if (isLoading) {
     return (
       <Box textAlign="center" py={4}>
-        <Spinner />
+        <Spinner size="xl" />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box textAlign="center" py={4}>
+        <Text color="red.500">{error}</Text>
+        <Button mt={2} onClick={fetchConversations}>Retry</Button>
+      </Box>
+    );
+  }
+
+  if (filteredConversations.length === 0) {
+    return (
+      <Box textAlign="center" py={4}>
+        <Text>No conversations found</Text>
+        <Button mt={2} onClick={fetchConversations}>Refresh</Button>
       </Box>
     );
   }
 
   return (
     <VStack spacing={0} align="stretch">
-      {conversations.map((conversation) => (
+      {filteredConversations.map((conversation) => (
         <ConversationItem
           key={conversation.user._id}
-          onClick={() => onSelectConversation(conversation.user)}
+          onClick={() => {
+            console.log('Conversation selected:', conversation);
+            onSelectConversation(conversation.user);
+          }}
           position="relative"
         >
           <HStack spacing={4}>
@@ -114,9 +158,9 @@ const Conversations = ({ onSelectConversation }) => {
                   {formatLastMessageTime(conversation.lastMessage.timestamp)}
                 </Text>
               </HStack>
-              <Text fontSize="sm" color="gray.500" noOfLines={1}>
+              <LastMessage fontSize="sm" color="gray.500" noOfLines={1} unread={conversation.unreadCount > 0}>
                 {conversation.lastMessage.content}
-              </Text>
+              </LastMessage>
             </Box>
             {conversation.unreadCount > 0 && (
               <UnreadBadge colorScheme="red">
@@ -130,4 +174,4 @@ const Conversations = ({ onSelectConversation }) => {
   );
 };
 
-export default Conversations;
+export default React.memo(Conversations);

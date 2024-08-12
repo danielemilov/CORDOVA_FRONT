@@ -16,6 +16,7 @@ const Chat = lazy(() => import("./Chat"));
 const Settings = lazy(() => import("./Settings"));
 const Conversations = lazy(() => import("./Conversations"));
 
+
 const MainWrapper = styled.div`
   max-width: 600px;
   margin: 0 auto;
@@ -157,6 +158,20 @@ const MenuItem = styled.li`
   }
 `;
 
+const UnreadBadge = styled.span`
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 12px;
+  margin-left: 5px;
+`;
+
+const ToggleButton = styled(Button)`
+  margin-bottom: 20px;
+  width: 100%;
+`;
+
 const MainPage = ({ user, setUser, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -170,6 +185,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showConversations, setShowConversations] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
+  const [unreadConversations, setUnreadConversations] = useState(0);
   
   const toast = useToast();
   const socket = useSocket();
@@ -245,6 +261,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
 
       socket.on('private message', (message) => {
         if (activeChat !== message.sender._id) {
+          setUnreadConversations(prev => prev + 1);
           toast({
             title: "New Message",
             description: `${message.sender.username}: ${message.content}`,
@@ -271,6 +288,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setSelectedUser(clickedUser);
     setIsChatOpen(true);
     setActiveChat(clickedUser._id);
+    setUnreadConversations(prev => Math.max(0, prev - 1));
   }, []);
 
   const handleSettingsClose = useCallback(async (updatedUser) => {
@@ -312,7 +330,17 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setShowConversations(false);
     setIsChatOpen(true);
     setActiveChat(user._id);
+    setUnreadConversations(prev => Math.max(0, prev - 1));
   }, []);
+
+  const toggleView = () => {
+    console.log('Toggling view. Current state:', showConversations);
+    setShowConversations(!showConversations);
+    if (!showConversations) {
+      setFilter('');
+    }
+    console.log('New state:', !showConversations);
+  };
 
   return (
     <>
@@ -328,21 +356,27 @@ const MainPage = ({ user, setUser, onLogout }) => {
         <SearchWrapper>
           <SearchIcon />
           <SearchInput
-            placeholder="Search users..."
+            placeholder={showConversations ? "Search conversations..." : "Search users..."}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
         </SearchWrapper>
 
-        <Button onClick={() => setShowConversations(!showConversations)} width="100%" mb={4}>
-          {showConversations ? 'Show Users' : 'Show Conversations'}
-        </Button>
+        <ToggleButton onClick={toggleView}>
+  {showConversations ? 'Show Users' : 'Show Conversations'}
+  {!showConversations && unreadConversations > 0 && (
+    <UnreadBadge>{unreadConversations}</UnreadBadge>
+  )}
+</ToggleButton>
 
         {showConversations ? (
-          <Suspense fallback={<Spinner />}>
-            <Conversations onSelectConversation={handleConversationSelect} />
-          </Suspense>
-        ) : (
+  <Suspense fallback={<Spinner />}>
+    <Conversations 
+      onSelectConversation={handleConversationSelect}
+      filter={filter}
+    />
+  </Suspense>
+) : (
           <UserList>
             {filteredUsers.map((u) => (
               <UserCard 
@@ -355,8 +389,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
           </UserList>
         )}
         
-        {isLoading && <Spinner />}
-        {!isLoading && hasMore && (
+        {!showConversations && isLoading && <Spinner />}
+        {!showConversations && !isLoading && hasMore && (
           <LoadMoreButton onClick={fetchUsers}>
             Load More
           </LoadMoreButton>

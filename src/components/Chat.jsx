@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { IconButton, useToast, Spinner } from "@chakra-ui/react";
+import { IconButton, useToast, Spinner, Input, Button } from "@chakra-ui/react";
 import { ArrowBackIcon, AttachmentIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
+import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
 import api from "../api";
@@ -48,18 +49,15 @@ const MessageContainer = styled.div`
   flex-direction: column-reverse;
 `;
 
-const MessageWrapper = styled.div`
-  display: flex;
-  justify-content: ${props => props.isSentByCurrentUser ? 'flex-end' : 'flex-start'};
-  margin-bottom: 10px;
-`;
+
 
 const MessageBubble = styled.div`
   max-width: 70%;
   padding: 10px;
   border-radius: 20px;
-  background-color: ${props => props.isSentByCurrentUser ? '#ffcccb' : '#add8e6'};
-  color: ${props => props.isSentByCurrentUser ? '#8b0000' : '#00008b'};
+  background-color: ${(props) => (props.$isSentByCurrentUser ? "#6ecb91" : "#ffffff")};
+  color: ${(props) => (props.$isSentByCurrentUser ? "#ffffff" : "#000000")};
+  position: relative;
 `;
 
 const MessageContent = styled.p`
@@ -83,7 +81,7 @@ const InputContainer = styled.div`
   align-items: center;
 `;
 
-const Input = styled.input`
+const StyledInput = styled(Input)`
   flex: 1;
   padding: 10px;
   border: 1px solid #ccc;
@@ -91,19 +89,63 @@ const Input = styled.input`
   margin-right: 10px;
 `;
 
-  const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
+const TypingIndicator = styled.div`
+  font-size: 0.8em;
+  color: #999;
+  margin-left: 10px;
+`;
 
+const MessageActions = styled.div`
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 5px;
+  opacity: 0;
+  transition: opacity 0.3s;
+`;
+
+const MessageWrapper = styled.div`
+  display: flex;
+  justify-content: ${(props) => (props.$isSentByCurrentUser ? "flex-end" : "flex-start")};
+  margin-bottom: 10px;
+  position: relative;
+  &:hover ${MessageActions} {
+    opacity: 1;
+  }
+`;
+
+const DeletedMessageContent = styled.p`
+  margin: 0;
+  white-space: pre-wrap;
+  color: red;
+`;
+
+const EditedMessageContent = styled.p`
+  margin: 0;
+  white-space: pre-wrap;
+  &:before {
+    content: "[Edited] ";
+    color: #999;
+  }
+`;
+
+const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [file, setFile] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
   const toast = useToast();
   const messageContainerRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const socket = useSocket();
+  const typingTimeoutRef = useRef(null);
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
@@ -149,38 +191,68 @@ const Input = styled.input`
     }
   }, [isOpen, currentUser, otherUser, fetchMessages]);
 
-
   useEffect(() => {
     if (socket) {
-      socket.on('private message', (message) => {
+      socket.on("private message", (message) => {
+        console.log("Received private message:", message);
         setMessages((prevMessages) => [message, ...prevMessages]);
       });
 
+      socket.on("user typing", (userId) => {
+        if (userId === otherUser._id) {
+          setIsTyping(true);
+        }
+      });
+
+      socket.on("user stop typing", (userId) => {
+        if (userId === otherUser._id) {
+          setIsTyping(false);
+        }
+      });
+
+      socket.on("message deleted", (messageId) => {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg._id === messageId ? { ...msg, content: "[Message deleted]", deleted: true } : msg
+          )
+        );
+      });
+
+      socket.on("message edited", (updatedMessage) => {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => (msg._id === updatedMessage._id ? updatedMessage : msg))
+        );
+      });
+
       return () => {
-        socket.off('private message');
+        socket.off("private message");
+        socket.off("user typing");
+        socket.off("user stop typing");
+        socket.off("message deleted");
+        socket.off("message edited");
       };
     }
-  }, [socket]);
+  }, [socket, otherUser._id]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !file) return;
-  
+
     try {
       let mediaUrl = null;
       if (file) {
         const formData = new FormData();
-        formData.append('file', file);
-        const response = await api.post('/api/upload', formData);
+        formData.append("file", file);
+        const response = await api.post("/api/upload", formData);
         mediaUrl = response.data.url;
       }
-  
+
       const messageData = {
         recipient: otherUser._id,
         content: newMessage.trim(),
         media: mediaUrl,
       };
-  
-      socket.emit('private message', messageData, (error, sentMessage) => {
+
+      socket.emit("private message", messageData, (error, sentMessage) => {
         if (error) {
           console.error("Error sending message:", error);
           toast({
@@ -194,6 +266,7 @@ const Input = styled.input`
           setMessages((prevMessages) => [sentMessage, ...prevMessages]);
           setNewMessage("");
           setFile(null);
+          setEditingMessageId(null);
         }
       });
     } catch (error) {
@@ -210,6 +283,15 @@ const Input = styled.input`
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
+    socket.emit("typing", { recipientId: otherUser._id });
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("stop typing", { recipientId: otherUser._id });
+    }, 3000);
   };
 
   const handleFileChange = (e) => {
@@ -220,6 +302,51 @@ const Input = styled.input`
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await api.delete(`/api/messages/${messageId}`);
+      socket.emit("delete message", messageId);
+      toast({
+        title: "Message deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete message. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleEditMessage = async (messageId, newContent) => {
+    try {
+      const response = await api.put(`/api/messages/${messageId}`, { content: newContent });
+      socket.emit("edit message", response.data);
+      setEditingMessageId(null);
+      toast({
+        title: "Message edited",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error editing message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to edit message. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
@@ -241,21 +368,61 @@ const Input = styled.input`
       console.warn("Invalid message received:", msg);
       return null;
     }
-  
+
     const isSentByCurrentUser = msg.sender._id === currentUser.id;
-  
-    console.log('Message:', msg);
-    console.log('Current User:', currentUser);
-    console.log('Is sent by current user:', isSentByCurrentUser);
-  
+
     return (
-      <MessageWrapper key={msg._id} isSentByCurrentUser={isSentByCurrentUser}>
-        <MessageBubble isSentByCurrentUser={isSentByCurrentUser}>
+      <MessageWrapper key={msg._id} $isSentByCurrentUser={isSentByCurrentUser}>
+        <MessageBubble $isSentByCurrentUser={isSentByCurrentUser}>
           {msg.media && (
-            <img src={msg.media} alt="Uploaded media" style={{ maxWidth: '100%', marginBottom: '10px', borderRadius: '10px' }} />
+            <img
+              src={msg.media}
+              alt="Uploaded media"
+              style={{
+                maxWidth: "100%",
+                marginBottom: "10px",
+                borderRadius: "10px",
+              }}
+            />
           )}
-          <MessageContent>{msg.content}</MessageContent>
+          {msg.deleted ? (
+            <DeletedMessageContent>[Message deleted]</DeletedMessageContent>
+          ) : editingMessageId === msg._id ? (
+            <StyledInput
+              placeholder="Edit message..."
+              value={newMessage}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleEditMessage(msg._id, newMessage);
+                }
+              }}
+              ref={inputRef}
+              autoFocus
+            />
+          ) : (
+            <MessageContent>{msg.content}</MessageContent>
+          )}
+          {msg.edited && <EditedMessageContent>{msg.content}</EditedMessageContent>}
           <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
+          {isSentByCurrentUser && (
+            <MessageActions>
+              <IconButton
+                icon={<EditIcon />}
+                size="xs"
+                onClick={() => {
+                  setEditingMessageId(msg._id);
+                  setNewMessage(msg.content);
+                }}
+              />
+              <IconButton
+                icon={<DeleteIcon />}
+                size="xs"
+                onClick={() => handleDeleteMessage(msg._id)}
+              />
+            </MessageActions>
+          )}
         </MessageBubble>
       </MessageWrapper>
     );
@@ -275,11 +442,19 @@ const Input = styled.input`
         />
         <Avatar src={otherUser.photo} alt={otherUser.username} />
         <Username>{otherUser.username}</Username>
+        {isTyping && <TypingIndicator>Typing...</TypingIndicator>}
       </Header>
 
       <MessageContainer ref={messageContainerRef} id="scrollableDiv">
         {isLoading && messages.length === 0 ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
             <Spinner size="xl" />
           </div>
         ) : (
@@ -288,27 +463,49 @@ const Input = styled.input`
             next={() => fetchMessages(page)}
             hasMore={hasMore}
             loader={
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: "20px",
+                }}
+              >
                 <Spinner size="md" />
               </div>
             }
             scrollableTarget="scrollableDiv"
             inverse={true}
-            style={{ display: 'flex', flexDirection: 'column-reverse' }}
+            style={{ display: "flex", flexDirection: "column-reverse" }}
           >
-            {messages.map((msg) => renderMessage(msg))}
+ {messages.map((msg) => renderMessage(msg))}
           </InfiniteScroll>
         )}
       </MessageContainer>
 
       <InputContainer>
-        <Input
-          placeholder="Type a message..."
-          value={newMessage}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          ref={inputRef}
-        />
+        {editingMessageId ? (
+          <StyledInput
+            placeholder="Edit message..."
+            value={newMessage}
+            onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleEditMessage(editingMessageId, newMessage);
+              }
+            }}
+            ref={inputRef}
+            autoFocus
+          />
+        ) : (
+          <StyledInput
+            placeholder="Type a message..."
+            value={newMessage}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            ref={inputRef}
+          />
+        )}
         <input
           type="file"
           style={{ display: "none" }}
@@ -321,12 +518,22 @@ const Input = styled.input`
           variant="ghost"
           aria-label="Attach file"
         />
-        <IconButton
-          icon={<FaPaperPlane />}
-          colorScheme="blue"
-          onClick={handleSendMessage}
-          aria-label="Send message"
-        />
+        {editingMessageId ? (
+          <Button
+            colorScheme="blue"
+            onClick={() => handleEditMessage(editingMessageId, newMessage)}
+            aria-label="Update message"
+          >
+            Update
+          </Button>
+        ) : (
+          <IconButton
+            icon={<FaPaperPlane />}
+            colorScheme="blue"
+            onClick={handleSendMessage}
+            aria-label="Send message"
+          />
+        )}
       </InputContainer>
     </ChatContainer>
   );
