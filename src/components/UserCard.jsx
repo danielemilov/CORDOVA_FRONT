@@ -68,7 +68,7 @@ const Detail = styled.span`
 `;
 
 const ChatButton = styled.button`
-  background: ${props => props.$hasUnread ? '#4CAF50' : 'none'};
+  background: ${props => props.$hasUnread ? '#ffffff' : 'none'};
   border: none;
   color: ${props => props.$hasUnread ? 'white' : '#00000033'};
   font-size: 19px;

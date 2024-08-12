@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { IconButton, useToast, Spinner, Input, Button } from "@chakra-ui/react";
-import { ArrowBackIcon, AttachmentIcon } from "@chakra-ui/icons";
+import { IconButton, useToast, Spinner, Input, Button, Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
+import { ArrowBackIcon, AttachmentIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { FaPaperPlane } from "react-icons/fa";
-import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
 import api from "../api";
@@ -49,8 +48,6 @@ const MessageContainer = styled.div`
   flex-direction: column-reverse;
 `;
 
-
-
 const MessageBubble = styled.div`
   max-width: 70%;
   padding: 10px;
@@ -95,40 +92,16 @@ const TypingIndicator = styled.div`
   margin-left: 10px;
 `;
 
-const MessageActions = styled.div`
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 5px;
-  opacity: 0;
-  transition: opacity 0.3s;
-`;
-
 const MessageWrapper = styled.div`
   display: flex;
   justify-content: ${(props) => (props.$isSentByCurrentUser ? "flex-end" : "flex-start")};
   margin-bottom: 10px;
   position: relative;
-  &:hover ${MessageActions} {
-    opacity: 1;
-  }
 `;
 
-const DeletedMessageContent = styled.p`
-  margin: 0;
-  white-space: pre-wrap;
-  color: red;
-`;
-
-const EditedMessageContent = styled.p`
-  margin: 0;
-  white-space: pre-wrap;
-  &:before {
-    content: "[Edited] ";
-    color: #999;
-  }
+const DeletedMessageBubble = styled(MessageBubble)`
+  background-color: #000000;
+  color: #ffffff;
 `;
 
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
@@ -213,14 +186,14 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       socket.on("message deleted", (messageId) => {
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
-            msg._id === messageId ? { ...msg, content: "[Message deleted]", deleted: true } : msg
+            msg._id === messageId ? { ...msg, content: "This message was unsent.", deleted: true } : msg
           )
         );
       });
 
       socket.on("message edited", (updatedMessage) => {
         setMessages((prevMessages) =>
-          prevMessages.map((msg) => (msg._id === updatedMessage._id ? updatedMessage : msg))
+          prevMessages.map((msg) => (msg._id === updatedMessage._id ? { ...updatedMessage, edited: true } : msg))
         );
       });
 
@@ -309,8 +282,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     try {
       await api.delete(`/api/messages/${messageId}`);
       socket.emit("delete message", messageId);
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === messageId ? { ...msg, content: "This message was unsent.", deleted: true } : msg
+        )
+      );
       toast({
-        title: "Message deleted",
+        title: "Message unsent",
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -319,7 +297,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       console.error("Error deleting message:", error);
       toast({
         title: "Error",
-        description: "Failed to delete message. Please try again.",
+        description: "Failed to unsend message. Please try again.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -331,7 +309,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     try {
       const response = await api.put(`/api/messages/${messageId}`, { content: newContent });
       socket.emit("edit message", response.data);
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => (msg._id === messageId ? { ...response.data, edited: true } : msg))
+      );
       setEditingMessageId(null);
+      setNewMessage("");
       toast({
         title: "Message edited",
         status: "success",
@@ -373,57 +355,49 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
     return (
       <MessageWrapper key={msg._id} $isSentByCurrentUser={isSentByCurrentUser}>
-        <MessageBubble $isSentByCurrentUser={isSentByCurrentUser}>
-          {msg.media && (
-            <img
-              src={msg.media}
-              alt="Uploaded media"
-              style={{
-                maxWidth: "100%",
-                marginBottom: "10px",
-                borderRadius: "10px",
-              }}
-            />
-          )}
-          {msg.deleted ? (
-            <DeletedMessageContent>[Message deleted]</DeletedMessageContent>
-          ) : editingMessageId === msg._id ? (
-            <StyledInput
-              placeholder="Edit message..."
-              value={newMessage}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleEditMessage(msg._id, newMessage);
-                }
-              }}
-              ref={inputRef}
-              autoFocus
-            />
-          ) : (
+        {msg.deleted ? (
+          <DeletedMessageBubble>
             <MessageContent>{msg.content}</MessageContent>
-          )}
-          {msg.edited && <EditedMessageContent>{msg.content}</EditedMessageContent>}
-          <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
-          {isSentByCurrentUser && (
-            <MessageActions>
-              <IconButton
-                icon={<EditIcon />}
-                size="xs"
-                onClick={() => {
-                  setEditingMessageId(msg._id);
-                  setNewMessage(msg.content);
+            <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
+          </DeletedMessageBubble>
+        ) : (
+          <MessageBubble $isSentByCurrentUser={isSentByCurrentUser}>
+            {msg.media && (
+              <img
+                src={msg.media}
+                alt="Uploaded media"
+                style={{
+                  maxWidth: "100%",
+                  marginBottom: "10px",
+                  borderRadius: "10px",
                 }}
               />
-              <IconButton
-                icon={<DeleteIcon />}
-                size="xs"
-                onClick={() => handleDeleteMessage(msg._id)}
-              />
-            </MessageActions>
-          )}
-        </MessageBubble>
+            )}
+            <MessageContent>{msg.content}</MessageContent>
+            {msg.edited && <span style={{ color: 'red', fontSize: '0.8em', marginLeft: '5px' }}>edited</span>}
+            <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
+            {isSentByCurrentUser && (
+              <Menu>
+                <MenuButton
+                  as={IconButton}
+                  icon={<ChevronDownIcon />}
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Message options"
+                />
+                <MenuList>
+                  <MenuItem onClick={() => {
+                    setEditingMessageId(msg._id);
+                    setNewMessage(msg.content);
+                  }}>
+                    Edit
+                  </MenuItem>
+                  <MenuItem onClick={() => handleDeleteMessage(msg._id)}>Delete</MenuItem>
+                </MenuList>
+              </Menu>
+            )}
+          </MessageBubble>
+        )}
       </MessageWrapper>
     );
   };
@@ -447,14 +421,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
       <MessageContainer ref={messageContainerRef} id="scrollableDiv">
         {isLoading && messages.length === 0 ? (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: "100%",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
             <Spinner size="xl" />
           </div>
         ) : (
@@ -462,50 +429,24 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             dataLength={messages.length}
             next={() => fetchMessages(page)}
             hasMore={hasMore}
-            loader={
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginTop: "20px",
-                }}
-              >
-                <Spinner size="md" />
-              </div>
-            }
+            loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="md" /></div>}
             scrollableTarget="scrollableDiv"
             inverse={true}
             style={{ display: "flex", flexDirection: "column-reverse" }}
           >
- {messages.map((msg) => renderMessage(msg))}
+            {messages.map((msg) => renderMessage(msg))}
           </InfiniteScroll>
         )}
       </MessageContainer>
 
       <InputContainer>
-        {editingMessageId ? (
-          <StyledInput
-            placeholder="Edit message..."
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleEditMessage(editingMessageId, newMessage);
-              }
-            }}
-            ref={inputRef}
-            autoFocus
-          />
-        ) : (
-          <StyledInput
-            placeholder="Type a message..."
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            ref={inputRef}
-          />
-        )}
+        <StyledInput
+          placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
+          value={newMessage}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          ref={inputRef}
+        />
         <input
           type="file"
           style={{ display: "none" }}
