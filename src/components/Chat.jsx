@@ -7,7 +7,10 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "d
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
-import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
+
+
+
 const ChatContainer = styled.div`
   position: fixed;
   top: 0;
@@ -166,6 +169,19 @@ const VoicePreview = styled.div`
   margin-top: 10px;
 `;
 
+const ffmpeg = createFFmpeg({ 
+  log: true,
+  corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+});
+
+let ffmpegLoadingPromise = null;
+
+const loadFFmpeg = async () => {
+  if (ffmpegLoadingPromise) return ffmpegLoadingPromise;
+  ffmpegLoadingPromise = ffmpeg.load();
+  return ffmpegLoadingPromise;
+};
+
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -294,6 +310,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       };
     }
   }, [socket, otherUser._id]);
+
+  useEffect(() => {
+    ffmpeg.load();
+  }, []);
+  
+  
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !file && !audioBlob) return;
@@ -464,16 +486,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       const chunks = [];
-
+  
       mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
       mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
       };
-
+  
       mediaRecorderRef.current.start();
       setIsRecording(true);
     } catch (error) {
@@ -500,18 +522,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     setAudioUrl(null);
   };
 
-  // Add this function to your Chat component
-  const convertWebmToMp3 = async (webmBlob) => {
-    const ffmpeg = createFFmpeg({ log: true });
-    await ffmpeg.load();
+// Update your convertWebmToMp3 function:
+const convertToMp3 = async (blob) => {
+  const ffmpeg = createFFmpeg({ log: true });
+  await ffmpeg.load();
 
-    const inputFile = await fetchFile(webmBlob);
-    ffmpeg.FS('writeFile', 'input.webm', inputFile);
+  ffmpeg.FS('writeFile', 'audio.webm', await fetchFile(blob));
+  await ffmpeg.run('-i', 'audio.webm', 'audio.mp3');
+  const data = ffmpeg.FS('readFile', 'audio.mp3');
 
-    await ffmpeg.run('-i', 'input.webm', '-acodec', 'libmp3lame', 'output.mp3');
-
-    const data = ffmpeg.FS('readFile', 'output.mp3');
-    return new Blob([data.buffer], { type: 'audio/mp3' });
+  return new Blob([data.buffer], { type: 'audio/mp3' });
 };
 
 // Update the sendVoiceMessage function
@@ -519,8 +539,8 @@ const sendVoiceMessage = async () => {
   if (!audioBlob) return;
 
   try {
-    // Convert WebM to MP3
-    const mp3Blob = await convertWebmToMp3(audioBlob);
+    const mp3Blob = await convertToMp3(audioBlob);
+
     
     const formData = new FormData();
     formData.append("file", mp3Blob, "voice_message.mp3");

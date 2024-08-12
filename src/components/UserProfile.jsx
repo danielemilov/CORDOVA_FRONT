@@ -95,7 +95,10 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
         <Username>{user.username}'s Profile</Username>
       </Header>
       <Content>
-        <ProfileAvatar src={user.photo || 'https://via.placeholder.com/120'} alt={user.username} />
+        <ProfileAvatar 
+          src={user.photo ? user.photo.replace('http://', 'https://') : 'https://via.placeholder.com/120'} 
+          alt={user.username} 
+        />
         <ProfileInfo>
           <Username>{user.username} <StatusDot $online={user.isOnline} /></Username>
           <AgeAndLocation>

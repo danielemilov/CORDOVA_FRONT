@@ -108,7 +108,7 @@ const formatDistance = (distance) => {
 
 const UserCard = ({ user, onUserClick, onChatClick, unreadCount }) => (
   <Card onClick={() => onUserClick(user)}>
-    <Avatar src={user.photo || 'https://via.placeholder.com/70'} alt={user.username} />
+    <Avatar src={user.photo ? user.photo.replace('http://', 'https://') : 'https://via.placeholder.com/70'} alt={user.username} />
     <UserInfo>
       <Username>
         {user.username}

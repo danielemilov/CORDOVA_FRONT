@@ -3,9 +3,6 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    include: ['@ffmpeg/ffmpeg'] // No need to exclude @ffmpeg/ffmpeg
-  },
   server: {
     port: 5173,
     proxy: {
@@ -21,6 +18,10 @@ export default defineConfig({
         ws: true,
       },
     },
+    headers: {
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
   },
   build: {
     outDir: 'dist',
@@ -29,7 +30,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Removing @ffmpeg/ffmpeg from manualChunks configuration
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@chakra-ui/react', '@emotion/react', '@emotion/styled'],
+          utils: ['axios', 'socket.io-client', 'date-fns'],
         }
       }
     }
@@ -37,4 +40,19 @@ export default defineConfig({
   define: {
     'process.env': process.env,
   },
+  esbuild: {
+    loader: "jsx",
+    include: /src\/.*\.jsx?$/,
+    exclude: [],
+  },
+  css: {
+    modules: {
+      localsConvention: 'camelCaseOnly'
+    }
+  },
+  resolve: {
+    alias: {
+      '@': '/src',
+    }
+  }
 });
