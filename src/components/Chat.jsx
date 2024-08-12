@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { IconButton, useToast, Spinner, Input, Button, Menu, MenuButton, MenuList, MenuItem } from "@chakra-ui/react";
-import { ArrowBackIcon, AttachmentIcon, ChevronDownIcon } from "@chakra-ui/icons";
-import { FaPaperPlane } from "react-icons/fa";
+import { IconButton, useToast, Spinner, Input, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, VStack, Box } from "@chakra-ui/react";
+import { ArrowBackIcon, AttachmentIcon, CloseIcon } from "@chakra-ui/icons";
+import { FaPaperPlane, FaMicrophone, FaStop } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { format, isToday, isYesterday, isThisWeek } from "date-fns";
+import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "date-fns";
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
-
+import { FFmpeg } from '@ffmpeg/ffmpeg';
 const ChatContainer = styled.div`
   position: fixed;
   top: 0;
@@ -20,7 +20,7 @@ const ChatContainer = styled.div`
   flex-direction: column;
 `;
 
-const Header = styled.div`
+const Header = styled.header`
   background-color: #000000;
   color: white;
   padding: 1rem;
@@ -45,7 +45,7 @@ const MessageContainer = styled.div`
   overflow-y: auto;
   padding: 1rem;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
 `;
 
 const MessageBubble = styled.div`
@@ -104,6 +104,68 @@ const DeletedMessageBubble = styled(MessageBubble)`
   color: #ffffff;
 `;
 
+const EditedTag = styled.span`
+  color: red;
+  font-size: 0.8em;
+  margin-left: 5px;
+`;
+
+const OptionsContainer = styled(VStack)`
+  background-color: #1a5f7a;
+  border-radius: 8px;
+  padding: 8px;
+`;
+
+const OptionButton = styled(Button)`
+  width: 100%;
+  justify-content: flex-start;
+  color: white;
+  &.edit {
+    background-color: #3498db;
+  }
+  &.delete {
+    background-color: #2c3e50;
+  }
+`;
+
+const MessageStatus = styled.div`
+  font-size: 0.7em;
+  color: #999;
+  text-align: right;
+  margin-top: 2px;
+`;
+
+const SeenIndicator = styled.img`
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-left: 5px;
+`;
+
+const DateSeparator = styled.div`
+  text-align: center;
+  margin: 10px 0;
+  color: #999;
+  font-size: 0.9em;
+`;
+
+const VoiceMessageContainer = styled.div`
+  display: flex;
+  align-items: center;
+  background-color: #f0f0f0;
+  border-radius: 20px;
+  padding: 5px 10px;
+`;
+
+const VoicePreview = styled.div`
+  display: flex;
+  align-items: center;
+  background-color: #f0f0f0;
+  border-radius: 20px;
+  padding: 10px;
+  margin-top: 10px;
+`;
+
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -113,19 +175,22 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [file, setFile] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
   const toast = useToast();
   const messageContainerRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const socket = useSocket();
   const typingTimeoutRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
       console.error("Current user or other user is not defined");
       return;
     }
-
     try {
       setIsLoading(true);
       console.log(`Fetching messages for page ${pageNum}`);
@@ -133,10 +198,10 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         params: { page: pageNum, limit: 20 },
       });
       console.log("Fetched messages response:", response.data);
-      const { messages, hasMore } = response.data;
+      const { messages: newMessages, hasMore } = response.data;
       setMessages((prevMessages) => {
-        const newMessages = Array.isArray(messages) ? messages : [];
-        return pageNum === 1 ? newMessages : [...prevMessages, ...newMessages];
+        const updatedMessages = Array.isArray(newMessages) ? newMessages : [];
+        return pageNum === 1 ? updatedMessages : [...prevMessages, ...updatedMessages];
       });
       setHasMore(hasMore);
       setPage((prevPage) => prevPage + 1);
@@ -164,25 +229,44 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   }, [isOpen, currentUser, otherUser, fetchMessages]);
 
+  const markMessagesAsSeen = useCallback((messageIds) => {
+    socket.emit('mark as seen', messageIds, (error, updatedCount) => {
+      if (error) {
+        console.error('Error marking messages as seen:', error);
+      } else {
+        console.log(`${updatedCount} messages marked as seen`);
+      }
+    });
+  }, [socket]);
+  
+  useEffect(() => {
+    if (messages.length > 0) {
+      const unseenMessages = messages
+        .filter(msg => msg.recipient === currentUser.id && !msg.seen)
+        .map(msg => msg._id);
+      
+      if (unseenMessages.length > 0) {
+        markMessagesAsSeen(unseenMessages);
+      }
+    }
+  }, [messages, currentUser.id, markMessagesAsSeen]);
+
   useEffect(() => {
     if (socket) {
       socket.on("private message", (message) => {
         console.log("Received private message:", message);
-        setMessages((prevMessages) => [message, ...prevMessages]);
+        setMessages((prevMessages) => [...prevMessages, message]);
       });
-
       socket.on("user typing", (userId) => {
         if (userId === otherUser._id) {
           setIsTyping(true);
         }
       });
-
       socket.on("user stop typing", (userId) => {
         if (userId === otherUser._id) {
           setIsTyping(false);
         }
       });
-
       socket.on("message deleted", (messageId) => {
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
@@ -190,58 +274,102 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           )
         );
       });
-
       socket.on("message edited", (updatedMessage) => {
         setMessages((prevMessages) =>
           prevMessages.map((msg) => (msg._id === updatedMessage._id ? { ...updatedMessage, edited: true } : msg))
         );
       });
-
+      socket.on("message seen", (messageId) => {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => (msg._id === messageId ? { ...msg, seen: true } : msg))
+        );
+      });
       return () => {
         socket.off("private message");
         socket.off("user typing");
         socket.off("user stop typing");
         socket.off("message deleted");
         socket.off("message edited");
+        socket.off("message seen");
       };
     }
   }, [socket, otherUser._id]);
 
   const handleSendMessage = useCallback(async () => {
-    if (!newMessage.trim() && !file) return;
-
+    if (!newMessage.trim() && !file && !audioBlob) return;
     try {
       let mediaUrl = null;
+      let messageType = "text";
       if (file) {
-        const formData = new FormData();
-        formData.append("file", file);
-        const response = await api.post("/api/upload", formData);
-        mediaUrl = response.data.url;
-      }
-
-      const messageData = {
-        recipient: otherUser._id,
-        content: newMessage.trim(),
-        media: mediaUrl,
-      };
-
-      socket.emit("private message", messageData, (error, sentMessage) => {
-        if (error) {
-          console.error("Error sending message:", error);
+        if (file.type.startsWith("image/")) {
+          const formData = new FormData();
+          formData.append("file", file);
+          const response = await api.post("/api/messages/upload", formData);
+          mediaUrl = response.data.url;
+          messageType = "image";
+        } else {
           toast({
             title: "Error",
-            description: "Failed to send message. Please try again.",
+            description: "Only photos are allowed.",
             status: "error",
             duration: 3000,
             isClosable: true,
           });
-        } else {
-          setMessages((prevMessages) => [sentMessage, ...prevMessages]);
-          setNewMessage("");
-          setFile(null);
-          setEditingMessageId(null);
+          return;
         }
-      });
+      } else if (audioBlob) {
+        const formData = new FormData();
+        formData.append("file", audioBlob, "voice_message.mp3");
+        const response = await api.post("/api/messages/upload", formData);
+        mediaUrl = response.data.url;
+        messageType = "voice";
+      }
+      
+      const messageData = {
+        recipient: otherUser._id,
+        content: newMessage.trim(),
+        media: mediaUrl,
+        type: messageType,
+      };
+      if (editingMessageId) {
+        socket.emit("edit message", { messageId: editingMessageId, content: newMessage.trim() }, (error, updatedMessage) => {
+          if (error) {
+            console.error("Error editing message:", error);
+            toast({
+              title: "Error",
+              description: "Failed to edit message. Please try again.",
+              status: "error",
+              duration: 3000,
+              isClosable: true,
+            });
+          } else {
+            setMessages((prevMessages) =>
+              prevMessages.map((msg) => (msg._id === updatedMessage._id ? { ...updatedMessage, edited: true } : msg))
+            );
+            setNewMessage("");
+            setEditingMessageId(null);
+          }
+        });
+      } else {
+        socket.emit("private message", messageData, (error, sentMessage) => {
+          if (error) {
+            console.error("Error sending message:", error);
+            toast({
+              title: "Error",
+              description: "Failed to send message. Please try again.",
+              status: "error",
+              duration: 3000,
+              isClosable: true,
+            });
+          } else {
+            setMessages((prevMessages) => [...prevMessages, sentMessage]);
+            setNewMessage("");
+            setFile(null);
+            setAudioBlob(null);
+            setAudioUrl(null);
+          }
+        });
+      }
     } catch (error) {
       console.error("Error uploading file:", error);
       toast({
@@ -252,16 +380,14 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         isClosable: true,
       });
     }
-  }, [newMessage, file, otherUser._id, socket, toast]);
+  }, [newMessage, file, audioBlob, otherUser._id, socket, toast, editingMessageId]);
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
     socket.emit("typing", { recipientId: otherUser._id });
-
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("stop typing", { recipientId: otherUser._id });
     }, 3000);
@@ -280,18 +406,29 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleDeleteMessage = async (messageId) => {
     try {
-      await api.delete(`/api/messages/${messageId}`);
-      socket.emit("delete message", messageId);
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg._id === messageId ? { ...msg, content: "This message was unsent.", deleted: true } : msg
-        )
-      );
-      toast({
-        title: "Message unsent",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
+      socket.emit("delete message", messageId, (error) => {
+        if (error) {
+          console.error("Error deleting message:", error);
+          toast({
+            title: "Error",
+            description: "Failed to unsend message. Please try again.",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          setMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+              msg._id === messageId ? { ...msg, content: "This message was unsent.", deleted: true } : msg
+            )
+          );
+          toast({
+            title: "Message unsent",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
       });
     } catch (error) {
       console.error("Error deleting message:", error);
@@ -305,31 +442,10 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   };
 
-  const handleEditMessage = async (messageId, newContent) => {
-    try {
-      const response = await api.put(`/api/messages/${messageId}`, { content: newContent });
-      socket.emit("edit message", response.data);
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) => (msg._id === messageId ? { ...response.data, edited: true } : msg))
-      );
-      setEditingMessageId(null);
-      setNewMessage("");
-      toast({
-        title: "Message edited",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (error) {
-      console.error("Error editing message:", error);
-      toast({
-        title: "Error",
-        description: "Failed to edit message. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
+  const handleEditMessage = (messageId, content) => {
+    setEditingMessageId(messageId);
+    setNewMessage(content);
+    inputRef.current.focus();
   };
 
   const formatMessageTime = (timestamp) => {
@@ -345,60 +461,186 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   };
 
-  const renderMessage = (msg) => {
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      const chunks = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start recording. Please check your microphone permissions.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const cancelRecording = () => {
+    setAudioBlob(null);
+    setAudioUrl(null);
+  };
+
+  // Add this function to your Chat component
+  const convertWebmToMp3 = async (webmBlob) => {
+    const ffmpeg = createFFmpeg({ log: true });
+    await ffmpeg.load();
+
+    const inputFile = await fetchFile(webmBlob);
+    ffmpeg.FS('writeFile', 'input.webm', inputFile);
+
+    await ffmpeg.run('-i', 'input.webm', '-acodec', 'libmp3lame', 'output.mp3');
+
+    const data = ffmpeg.FS('readFile', 'output.mp3');
+    return new Blob([data.buffer], { type: 'audio/mp3' });
+};
+
+// Update the sendVoiceMessage function
+const sendVoiceMessage = async () => {
+  if (!audioBlob) return;
+
+  try {
+    // Convert WebM to MP3
+    const mp3Blob = await convertWebmToMp3(audioBlob);
+    
+    const formData = new FormData();
+    formData.append("file", mp3Blob, "voice_message.mp3");
+    const response = await api.post("/api/messages/upload", formData);
+    const audioFileUrl = response.data.url;
+
+    const messageData = {
+      recipient: otherUser._id,
+      content: "Voice message",
+      media: audioFileUrl,
+      type: "voice",
+    };
+
+    socket.emit("private message", messageData, (error, sentMessage) => {
+      if (error) {
+        console.error("Error sending voice message:", error);
+        toast({
+          title: "Error",
+          description: "Failed to send voice message. Please try again.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        setMessages((prevMessages) => [...prevMessages, sentMessage]);
+        setAudioBlob(null);
+        setAudioUrl(null);
+      }
+    });
+  } catch (error) {
+    console.error("Error uploading voice message:", error);
+    toast({
+      title: "Error",
+      description: "Failed to upload voice message. Please try again.",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+    });
+  }
+};
+  const renderMessage = (msg, index, messages) => {
     if (!msg || !msg.sender) {
       console.warn("Invalid message received:", msg);
       return null;
     }
 
     const isSentByCurrentUser = msg.sender._id === currentUser.id;
+    const isFirstInSequence = index === 0 || messages[index - 1].sender._id !== msg.sender._id;
+    const showAvatar = !isSentByCurrentUser && isFirstInSequence;
+    const currentDate = parseISO(msg.timestamp);
+    const previousDate = index > 0 ? parseISO(messages[index - 1].timestamp) : null;
+    const showDateSeparator = index === 0 || !isThisWeek(currentDate) || (previousDate && !isSameDay(currentDate, previousDate));
 
     return (
-      <MessageWrapper key={msg._id} $isSentByCurrentUser={isSentByCurrentUser}>
-        {msg.deleted ? (
-          <DeletedMessageBubble>
-            <MessageContent>{msg.content}</MessageContent>
-            <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
-          </DeletedMessageBubble>
-        ) : (
-          <MessageBubble $isSentByCurrentUser={isSentByCurrentUser}>
-            {msg.media && (
-              <img
-                src={msg.media}
-                alt="Uploaded media"
-                style={{
-                  maxWidth: "100%",
-                  marginBottom: "10px",
-                  borderRadius: "10px",
-                }}
-              />
-            )}
-            <MessageContent>{msg.content}</MessageContent>
-            {msg.edited && <span style={{ color: 'red', fontSize: '0.8em', marginLeft: '5px' }}>edited</span>}
-            <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
-            {isSentByCurrentUser && (
-              <Menu>
-                <MenuButton
-                  as={IconButton}
-                  icon={<ChevronDownIcon />}
-                  variant="ghost"
-                  size="xs"
-                  aria-label="Message options"
-                />
-                <MenuList>
-                  <MenuItem onClick={() => {
-                    setEditingMessageId(msg._id);
-                    setNewMessage(msg.content);
-                  }}>
-                    Edit
-                  </MenuItem>
-                  <MenuItem onClick={() => handleDeleteMessage(msg._id)}>Delete</MenuItem>
-                </MenuList>
-              </Menu>
-            )}
-          </MessageBubble>
+      <React.Fragment key={msg._id}>
+        {showDateSeparator && (
+          <DateSeparator>
+            {format(currentDate, 'MMMM d, yyyy')}
+          </DateSeparator>
         )}
-      </MessageWrapper>
+        <MessageWrapper $isSentByCurrentUser={isSentByCurrentUser}>
+          {showAvatar && <Avatar src={otherUser.photo} alt={otherUser.username} />}
+          <Box ml={showAvatar ? 2 : 0}>
+            {msg.deleted ? (
+              <DeletedMessageBubble>
+                <MessageContent>{msg.content}</MessageContent>
+                <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
+              </DeletedMessageBubble>
+            ) : (
+              <Popover placement="top" trigger="click">
+                <PopoverTrigger>
+                  <MessageBubble $isSentByCurrentUser={isSentByCurrentUser}>
+                    {msg.type === "image" && (
+                      <img
+                        src={msg.media}
+                        alt="Uploaded media"
+                        style={{
+                          maxWidth: "100%",
+                          marginBottom: "10px",
+                          borderRadius: "10px",
+                        }}
+                      />
+                    )}
+                    {msg.type === "voice" && (
+                      <VoiceMessageContainer>
+                        <audio controls src={msg.media} />
+                      </VoiceMessageContainer>
+                    )}
+                    <MessageContent>{msg.content}</MessageContent>
+                    {msg.edited && <EditedTag>edited</EditedTag>}
+                    <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
+                    <MessageStatus>
+                      {isSentByCurrentUser && (msg.seen ? "Seen" : "Sent")}
+                      {msg.seen && isSentByCurrentUser && (
+                        <SeenIndicator src={otherUser.photo} alt={otherUser.username} />
+                      )}
+                    </MessageStatus>
+                  </MessageBubble>
+                </PopoverTrigger>
+                {isSentByCurrentUser && (
+                  <PopoverContent>
+                    <PopoverBody>
+                      <OptionsContainer>
+                        {msg.type !== "voice" && (
+                          <OptionButton className="edit" onClick={() => handleEditMessage(msg._id, msg.content)}>
+                            Edit
+                          </OptionButton>
+                        )}
+                        <OptionButton className="delete" onClick={() => handleDeleteMessage(msg._id)}>
+                          Delete
+                        </OptionButton>
+                      </OptionsContainer>
+                    </PopoverBody>
+                  </PopoverContent>
+                )}
+              </Popover>
+            )}
+          </Box>
+        </MessageWrapper>
+      </React.Fragment>
     );
   };
 
@@ -434,46 +676,64 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             inverse={true}
             style={{ display: "flex", flexDirection: "column-reverse" }}
           >
-            {messages.map((msg) => renderMessage(msg))}
+            {messages.slice().reverse().map((msg, index, array) => renderMessage(msg, array.length - 1 - index, array.slice().reverse()))}
           </InfiniteScroll>
         )}
       </MessageContainer>
 
       <InputContainer>
-        <StyledInput
-          placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
-          value={newMessage}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          ref={inputRef}
-        />
-        <input
-          type="file"
-          style={{ display: "none" }}
-          ref={fileInputRef}
-          onChange={handleFileChange}
-        />
-        <IconButton
-          icon={<AttachmentIcon />}
-          onClick={() => fileInputRef.current.click()}
-          variant="ghost"
-          aria-label="Attach file"
-        />
-        {editingMessageId ? (
-          <Button
-            colorScheme="blue"
-            onClick={() => handleEditMessage(editingMessageId, newMessage)}
-            aria-label="Update message"
-          >
-            Update
-          </Button>
+      {audioUrl ? (
+  <VoicePreview>
+    <audio controls src={audioUrl} />
+    <IconButton
+      icon={<CloseIcon />}
+      onClick={cancelRecording}
+      variant="ghost"
+      aria-label="Cancel recording"
+    />
+    <IconButton
+      icon={<FaPaperPlane />}
+      onClick={sendVoiceMessage}  // Changed from handleSendMessage to sendVoiceMessage
+      colorScheme="blue"
+      aria-label="Send voice message"
+    />
+  </VoicePreview>
         ) : (
-          <IconButton
-            icon={<FaPaperPlane />}
-            colorScheme="blue"
-            onClick={handleSendMessage}
-            aria-label="Send message"
-          />
+          <>
+            <StyledInput
+              placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
+              value={newMessage}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              ref={inputRef}
+            />
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
+            <IconButton
+              icon={<AttachmentIcon />}
+              onClick={() => fileInputRef.current.click()}
+              variant="ghost"
+              aria-label="Attach file"
+            />
+            <IconButton
+              icon={isRecording ? <FaStop /> : <FaMicrophone />}
+              onClick={isRecording ? stopRecording : startRecording}
+              variant="ghost"
+              aria-label={isRecording ? "Stop recording" : "Start recording"}
+              colorScheme={isRecording ? "red" : "gray"}
+            />
+            <IconButton
+              icon={<FaPaperPlane />}
+              colorScheme="blue"
+              onClick={handleSendMessage}
+              aria-label="Send message"
+            />
+          </>
         )}
       </InputContainer>
     </ChatContainer>
