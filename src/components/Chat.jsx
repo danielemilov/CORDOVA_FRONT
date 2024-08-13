@@ -50,7 +50,7 @@ const MessageContainer = styled.div`
 `;
 
 const MessageBubble = styled.div`
-  max-width: 70%;
+  max-width: 100%;
   padding: 10px;
   border-radius: 20px;
   background-color: ${(props) => (props.$isSentByCurrentUser ? "#6ecb91" : "#ffffff")};
