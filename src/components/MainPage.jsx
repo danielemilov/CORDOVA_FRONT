@@ -1,9 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import UserProfile from "./UserProfile";
-import Chat from "./Chat";
-import Settings from "./Settings";
-import Conversations from "./Conversations";
-
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Box, VStack, useToast, Spinner, useDisclosure, Flex, Heading, IconButton, Input,
 } from "@chakra-ui/react";
@@ -16,6 +11,10 @@ import { FaSearch, FaBars, FaUser, FaTimes } from 'react-icons/fa';
 import { Card, Avatar, Username, Description, StatusDot, Distance, Button, GlobalStyle } from '../SharedStyles';
 import { useSocket } from '../contexts/SocketContext';
 
+const UserProfile = lazy(() => import("./UserProfile"));
+const Chat = lazy(() => import("./Chat"));
+const Settings = lazy(() => import("./Settings"));
+const Conversations = lazy(() => import("./Conversations"));
 
 const MainWrapper = styled.div`
   max-width: 600px;
@@ -413,10 +412,12 @@ const MainPage = ({ user, setUser, onLogout }) => {
         </ToggleButton>
 
         {showConversations ? (
-          <Conversations 
-            onSelectConversation={handleConversationSelect}
-            filter={filter}
-          />
+          <Suspense fallback={<Spinner />}>
+            <Conversations 
+              onSelectConversation={handleConversationSelect}
+              filter={filter}
+            />
+          </Suspense>
         ) : (
           <UserList>
             {filteredUsers.map((u) => (
@@ -458,37 +459,40 @@ const MainPage = ({ user, setUser, onLogout }) => {
           }}>Logout</MenuItem>
         </MenuItems>
       </Menu>
-      {selectedUser && (
-        <UserProfile 
-          user={selectedUser} 
-          isOpen={isProfileOpen} 
-          onClose={() => setIsProfileOpen(false)}
-          onChatClick={() => {
-            setIsProfileOpen(false);
-            setIsChatOpen(true);
-            setActiveChat(selectedUser._id);
-          }}
+
+      <Suspense fallback={<div>Loading...</div>}>
+        {selectedUser && (
+          <UserProfile 
+            user={selectedUser} 
+            isOpen={isProfileOpen} 
+            onClose={() => setIsProfileOpen(false)}
+            onChatClick={() => {
+              setIsProfileOpen(false);
+              setIsChatOpen(true);
+              setActiveChat(selectedUser._id);
+            }}
+          />
+        )}
+
+        {selectedUser && (
+         <Chat
+           currentUser={user}
+           otherUser={selectedUser}
+           isOpen={isChatOpen}
+           onClose={() => {
+             setIsChatOpen(false);
+             setActiveChat(null);
+           }}
+         />
+        )}
+
+        <Settings
+          user={user}
+          setUser={setUser}
+          isOpen={isSettingsOpen}
+          onClose={handleSettingsClose}
         />
-      )}
-
-      {selectedUser && (
-       <Chat
-         currentUser={user}
-         otherUser={selectedUser}
-         isOpen={isChatOpen}
-         onClose={() => {
-           setIsChatOpen(false);
-           setActiveChat(null);
-         }}
-       />
-      )}
-
-      <Settings
-        user={user}
-        setUser={setUser}
-        isOpen={isSettingsOpen}
-        onClose={handleSettingsClose}
-      />
+      </Suspense>
     </>
   );
 };

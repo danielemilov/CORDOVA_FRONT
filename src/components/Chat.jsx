@@ -7,8 +7,6 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "d
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
-
 
 
 const ChatContainer = styled.div`
@@ -169,18 +167,7 @@ const VoicePreview = styled.div`
   margin-top: 10px;
 `;
 
-const ffmpeg = createFFmpeg({ 
-  log: true,
-  corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-});
 
-let ffmpegLoadingPromise = null;
-
-const loadFFmpeg = async () => {
-  if (ffmpegLoadingPromise) return ffmpegLoadingPromise;
-  ffmpegLoadingPromise = ffmpeg.load();
-  return ffmpegLoadingPromise;
-};
 
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -202,6 +189,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const typingTimeoutRef = useRef(null);
   const mediaRecorderRef = useRef(null);
 
+
+
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
       console.error("Current user or other user is not defined");
@@ -209,11 +198,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
     try {
       setIsLoading(true);
-      console.log(`Fetching messages for page ${pageNum}`);
       const response = await api.get(`/api/messages/${otherUser._id}`, {
         params: { page: pageNum, limit: 20 },
       });
-      console.log("Fetched messages response:", response.data);
       const { messages: newMessages, hasMore } = response.data;
       setMessages((prevMessages) => {
         const updatedMessages = Array.isArray(newMessages) ? newMessages : [];
@@ -237,7 +224,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen && currentUser && otherUser) {
-      console.log("Chat component opened, fetching messages");
       setMessages([]);
       setPage(1);
       setHasMore(true);
@@ -270,7 +256,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   useEffect(() => {
     if (socket) {
       socket.on("private message", (message) => {
-        console.log("Received private message:", message);
         setMessages((prevMessages) => [...prevMessages, message]);
       });
       socket.on("user typing", (userId) => {
@@ -311,12 +296,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   }, [socket, otherUser._id]);
 
-  useEffect(() => {
-    ffmpeg.load();
-  }, []);
-  
-  
-
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !file && !audioBlob) return;
     try {
@@ -341,7 +320,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         }
       } else if (audioBlob) {
         const formData = new FormData();
-        formData.append("file", audioBlob, "voice_message.mp3");
+        formData.append("file", audioBlob, "voice_message.webm");
         const response = await api.post("/api/messages/upload", formData);
         mediaUrl = response.data.url;
         messageType = "voice";
@@ -393,10 +372,10 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         });
       }
     } catch (error) {
-      console.error("Error uploading file:", error);
+      console.error("Error sending message:", error);
       toast({
         title: "Error",
-        description: "Failed to upload file. Please try again.",
+        description: "Failed to send message. Please try again.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -483,6 +462,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   };
 
+  
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -509,7 +489,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
-
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -522,65 +501,40 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     setAudioUrl(null);
   };
 
-// Update your convertWebmToMp3 function:
-const convertToMp3 = async (blob) => {
-  const ffmpeg = createFFmpeg({ log: true });
-  await ffmpeg.load();
-
-  ffmpeg.FS('writeFile', 'audio.webm', await fetchFile(blob));
-  await ffmpeg.run('-i', 'audio.webm', 'audio.mp3');
-  const data = ffmpeg.FS('readFile', 'audio.mp3');
-
-  return new Blob([data.buffer], { type: 'audio/mp3' });
-};
-
-// Update the sendVoiceMessage function
-const sendVoiceMessage = async () => {
-  if (!audioBlob) return;
-
-  try {
-    const mp3Blob = await convertToMp3(audioBlob);
-
-    
-    const formData = new FormData();
-    formData.append("file", mp3Blob, "voice_message.mp3");
-    const response = await api.post("/api/messages/upload", formData);
-    const audioFileUrl = response.data.url;
-
-    const messageData = {
-      recipient: otherUser._id,
-      content: "Voice message",
-      media: audioFileUrl,
-      type: "voice",
-    };
-
-    socket.emit("private message", messageData, (error, sentMessage) => {
-      if (error) {
-        console.error("Error sending voice message:", error);
-        toast({
-          title: "Error",
-          description: "Failed to send voice message. Please try again.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      } else {
-        setMessages((prevMessages) => [...prevMessages, sentMessage]);
-        setAudioBlob(null);
-        setAudioUrl(null);
-      }
-    });
-  } catch (error) {
-    console.error("Error uploading voice message:", error);
-    toast({
-      title: "Error",
-      description: "Failed to upload voice message. Please try again.",
-      status: "error",
-      duration: 3000,
-      isClosable: true,
-    });
-  }
-};
+  const sendVoiceMessage = async () => {
+    if (!audioBlob) return;
+  
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "voice_message.webm");
+      formData.append("recipient", otherUser._id);
+  
+      console.log('FormData contents:', formData);
+  
+      const response = await api.post("/api/messages/voice", formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+  
+      console.log('Voice message sent successfully:', response.data);
+  
+      const sentMessage = response.data;
+      setMessages((prevMessages) => [...prevMessages, sentMessage]);
+      setAudioBlob(null);
+      setAudioUrl(null);
+    } catch (error) {
+      console.error("Error sending voice message:", error);
+      console.error("Error response:", error.response?.data);
+      toast({
+        title: "Error",
+        description: "Failed to send voice message. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
   const renderMessage = (msg, index, messages) => {
     if (!msg || !msg.sender) {
       console.warn("Invalid message received:", msg);
@@ -604,7 +558,7 @@ const sendVoiceMessage = async () => {
         <MessageWrapper $isSentByCurrentUser={isSentByCurrentUser}>
           {showAvatar && <Avatar src={otherUser.photo} alt={otherUser.username} />}
           <Box ml={showAvatar ? 2 : 0}>
-            {msg.deleted ? (
+          {msg.deleted ? (
               <DeletedMessageBubble>
                 <MessageContent>{msg.content}</MessageContent>
                 <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
@@ -624,11 +578,11 @@ const sendVoiceMessage = async () => {
                         }}
                       />
                     )}
-                    {msg.type === "voice" && (
-                      <VoiceMessageContainer>
-                        <audio controls src={msg.media} />
-                      </VoiceMessageContainer>
-                    )}
+                      {msg.type === "voice" && (
+        <VoiceMessageContainer>
+          <audio controls src={msg.media} />
+        </VoiceMessageContainer>
+      )}
                     <MessageContent>{msg.content}</MessageContent>
                     {msg.edited && <EditedTag>edited</EditedTag>}
                     <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
@@ -702,22 +656,22 @@ const sendVoiceMessage = async () => {
       </MessageContainer>
 
       <InputContainer>
-      {audioUrl ? (
-  <VoicePreview>
-    <audio controls src={audioUrl} />
-    <IconButton
-      icon={<CloseIcon />}
-      onClick={cancelRecording}
-      variant="ghost"
-      aria-label="Cancel recording"
-    />
-    <IconButton
-      icon={<FaPaperPlane />}
-      onClick={sendVoiceMessage}  // Changed from handleSendMessage to sendVoiceMessage
-      colorScheme="blue"
-      aria-label="Send voice message"
-    />
-  </VoicePreview>
+        {audioUrl ? (
+          <VoicePreview>
+            <audio controls src={audioUrl} />
+            <IconButton
+              icon={<CloseIcon />}
+              onClick={cancelRecording}
+              variant="ghost"
+              aria-label="Cancel recording"
+            />
+            <IconButton
+              icon={<FaPaperPlane />}
+              onClick={sendVoiceMessage}
+              colorScheme="blue"
+              aria-label="Send voice message"
+            />
+          </VoicePreview>
         ) : (
           <>
             <StyledInput
