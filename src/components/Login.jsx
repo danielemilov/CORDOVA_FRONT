@@ -280,7 +280,7 @@ function Login({ onLogin }) {
         <LoginForm onSubmit={handleSubmit}>
           <FluidSimulation />
           <FormContent>
-            <Title>IN LOVE</Title>
+            <Title>MERGE</Title>
             <Input
               type="email"
               value={email}
