@@ -98,8 +98,8 @@ const Button = styled.button`
   width: 100%;
   padding: 15px;
   margin-top: 20px;
-  background: linear-gradient(135deg, #869afb 0%, #ffffff 100%);
   color: #ffffff;
+  background-color: black;
   border: none;
   border-radius: 12px;
   font-size: 18px;
