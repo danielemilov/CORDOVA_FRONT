@@ -315,7 +315,7 @@ function Login({ onLogin }) {
         <LoginForm onSubmit={handleSubmit}>
           <FluidSimulation />
           <FormContent>
-            <Title>X LOVIN</Title>
+            <Title>XVIN</Title>
             <Input
               type="email"
               value={email}
