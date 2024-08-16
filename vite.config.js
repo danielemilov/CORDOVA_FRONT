@@ -1,18 +1,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+
+
+export default defineConfig(({ command, mode }) => {
+  const isProduction = mode === 'production'
+  const serverUrl = isProduction
+    ? 'https://backendchats-production.up.railway.app/'
+    : 'http://localhost:4000'
+
+  return {  
   plugins: [react()],
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: serverUrl,
         changeOrigin: true,
         secure: false,
       },
       '/socket.io': {
-        target: 'http://localhost:4000',
+        target: serverUrl,
         changeOrigin: true,
         secure: false,
         ws: true,
@@ -55,4 +63,5 @@ export default defineConfig({
       '@': '/src',
     }
   }
+}
 });

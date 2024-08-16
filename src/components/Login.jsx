@@ -5,7 +5,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import api from '../api';
 import Fluid from 'webgl-fluid';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const LoginForm = styled.form`
   position: relative;
@@ -334,10 +334,10 @@ function Login({ onLogin }) {
       <FluidSimulation />
       <FormContent>
         <Title>
-          COOL 
+             NO
         </Title>
       <Title2>
-          X
+          FAKES
         </Title2>
         <Input
           type="email"

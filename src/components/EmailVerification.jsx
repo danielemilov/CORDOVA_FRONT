@@ -12,7 +12,7 @@ function EmailVerification() {
   useEffect(() => {
     const verifyEmail = async () => {
       try {
-        await axios.get(`http://localhost:4000/api/auth/verify-email/${token}`);
+        await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/verify-email/${token}`);
         setStatus('Email verified successfully. You can now log in.');
         setTimeout(() => navigate('/login'), 3000);
       } catch (error) {
