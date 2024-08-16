@@ -11,7 +11,11 @@ const PageContainer = styled.div`
   position: relative;
   width: 100%;
   min-height: 100vh;
-
+  background: rgb(227, 223, 227);
+background: -moz-radial-gradient(circle, rgba(255,139,251,0.458420868347339) 68%, rgb(255, 255, 255) 100%);
+background: -webkit-radial-gradient(circle, rgba(255,139,251,0.458420868347339) 68%, rgb(255, 255, 255) 100%);
+background: radial-gradient(circle, rgba(255,139,251,0.458420868347339) 28%, rgba(255,255,255,0.5390749601275917) 100%);
+filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#ff8bfb",endColorstr="#ffffff",GradientType=1);
 `;
 
 const LoginWrapper = styled.div`
@@ -46,8 +50,7 @@ const FormContent = styled.div`
 const Title = styled.h1`
   font-size: 34px;
   font-weight: 900;
-  color: #01122fdc;
-  /* color: #002558; */
+  color: #d346d3;
   text-align: center;
   margin-bottom: 30px;
 `;
@@ -73,8 +76,7 @@ const Button = styled.button`
   width: 100%;
   padding: 12px;
   margin-top: 20px;
-  background-color: #000000;
-  /* background-color: rgba(0, 0, 0, 0.813); */
+  background-color: rgba(0, 0, 0, 0.813);
   color: #ffffff;
   border: none;
   border-radius: 25px;
@@ -154,7 +156,7 @@ function FluidSimulation() {
       canvas.height = canvas.offsetHeight;
 
       const fluidOptions = {
-        SPLAT_RADIUS: 22.6,
+        SPLAT_RADIUS: 10.6,
         DENSITY_DISSIPATION: 0.9999999999999995,
         VELOCITY_DISSIPATION: 0.999999999599995,
         PRESSURE_DISSIPATION: 0.8,
@@ -168,7 +170,7 @@ function FluidSimulation() {
         BACK_COLOR: { r: 255, g: 255, b: 255 },
         TRANSPARENT: true,
         BLOOM: true,
-        BLOOM_ITERATIONS: 800,
+        BLOOM_ITERATIONS: 8,
         BLOOM_RESOLUTION: 256,
         BLOOM_INTENSITY: 0.2,
         BLOOM_THRESHOLD: 100,
@@ -278,7 +280,7 @@ function Login({ onLogin }) {
         <LoginForm onSubmit={handleSubmit}>
           <FluidSimulation />
           <FormContent>
-            <Title>iLove</Title>
+            <Title>IN LOVE</Title>
             <Input
               type="email"
               value={email}
