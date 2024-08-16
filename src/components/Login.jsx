@@ -49,8 +49,8 @@ const FormContent = styled.div`
 
 const Title = styled.h1`
   font-size: 34px;
-  font-weight: 900;
-  color: #d346d3;
+  font-weight: bolder;
+  color: #3b3193;
   text-align: center;
   margin-bottom: 30px;
 `;
@@ -76,7 +76,7 @@ const Button = styled.button`
   width: 100%;
   padding: 12px;
   margin-top: 20px;
-  background-color: rgba(0, 0, 0, 0.813);
+  background-color: rgba(92, 92, 190, 0.813);
   color: #ffffff;
   border: none;
   border-radius: 25px;
@@ -280,7 +280,7 @@ function Login({ onLogin }) {
         <LoginForm onSubmit={handleSubmit}>
           <FluidSimulation />
           <FormContent>
-            <Title>MERGE</Title>
+            <Title>iLOVE</Title>
             <Input
               type="email"
               value={email}
