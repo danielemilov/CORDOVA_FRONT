@@ -1,37 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import api from '../api';
 import Fluid from 'webgl-fluid';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
-const cycleColors = keyframes`
-  0% {
-    background: radial-gradient(circle, rgba(135,206,250,0.4) 28%, rgba(255,255,255,0.539) 100%);
-  }
-  33% {
-    background: radial-gradient(circle, rgba(147,112,219,0.4) 28%, rgba(255,255,255,0.539) 100%);
-  }
-  66% {
-    background: radial-gradient(circle, rgba(255,182,193,0.4) 28%, rgba(255,255,255,0.539) 100%);
-  }
-  100% {
-    background: radial-gradient(circle, rgba(135,206,250,0.4) 28%, rgba(255,255,255,0.539) 100%);
-  }
-`;
-
 const PageContainer = styled.div`
   position: relative;
   width: 100%;
   min-height: 100vh;
-  background: rgb(227, 223, 227);
-  animation: ${cycleColors} 15s infinite;
-  background: -moz-radial-gradient(circle, rgba(135,206,250,0.4) 68%, rgb(255, 255, 255) 100%);
-  background: -webkit-radial-gradient(circle, rgba(135,206,250,0.4) 68%, rgb(255, 255, 255) 100%);
-  background: radial-gradient(circle, rgba(135,206,250,0.4) 28%, rgba(255,255,255,0.539) 100%);
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#87cefa",endColorstr="#ffffff",GradientType=1);
+background-color: white;
 `;
 
 const LoginWrapper = styled.div`
@@ -50,17 +30,12 @@ const LoginForm = styled.form`
   position: relative;
   width: 100%;
   max-width: 400px;
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
+  background-color: rgb(160, 169, 234);
+  backdrop-filter: blur(10px);
   padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15), 0 3px 15px rgba(0, 0, 0, 0.2);
-  }
 `;
 
 const FormContent = styled.div`
@@ -69,78 +44,69 @@ const FormContent = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 36px;
-  font-weight: 700;
+  font-size: 34px;
+  font-weight: 900;
+  color: #0c3478;
   text-align: center;
-  margin-bottom: 30px;
-  letter-spacing: -0.5px;
+  margin-bottom: 60px;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 15px 20px;
-  margin: 10px 0;
-  border: none;
-  border-radius: 12px;
-  background-color: rgba(255, 255, 255, 0.9);
+  padding: 12px 20px;
+  margin: 8px 0;
+  border: .1px solid lightgrey;
+  border-radius: 25px;
+  background-color: rgba(255, 255, 255, 0.798);
   font-size: 16px;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(103, 126, 234, 0.3);
-    background-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(51, 51, 51, 0.5);
+    background-color: rgba(255, 255, 255, 0.8);
   }
 `;
 
 const Button = styled.button`
   width: 100%;
-  padding: 15px;
-  margin-top: 20px;
+  padding: 12px;
+  margin-top: 40px;
+  background-color: rgba(0, 0, 0, 0.813);
   color: #ffffff;
-  background-color: black;
   border: none;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 600;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
-  }
-
-  &:active {
-    transform: translateY(1px);
+    background-color: rgba(85, 85, 85, 0.7);
+    color: #ffffff;
   }
 
   &:disabled {
-    background: #bdc3c7;
+    background-color: rgba(204, 204, 204, 0.5);
     cursor: not-allowed;
   }
 `;
 
 const ErrorMessage = styled.p`
-  color: #e74c3c;
+  color: #ff0000;
   text-align: center;
   margin-top: 10px;
-  font-weight: 500;
 `;
 
 const LinkText = styled(Link)`
-  color: #667eea;
+  color: #000000;
   text-decoration: none;
   margin-top: 20px;
   text-align: center;
   display: block;
-  font-weight: 500;
-  transition: color 0.3s ease;
 
   &:hover {
-    color: #764ba2;
+    text-decoration: underline;
   }
 `;
 
@@ -156,12 +122,7 @@ const TogglePasswordVisibility = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  color: #667eea;
-  transition: color 0.3s ease;
-
-  &:hover {
-    color: #764ba2;
-  }
+  color: #e59ef0;
 `;
 
 const FluidContainer = styled.div`
@@ -315,7 +276,7 @@ function Login({ onLogin }) {
         <LoginForm onSubmit={handleSubmit}>
           <FluidSimulation />
           <FormContent>
-            <Title>XVIN</Title>
+            <Title>MERGE</Title>
             <Input
               type="email"
               value={email}
