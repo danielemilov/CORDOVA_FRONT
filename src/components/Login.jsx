@@ -11,7 +11,7 @@ const LoginForm = styled.form`
   position: relative;
   width: 100%;
   max-width: 400px;
-  background-color: rgb(160, 169, 234);
+  background-color: white;
   backdrop-filter: blur(10px);
   padding: 40px;
   border-radius: 15px;
@@ -44,7 +44,7 @@ const FormContent = styled.div`
 const Title = styled.h1`
   font-size: 34px;
   font-weight: 900;
-  color: #0c3478;
+  color: #b766ce;
   text-align: center;
   margin-bottom: 60px;
 
@@ -56,6 +56,23 @@ const Title = styled.h1`
     margin-bottom: 50px;
   }
 `;
+const Title2 = styled.h1`
+  font-size: 34px;
+  font-weight: 900;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 40px;
+  margin-top: -60px;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 42px; /* Increased font size for iPhone */
+    margin-bottom: 50px;
+  }
+`;
+
 
 const Input = styled.input`
   width: 100%;
@@ -316,7 +333,12 @@ function Login({ onLogin }) {
     <LoginForm onSubmit={handleSubmit}>
       <FluidSimulation />
       <FormContent>
-        <Title>MERGE</Title>
+        <Title>
+          COOL
+        </Title>
+      <Title2>
+          X
+        </Title2>
         <Input
           type="email"
           value={email}
