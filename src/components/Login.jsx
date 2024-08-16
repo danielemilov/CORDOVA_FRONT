@@ -27,9 +27,11 @@ const LoginForm = styled.form`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    padding: 20px;
+    padding: 30px 20px;
     border-radius: 0;
     max-width: none;
+    justify-content: flex-start;
+    padding-top: 60px; /* Increased top padding for iPhone */
   }
 `;
 
@@ -49,8 +51,8 @@ const Title = styled.h1`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 28px;
-    margin-bottom: 40px;
+    font-size: 42px; /* Increased font size for iPhone */
+    margin-bottom: 50px;
   }
 `;
 
@@ -74,8 +76,9 @@ const Input = styled.input`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 14px;
-    padding: 10px 15px;
+    font-size: 16px;
+    padding: 14px 20px;
+    margin: 20px 0;
   }
 `;
 
@@ -106,9 +109,9 @@ const Button = styled.button`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 14px;
-    padding: 10px;
-    margin-top: 30px;
+    font-size: 18px;
+    padding: 14px;
+    margin-top: 40px;
   }
 `;
 
@@ -116,6 +119,13 @@ const ErrorMessage = styled.p`
   color: #ff0000;
   text-align: center;
   margin-top: 10px;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 16px;
+  }
 `;
 
 const LinkText = styled(Link)`
@@ -133,8 +143,8 @@ const LinkText = styled(Link)`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    margin-top: 15px;
-    font-size: 14px;
+    margin-top: 20px;
+    font-size: 16px;
   }
 `;
 
@@ -151,6 +161,7 @@ const TogglePasswordVisibility = styled.button`
   border: none;
   cursor: pointer;
   color: #e59ef0;
+  font-size: 20px; /* Increased size for better touch on iPhone */
 `;
 
 const FluidContainer = styled.div`
@@ -339,3 +350,4 @@ function Login({ onLogin }) {
 }
 
 export default Login;
+
