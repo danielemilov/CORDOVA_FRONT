@@ -12,10 +12,10 @@ const PageContainer = styled.div`
   width: 100%;
   min-height: 100vh;
   background: rgb(227, 223, 227);
-background: -moz-radial-gradient(circle, rgba(255,139,251,0.458420868347339) 68%, rgb(255, 255, 255) 100%);
-background: -webkit-radial-gradient(circle, rgba(255,139,251,0.458420868347339) 68%, rgb(255, 255, 255) 100%);
-background: radial-gradient(circle, rgba(255,139,251,0.458420868347339) 28%, rgba(255,255,255,0.5390749601275917) 100%);
-filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#ff8bfb",endColorstr="#ffffff",GradientType=1);
+  background: -moz-radial-gradient(circle, rgba(135,206,250,0.4) 68%, rgb(255, 255, 255) 100%);
+  background: -webkit-radial-gradient(circle, rgba(135,206,250,0.4) 68%, rgb(255, 255, 255) 100%);
+  background: radial-gradient(circle, rgba(135,206,250,0.4) 28%, rgba(255,255,255,0.539) 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#87cefa",endColorstr="#ffffff",GradientType=1);
 `;
 
 const LoginWrapper = styled.div`
@@ -34,7 +34,7 @@ const LoginForm = styled.form`
   position: relative;
   width: 100%;
   max-width: 400px;
-  background-color: rgb(255, 255, 255);
+  background-color: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
   padding: 40px;
   border-radius: 15px;
@@ -76,7 +76,7 @@ const Button = styled.button`
   width: 100%;
   padding: 12px;
   margin-top: 20px;
-  background-color: rgba(92, 92, 190, 0.813);
+  background-color: rgba(59, 130, 246, 0.8);
   color: #ffffff;
   border: none;
   border-radius: 25px;
@@ -86,8 +86,7 @@ const Button = styled.button`
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: rgba(85, 85, 85, 0.7);
-    color: #ffffff;
+    background-color: rgba(37, 99, 235, 0.9);
   }
 
   &:disabled {
@@ -103,7 +102,7 @@ const ErrorMessage = styled.p`
 `;
 
 const LinkText = styled(Link)`
-  color: #000000;
+  color: #3b82f6;
   text-decoration: none;
   margin-top: 20px;
   text-align: center;
@@ -126,7 +125,7 @@ const TogglePasswordVisibility = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  color: #e59ef0;
+  color: #3b82f6;
 `;
 
 const FluidContainer = styled.div`
@@ -156,34 +155,34 @@ function FluidSimulation() {
       canvas.height = canvas.offsetHeight;
 
       const fluidOptions = {
-        SPLAT_RADIUS: 10.6,
-        DENSITY_DISSIPATION: 0.9999999999999995,
-        VELOCITY_DISSIPATION: 0.999999999599995,
+        SPLAT_RADIUS: 0.6,
+        DENSITY_DISSIPATION: 0.98,
+        VELOCITY_DISSIPATION: 0.99,
         PRESSURE_DISSIPATION: 0.8,
         PRESSURE_ITERATIONS: 20,
-        CURL: 10,
-        SPLAT_FORCE: 99000,
+        CURL: 30,
+        SPLAT_FORCE: 6000,
         SHADING: true,
         COLORFUL: true,
-        COLOR_UPDATE_SPEED: 2,
+        COLOR_UPDATE_SPEED: 10,
         PAUSED: false,
-        BACK_COLOR: { r: 255, g: 255, b: 255 },
+        BACK_COLOR: { r: 0, g: 0, b: 0 },
         TRANSPARENT: true,
         BLOOM: true,
         BLOOM_ITERATIONS: 8,
         BLOOM_RESOLUTION: 256,
-        BLOOM_INTENSITY: 0.2,
-        BLOOM_THRESHOLD: 100,
+        BLOOM_INTENSITY: 0.4,
+        BLOOM_THRESHOLD: 0.8,
         BLOOM_SOFT_KNEE: 0.7,
         SUNRAYS: true,
         SUNRAYS_RESOLUTION: 196,
-        SUNRAYS_WEIGHT: 0.3,
+        SUNRAYS_WEIGHT: 1.0,
         COLOR_PALETTE: [
-          { r: 50, g: 100, b: 150 },
-          { r: 70, g: 130, b: 180 },
-          { r: 100, g: 149, b: 237 },
-          { r: 176, g: 224, b: 230 },
-          { r: 135, g: 206, b: 235 },
+          { r: 59, g: 130, b: 246 },
+          { r: 37, g: 99, b: 235 },
+          { r: 147, g: 197, b: 253 },
+          { r: 191, g: 219, b: 254 },
+          { r: 219, g: 234, b: 254 },
         ]
       };
 
@@ -220,11 +219,11 @@ function FluidSimulation() {
         const delta = (time - lastTime) / 1000;
         fluidInstance.update();
 
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.03) {
           const x = Math.random();
           const y = Math.random();
-          const dx = (Math.random() - 0.5) * 0.005;
-          const dy = (Math.random() - 0.5) * 0.005;
+          const dx = (Math.random() - 0.5) * 0.01;
+          const dy = (Math.random() - 0.5) * 0.01;
           fluidInstance.addSplat(x, y, dx, dy);
         }
       }
