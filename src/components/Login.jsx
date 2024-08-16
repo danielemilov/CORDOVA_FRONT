@@ -38,6 +38,7 @@ const LoginForm = styled.form`
 const FormContent = styled.div`
   position: relative;
   z-index: 1;
+  padding-top: 75px;
 `;
 
 const Title = styled.h1`
