@@ -1,17 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import api from '../api';
 import Fluid from 'webgl-fluid';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
+const cycleColors = keyframes`
+  0% {
+    background: radial-gradient(circle, rgba(135,206,250,0.4) 28%, rgba(255,255,255,0.539) 100%);
+  }
+  33% {
+    background: radial-gradient(circle, rgba(147,112,219,0.4) 28%, rgba(255,255,255,0.539) 100%);
+  }
+  66% {
+    background: radial-gradient(circle, rgba(255,182,193,0.4) 28%, rgba(255,255,255,0.539) 100%);
+  }
+  100% {
+    background: radial-gradient(circle, rgba(135,206,250,0.4) 28%, rgba(255,255,255,0.539) 100%);
+  }
+`;
+
 const PageContainer = styled.div`
   position: relative;
   width: 100%;
   min-height: 100vh;
   background: rgb(227, 223, 227);
+  animation: ${cycleColors} 15s infinite;
   background: -moz-radial-gradient(circle, rgba(135,206,250,0.4) 68%, rgb(255, 255, 255) 100%);
   background: -webkit-radial-gradient(circle, rgba(135,206,250,0.4) 68%, rgb(255, 255, 255) 100%);
   background: radial-gradient(circle, rgba(135,206,250,0.4) 28%, rgba(255,255,255,0.539) 100%);
@@ -35,11 +51,16 @@ const LoginForm = styled.form`
   width: 100%;
   max-width: 400px;
   background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
   padding: 40px;
-  border-radius: 15px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15), 0 3px 15px rgba(0, 0, 0, 0.2);
+  }
 `;
 
 const FormContent = styled.div`
@@ -48,68 +69,81 @@ const FormContent = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 34px;
-  font-weight: bolder;
-  color: #3b3193;
+  font-size: 36px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-align: center;
   margin-bottom: 30px;
+  letter-spacing: -0.5px;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 12px 20px;
-  margin: 8px 0;
-  border: .1px solid lightgrey;
-  border-radius: 25px;
-  background-color: rgba(255, 255, 255, 0.798);
+  padding: 15px 20px;
+  margin: 10px 0;
+  border: none;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.9);
   font-size: 16px;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(51, 51, 51, 0.5);
-    background-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 0 3px rgba(103, 126, 234, 0.3);
+    background-color: #ffffff;
   }
 `;
 
 const Button = styled.button`
   width: 100%;
-  padding: 12px;
+  padding: 15px;
   margin-top: 20px;
-  background-color: rgba(59, 130, 246, 0.8);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
   border: none;
-  border-radius: 25px;
-  font-size: 16px;
-  font-weight: 500;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
 
   &:hover {
-    background-color: rgba(37, 99, 235, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+  }
+
+  &:active {
+    transform: translateY(1px);
   }
 
   &:disabled {
-    background-color: rgba(204, 204, 204, 0.5);
+    background: #bdc3c7;
     cursor: not-allowed;
   }
 `;
 
 const ErrorMessage = styled.p`
-  color: #ff0000;
+  color: #e74c3c;
   text-align: center;
   margin-top: 10px;
+  font-weight: 500;
 `;
 
 const LinkText = styled(Link)`
-  color: #3b82f6;
+  color: #667eea;
   text-decoration: none;
   margin-top: 20px;
   text-align: center;
   display: block;
+  font-weight: 500;
+  transition: color 0.3s ease;
 
   &:hover {
-    text-decoration: underline;
+    color: #764ba2;
   }
 `;
 
@@ -125,7 +159,12 @@ const TogglePasswordVisibility = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  color: #3b82f6;
+  color: #667eea;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: #764ba2;
+  }
 `;
 
 const FluidContainer = styled.div`
@@ -155,34 +194,34 @@ function FluidSimulation() {
       canvas.height = canvas.offsetHeight;
 
       const fluidOptions = {
-        SPLAT_RADIUS: 0.6,
-        DENSITY_DISSIPATION: 0.98,
-        VELOCITY_DISSIPATION: 0.99,
+        SPLAT_RADIUS: 10.6,
+        DENSITY_DISSIPATION: 0.9999999999999995,
+        VELOCITY_DISSIPATION: 0.999999999599995,
         PRESSURE_DISSIPATION: 0.8,
         PRESSURE_ITERATIONS: 20,
-        CURL: 30,
-        SPLAT_FORCE: 6000,
+        CURL: 10,
+        SPLAT_FORCE: 99000,
         SHADING: true,
         COLORFUL: true,
-        COLOR_UPDATE_SPEED: 10,
+        COLOR_UPDATE_SPEED: 2,
         PAUSED: false,
-        BACK_COLOR: { r: 0, g: 0, b: 0 },
+        BACK_COLOR: { r: 255, g: 255, b: 255 },
         TRANSPARENT: true,
         BLOOM: true,
         BLOOM_ITERATIONS: 8,
         BLOOM_RESOLUTION: 256,
-        BLOOM_INTENSITY: 0.4,
-        BLOOM_THRESHOLD: 0.8,
+        BLOOM_INTENSITY: 0.2,
+        BLOOM_THRESHOLD: 100,
         BLOOM_SOFT_KNEE: 0.7,
         SUNRAYS: true,
         SUNRAYS_RESOLUTION: 196,
-        SUNRAYS_WEIGHT: 1.0,
+        SUNRAYS_WEIGHT: 0.3,
         COLOR_PALETTE: [
-          { r: 59, g: 130, b: 246 },
-          { r: 37, g: 99, b: 235 },
-          { r: 147, g: 197, b: 253 },
-          { r: 191, g: 219, b: 254 },
-          { r: 219, g: 234, b: 254 },
+          { r: 50, g: 100, b: 150 },
+          { r: 70, g: 130, b: 180 },
+          { r: 100, g: 149, b: 237 },
+          { r: 176, g: 224, b: 230 },
+          { r: 135, g: 206, b: 235 },
         ]
       };
 
@@ -219,11 +258,11 @@ function FluidSimulation() {
         const delta = (time - lastTime) / 1000;
         fluidInstance.update();
 
-        if (Math.random() < 0.03) {
+        if (Math.random() < 0.05) {
           const x = Math.random();
           const y = Math.random();
-          const dx = (Math.random() - 0.5) * 0.01;
-          const dy = (Math.random() - 0.5) * 0.01;
+          const dx = (Math.random() - 0.5) * 0.005;
+          const dy = (Math.random() - 0.5) * 0.005;
           fluidInstance.addSplat(x, y, dx, dy);
         }
       }
