@@ -11,7 +11,7 @@ const PageContainer = styled.div`
   position: relative;
   width: 100%;
   min-height: 100vh;
-background-color: white;
+background-color: #ffffff;
 `;
 
 const LoginWrapper = styled.div`
@@ -53,8 +53,8 @@ const Title = styled.h1`
 
 const Input = styled.input`
   width: 100%;
-  padding: 12px 20px;
-  margin: 8px 0;
+  padding:12px 20px;
+  margin: 16px 0;
   border: .1px solid lightgrey;
   border-radius: 25px;
   background-color: rgba(255, 255, 255, 0.798);
