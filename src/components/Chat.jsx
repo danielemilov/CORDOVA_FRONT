@@ -8,7 +8,6 @@ import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
 
-
 const ChatContainer = styled.div`
   position: fixed;
   top: 0;
@@ -167,8 +166,6 @@ const VoicePreview = styled.div`
   margin-top: 10px;
 `;
 
-
-
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -188,8 +185,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const socket = useSocket();
   const typingTimeoutRef = useRef(null);
   const mediaRecorderRef = useRef(null);
-
-
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
@@ -462,7 +457,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   };
 
-  
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -489,6 +483,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
+
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -535,6 +530,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
+
   const renderMessage = (msg, index, messages) => {
     if (!msg || !msg.sender) {
       console.warn("Invalid message received:", msg);
@@ -578,11 +574,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
                         }}
                       />
                     )}
-                      {msg.type === "voice" && (
-        <VoiceMessageContainer>
-          <audio controls src={msg.media} />
-        </VoiceMessageContainer>
-      )}
+                    {msg.type === "voice" && (
+                      <VoiceMessageContainer>
+                        <audio controls src={msg.media} />
+                      </VoiceMessageContainer>
+                    )}
                     <MessageContent>{msg.content}</MessageContent>
                     {msg.edited && <EditedTag>edited</EditedTag>}
                     <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
@@ -715,3 +711,4 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 };
 
 export default Chat;
+

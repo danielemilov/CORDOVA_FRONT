@@ -52,6 +52,7 @@ const Conversations = ({ onSelectConversation, filter }) => {
       setIsLoading(true);
       setError(null);
       const response = await api.get('/api/messages/conversations');
+      console.log('Fetched conversations:', response.data); // Debug log
       setConversations(response.data);
       let unreadCount = 0;
       const unreadMap = {};
@@ -83,31 +84,69 @@ const Conversations = ({ onSelectConversation, filter }) => {
   useEffect(() => {
     if (socket) {
       socket.on('private message', handleNewMessage);
+      socket.on('message read', handleMessageRead);
       return () => {
         socket.off('private message', handleNewMessage);
+        socket.off('message read', handleMessageRead);
       };
     }
   }, [socket]);
 
   const handleNewMessage = useCallback((message) => {
     setConversations((prevConversations) => {
-      const updatedConversations = prevConversations.map((conv) => {
-        if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
-          return {
-            ...conv,
-            lastMessage: message,
-            unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount,
-          };
-        }
-        return conv;
-      });
-      return updatedConversations;
+      const existingConvIndex = prevConversations.findIndex(
+        conv => conv.user._id === message.sender._id || conv.user._id === message.recipient._id
+      );
+
+      if (existingConvIndex !== -1) {
+        // Update existing conversation
+        const updatedConversations = [...prevConversations];
+        updatedConversations[existingConvIndex] = {
+          ...updatedConversations[existingConvIndex],
+          lastMessage: message,
+          unreadCount: updatedConversations[existingConvIndex].user._id === message.sender._id 
+            ? updatedConversations[existingConvIndex].unreadCount + 1 
+            : updatedConversations[existingConvIndex].unreadCount,
+        };
+        return updatedConversations;
+      } else {
+        // Add new conversation
+        const newConversation = {
+          user: message.sender,
+          lastMessage: message,
+          unreadCount: 1,
+        };
+        return [newConversation, ...prevConversations];
+      }
     });
+
     setUnreadConversations((prevUnread) => prevUnread + 1);
     setUnreadMessages((prevUnread) => ({
       ...prevUnread,
       [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1,
     }));
+  }, []);
+
+  const handleMessageRead = useCallback((messageIds) => {
+    setConversations((prevConversations) => {
+      return prevConversations.map((conv) => {
+        const readCount = messageIds.filter(id => id.sender === conv.user._id).length;
+        return {
+          ...conv,
+          unreadCount: Math.max(0, conv.unreadCount - readCount),
+        };
+      });
+    });
+    setUnreadConversations((prevUnread) => Math.max(0, prevUnread - messageIds.length));
+    setUnreadMessages((prevUnread) => {
+      const newUnread = { ...prevUnread };
+      messageIds.forEach((id) => {
+        if (newUnread[id.sender]) {
+          newUnread[id.sender] = Math.max(0, newUnread[id.sender] - 1);
+        }
+      });
+      return newUnread;
+    });
   }, []);
 
   const formatLastMessageTime = useCallback((timestamp) => {
@@ -126,7 +165,7 @@ const Conversations = ({ onSelectConversation, filter }) => {
   const filteredConversations = useMemo(() => {
     return conversations.filter(conv => 
       conv.user.username.toLowerCase().includes(filter.toLowerCase()) ||
-      (conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+      (conv.lastMessage && conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
     );
   }, [conversations, filter]);
 
@@ -205,7 +244,7 @@ const Conversations = ({ onSelectConversation, filter }) => {
                     <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
                   )}
                   <TimeStamp>
-                    {formatLastMessageTime(conversation.lastMessage.timestamp)}
+                    {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.timestamp)}
                   </TimeStamp>
                 </HStack>
               </HStack>
@@ -213,7 +252,7 @@ const Conversations = ({ onSelectConversation, filter }) => {
                 $unread={conversation.unreadCount > 0} 
                 noOfLines={1}
               >
-                {conversation.lastMessage.content}
+                {conversation.lastMessage ? conversation.lastMessage.content : "No messages yet"}
               </LastMessage>
             </Box>
           </HStack>
