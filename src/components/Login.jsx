@@ -7,25 +7,6 @@ import Fluid from 'webgl-fluid';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
-const PageContainer = styled.div`
-  position: relative;
-  width: 100%;
-  min-height: 100vh;
-background-color: #ffffff;
-`;
-
-const LoginWrapper = styled.div`
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 20px;
-  background-color: transparent;
-  z-index: 1;
-`;
-
 const LoginForm = styled.form`
   position: relative;
   width: 100%;
@@ -36,6 +17,20 @@ const LoginForm = styled.form`
   border-radius: 15px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    padding: 20px;
+    border-radius: 0;
+    max-width: none;
+  }
 `;
 
 const FormContent = styled.div`
@@ -49,11 +44,19 @@ const Title = styled.h1`
   color: #0c3478;
   text-align: center;
   margin-bottom: 60px;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 28px;
+    margin-bottom: 40px;
+  }
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding:12px 20px;
+  padding: 12px 20px;
   margin: 16px 0;
   border: .1px solid lightgrey;
   border-radius: 25px;
@@ -65,6 +68,14 @@ const Input = styled.input`
     outline: none;
     box-shadow: 0 0 0 2px rgba(51, 51, 51, 0.5);
     background-color: rgba(255, 255, 255, 0.8);
+  }
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 14px;
+    padding: 10px 15px;
   }
 `;
 
@@ -90,6 +101,15 @@ const Button = styled.button`
     background-color: rgba(204, 204, 204, 0.5);
     cursor: not-allowed;
   }
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 14px;
+    padding: 10px;
+    margin-top: 30px;
+  }
 `;
 
 const ErrorMessage = styled.p`
@@ -107,6 +127,14 @@ const LinkText = styled(Link)`
 
   &:hover {
     text-decoration: underline;
+  }
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    margin-top: 15px;
+    font-size: 14px;
   }
 `;
 
@@ -148,8 +176,8 @@ function FluidSimulation() {
     if (!canvas) return;
 
     const initializeFluid = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
 
       const fluidOptions = {
         SPLAT_RADIUS: 10.6,
@@ -190,17 +218,19 @@ function FluidSimulation() {
     initializeFluid();
 
     const handleResize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       if (fluidInstance) {
         fluidInstance.resize();
       }
     };
 
     window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
       if (fluidInstance) {
         fluidInstance.destroy();
       }
@@ -271,44 +301,40 @@ function Login({ onLogin }) {
   };
   
   return (
-    <PageContainer>
-      <LoginWrapper>
-        <LoginForm onSubmit={handleSubmit}>
-          <FluidSimulation />
-          <FormContent>
-            <Title>MERGE</Title>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              required
-            />
-            <PasswordWrapper>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-              />
-              <TogglePasswordVisibility
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </TogglePasswordVisibility>
-            </PasswordWrapper>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Logging in...' : 'Login'}
-            </Button>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-            <LinkText to="/register">Don't have an account? Register</LinkText>
-            <LinkText to="/forgot-password">Forgot Password?</LinkText>
-          </FormContent>
-        </LoginForm>
-      </LoginWrapper>
-    </PageContainer>
+    <LoginForm onSubmit={handleSubmit}>
+      <FluidSimulation />
+      <FormContent>
+        <Title>MERGE</Title>
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+        />
+        <PasswordWrapper>
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            required
+          />
+          <TogglePasswordVisibility
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <FaEyeSlash /> : <FaEye />}
+          </TogglePasswordVisibility>
+        </PasswordWrapper>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Logging in...' : 'Login'}
+        </Button>
+        {error && <ErrorMessage>{error}</ErrorMessage>}
+        <LinkText to="/register">Don't have an account? Register</LinkText>
+        <LinkText to="/forgot-password">Forgot Password?</LinkText>
+      </FormContent>
+    </LoginForm>
   );
 }
 
