@@ -71,9 +71,6 @@ const FormContent = styled.div`
 const Title = styled.h1`
   font-size: 36px;
   font-weight: 700;
-  background: linear-gradient(135deg, #666dea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   text-align: center;
   margin-bottom: 30px;
   letter-spacing: -0.5px;
@@ -101,7 +98,7 @@ const Button = styled.button`
   width: 100%;
   padding: 15px;
   margin-top: 20px;
-  background: linear-gradient(135deg, #142da8 0%, #ffffff 100%);
+  background: linear-gradient(135deg, #869afb 0%, #ffffff 100%);
   color: #ffffff;
   border: none;
   border-radius: 12px;
@@ -318,7 +315,7 @@ function Login({ onLogin }) {
         <LoginForm onSubmit={handleSubmit}>
           <FluidSimulation />
           <FormContent>
-            <Title>!N LOVE</Title>
+            <Title>X LOVIN</Title>
             <Input
               type="email"
               value={email}
