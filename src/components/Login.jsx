@@ -52,7 +52,7 @@ const Title = styled.h1`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 42px; /* Increased font size for iPhone */
+    font-size: 82px; /* Increased font size for iPhone */
     margin-bottom: 50px;
   }
 `;
@@ -68,7 +68,7 @@ const Title2 = styled.h1`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 42px; /* Increased font size for iPhone */
+    font-size: 82px; /* Increased font size for iPhone */
     margin-bottom: 50px;
   }
 `;
@@ -334,7 +334,7 @@ function Login({ onLogin }) {
       <FluidSimulation />
       <FormContent>
         <Title>
-          COOL
+          COOL 
         </Title>
       <Title2>
           X
