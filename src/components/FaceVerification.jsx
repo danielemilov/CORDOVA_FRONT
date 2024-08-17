@@ -82,6 +82,7 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
     }
   };
 
+  
   const verifyFaces = async () => {
     if (!uploadedImage || !capturedImage) {
       toast({
@@ -96,15 +97,21 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
   
     try {
       const formData = new FormData();
-      formData.append('uploadedPhoto', dataURItoBlob(uploadedImage), 'uploadedPhoto.jpg');
-      formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
+      formData.append('uploadedImage', dataURItoBlob(uploadedImage), 'uploadedImage.jpg');
+      formData.append('capturedImage', dataURItoBlob(capturedImage), 'capturedImage.jpg');
   
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/face-verification/verify-face`, formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${yourAuthToken}` // Make sure to include the auth token
+      const token = localStorage.getItem('token'); // Get the token from localStorage
+  
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/api/face-verification/verify-face`, 
+        formData, 
+        {
+          headers: { 
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}` // Include the token in the request headers
+          }
         }
-      });
+      );
   
       if (response.data.isMatch) {
         onVerificationComplete(uploadedImage);
