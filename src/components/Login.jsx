@@ -46,30 +46,14 @@ const Title = styled.h1`
   font-weight: 900;
   color: #b766ce;
   text-align: center;
-  margin-bottom: 60px;
+  margin-bottom: 30px;
 
   @media only screen 
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 62px; /* Increased font size for iPhone */
-    margin-bottom: 50px;
-  }
-`;
-const Title2 = styled.h1`
-  font-size: 34px;
-  font-weight: 900;
-  color: #000000;
-  text-align: center;
-  margin-bottom: 40px;
-  margin-top: -60px;
-
-  @media only screen 
-    and (min-device-width: 375px) 
-    and (max-device-width: 812px) 
-    and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 62px; /* Increased font size for iPhone */
-    margin-bottom: 50px;
+    font-size: 32px; /* Increased font size for iPhone */
+    margin-bottom: 25px;
   }
 `;
 
@@ -334,11 +318,9 @@ function Login({ onLogin }) {
       <FluidSimulation />
       <FormContent>
         <Title>
-             NO
+             IN LOVE
         </Title>
-      <Title2>
-          FAKES
-        </Title2>
+
         <Input
           type="email"
           value={email}
