@@ -1,28 +1,15 @@
-import React, { useState } from 'react';
-import { Formik, Form, Field } from 'formik';
-import * as Yup from 'yup';
-import {
-  VStack,
-  Button,
-  Heading,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  useToast,
-  Box,
-  Text,
-  Checkbox,
-  Link,
-  RadioGroup,
-  Radio,
-  HStack,
-} from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import FaceVerification from './FaceVerification';
-import { getUserLocation } from '../utils';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import api from '../api';
+import { getUserLocation } from '../utils';
+import FaceVerification from './FaceVerification';
+import * as Yup from 'yup';
+import { Formik, Form, Field } from 'formik';
+import Fluid from 'webgl-fluid';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const RegisterWrapper = styled.div`
   display: flex;
@@ -34,45 +21,105 @@ const RegisterWrapper = styled.div`
   padding: 20px;
 `;
 
-const RegisterForm = styled(Box)`
+const RegisterForm = styled.div`
+  position: relative;
   width: 100%;
   max-width: 400px;
   background-color: white;
+  backdrop-filter: blur(10px);
   padding: 40px;
-  border-radius: 10px;
+  border-radius: 15px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    padding: 30px 20px;
+    border-radius: 0;
+    max-width: none;
+    justify-content: flex-start;
+    padding-top: 60px;
+  }
 `;
 
-const Title = styled(Heading)`
+const FormContent = styled.div`
+  position: relative;
+  z-index: 1;
+  padding-top: 40px;
+`;
+
+const Title = styled.h1`
   font-size: 34px;
-  font-weight: 100;
-  color: #333;
+  font-weight: 900;
+  color: #b766ce;
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 60px;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 62px;
+    margin-bottom: 50px;
+  }
 `;
 
-const StyledInput = styled.input`
+const Title2 = styled.h1`
+  font-size: 34px;
+  font-weight: 900;
+  color: #000000;
+  text-align: center;
+  margin-bottom: 40px;
+  margin-top: -60px;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 62px;
+    margin-bottom: 50px;
+  }
+`;
+
+const Input = styled.input`
   width: 100%;
   padding: 12px 20px;
   margin: 8px 0;
-  border: none;
+  border: .1px solid lightgrey;
   border-radius: 25px;
-  background-color: #f0f0f0;
+  background-color: rgba(255, 255, 255, 0.798);
   font-size: 16px;
   transition: all 0.3s ease;
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #333;
+    box-shadow: 0 0 0 2px rgba(51, 51, 51, 0.5);
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 16px;
+    padding: 14px 20px;
+    margin: 12px 0;
   }
 `;
 
-const StyledButton = styled(Button)`
+const Button = styled.button`
   width: 100%;
   padding: 12px;
   margin-top: 20px;
-  background-color: #333;
-  color: #27b600;
+  background-color: rgba(0, 0, 0, 0.813);
+  color: #ffffff;
   border: none;
   border-radius: 25px;
   font-size: 16px;
@@ -81,31 +128,56 @@ const StyledButton = styled(Button)`
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: #555;
+    background-color: rgba(85, 85, 85, 0.7);
+    color: #ffffff;
   }
 
   &:disabled {
-    background-color: #ccc;
+    background-color: rgba(204, 204, 204, 0.5);
     cursor: not-allowed;
+  }
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 18px;
+    padding: 14px;
+    margin-top: 30px;
   }
 `;
 
-const ErrorMessage = styled(Text)`
-  color: red;
+const ErrorMessage = styled.p`
+  color: #ff0000;
   text-align: center;
-  margin-top: 10px;
+  margin-top: 5px;
+  font-size: 14px;
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    font-size: 16px;
+  }
 `;
 
 const LinkText = styled(Link)`
-  color: #ff0000;
+  color: #000000;
   text-decoration: none;
   margin-top: 20px;
   text-align: center;
   display: block;
-  
 
   &:hover {
-    text-decoration: none;
+    text-decoration: underline;
+  }
+
+  @media only screen 
+    and (min-device-width: 375px) 
+    and (max-device-width: 812px) 
+    and (-webkit-min-device-pixel-ratio: 3) {
+    margin-top: 20px;
+    font-size: 16px;
   }
 `;
 
@@ -121,23 +193,33 @@ const TogglePasswordVisibility = styled.button`
   background: none;
   border: none;
   cursor: pointer;
+  color: #e59ef0;
+  font-size: 20px;
 `;
 
-const StyledSelect = styled.select`
+const FluidContainer = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  padding: 12px 20px;
-  margin: 8px 0;
-  border: none;
-  border-radius: 25px;
-  background-color: #f0f0f0;
-  font-size: 16px;
-  appearance: none;
-  cursor: pointer;
+  height: 100%;
+  z-index: 0;
+`;
 
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px #333;
-  }
+const FluidCanvas = styled.canvas`
+  width: 100%;
+  height: 100%;
+`;
+
+const CheckboxWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+`;
+
+const CheckboxLabel = styled.label`
+  margin-left: 10px;
+  font-size: 14px;
 `;
 
 const RegisterSchema = Yup.object().shape({
@@ -166,11 +248,69 @@ const RegisterSchema = Yup.object().shape({
 
 function Register() {
   const navigate = useNavigate();
-  const toast = useToast();
   const [isVerificationComplete, setIsVerificationComplete] = useState(false);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [showFaceVerification, setShowFaceVerification] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const canvasRef = useRef(null);
+  const [fluidInstance, setFluidInstance] = useState(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const initializeFluid = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const fluidOptions = {
+        SPLAT_RADIUS: 0.6,
+        DENSITY_DISSIPATION: 0.98,
+        VELOCITY_DISSIPATION: 0.98,
+        PRESSURE_DISSIPATION: 0.8,
+        PRESSURE_ITERATIONS: 20,
+        CURL: 10,
+        SPLAT_FORCE: 4000,
+        SHADING: true,
+        COLORFUL: true,
+        COLOR_UPDATE_SPEED: 10,
+        PAUSED: false,
+        BACK_COLOR: { r: 255, g: 255, b: 255 },
+        TRANSPARENT: true,
+        BLOOM: true,
+        BLOOM_ITERATIONS: 8,
+        BLOOM_RESOLUTION: 256,
+        BLOOM_INTENSITY: 0.2,
+        BLOOM_THRESHOLD: 0.6,
+        BLOOM_SOFT_KNEE: 0.7,
+        SUNRAYS: true,
+        SUNRAYS_RESOLUTION: 196,
+        SUNRAYS_WEIGHT: 0.3,
+      };
+
+      const newFluidInstance = Fluid(canvas, fluidOptions);
+      setFluidInstance(newFluidInstance);
+    };
+
+    initializeFluid();
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (fluidInstance) {
+        fluidInstance.resize();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (fluidInstance) {
+        fluidInstance.destroy();
+      }
+    };
+  }, []);
 
   const handleSubmit = async (values, actions) => {
     if (!isVerificationComplete) {
@@ -198,29 +338,14 @@ function Register() {
         formData.append('photo', blob, 'user_photo.jpg');
       }
 
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
+      const response = await api.post('/api/auth/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      toast({
-        title: 'Registration Successful',
-        description: 'Please check your email to verify your account.',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
       });
       
       navigate('/login');
     } catch (error) {
       console.error('Registration error:', error.response?.data || error);
-      
-      toast({
-        title: 'Registration Failed',
-        description: error.response?.data?.message || 'An error occurred during registration.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      actions.setErrors({ submit: error.response?.data?.message || 'An error occurred during registration.' });
     } finally {
       actions.setSubmitting(false);
     }
@@ -230,124 +355,101 @@ function Register() {
     setIsVerificationComplete(true);
     setUploadedPhoto(photo);
     setShowFaceVerification(false);
-    toast({
-      title: "Face Verification Completed",
-      description: "You can now proceed with registration.",
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-    });
   };
 
   return (
     <RegisterWrapper>
       <RegisterForm>
-        <Title>FE!N</Title>
-        <Formik
-          initialValues={{
-            username: '',
-            email: '',
-            password: '',
-            birthDate: '',
-            gender: '',
-            agreedToPrivacyPolicy: false,
-          }}
-          validationSchema={RegisterSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ errors, touched, isSubmitting, setFieldValue }) => (
-            <Form>
-              <VStack spacing={4}>
+        <FluidContainer>
+          <FluidCanvas ref={canvasRef} />
+        </FluidContainer>
+        <FormContent>
+          <Title>FE!N</Title>
+          <Title2>Register</Title2>
+          <Formik
+            initialValues={{
+              username: '',
+              email: '',
+              password: '',
+              birthDate: '',
+              gender: '',
+              agreedToPrivacyPolicy: false,
+            }}
+            validationSchema={RegisterSchema}
+            onSubmit={handleSubmit}
+          >
+            {({ errors, touched, isSubmitting, setFieldValue }) => (
+              <Form>
                 <Field name="username">
                   {({ field }) => (
-                    <FormControl isInvalid={errors.username && touched.username}>
-                      <StyledInput {...field} placeholder="Username" />
-                      <ErrorMessage>{errors.username}</ErrorMessage>
-                    </FormControl>
+                    <Input {...field} placeholder="Username" />
                   )}
                 </Field>
+                {errors.username && touched.username && <ErrorMessage>{errors.username}</ErrorMessage>}
 
                 <Field name="email">
                   {({ field }) => (
-                    <FormControl isInvalid={errors.email && touched.email}>
-                      <StyledInput {...field} type="email" placeholder="Email" />
-                      <ErrorMessage>{errors.email}</ErrorMessage>
-                    </FormControl>
+                    <Input {...field} type="email" placeholder="Email" />
                   )}
                 </Field>
+                {errors.email && touched.email && <ErrorMessage>{errors.email}</ErrorMessage>}
 
-                <Field name="password">
-                  {({ field }) => (
-                    <FormControl isInvalid={errors.password && touched.password}>
-                      <PasswordWrapper>
-                        <StyledInput 
-                          {...field} 
-                          type={showPassword ? 'text' : 'password'} 
-                          placeholder="Password" 
-                        />
-                        <TogglePasswordVisibility
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <FaEyeSlash /> : <FaEye />}
-                        </TogglePasswordVisibility>
-                      </PasswordWrapper>
-                      <ErrorMessage>{errors.password}</ErrorMessage>
-                    </FormControl>
-                  )}
-                </Field>
+                <PasswordWrapper>
+                  <Field name="password">
+                    {({ field }) => (
+                      <Input
+                        {...field}
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Password"
+                      />
+                    )}
+                  </Field>
+                  <TogglePasswordVisibility
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </TogglePasswordVisibility>
+                </PasswordWrapper>
+                {errors.password && touched.password && <ErrorMessage>{errors.password}</ErrorMessage>}
 
                 <Field name="birthDate">
                   {({ field }) => (
-                    <FormControl isInvalid={errors.birthDate && touched.birthDate}>
-                      <StyledInput {...field} type="date" />
-                      <ErrorMessage>{errors.birthDate}</ErrorMessage>
-                    </FormControl>
+                    <Input {...field} type="date" placeholder="Birth Date" />
                   )}
                 </Field>
+                {errors.birthDate && touched.birthDate && <ErrorMessage>{errors.birthDate}</ErrorMessage>}
 
-                <Field name="gender">
+                <Field name="gender" as="select">
                   {({ field }) => (
-                    <FormControl isInvalid={errors.gender && touched.gender}>
-                      <StyledSelect {...field}>
-                        <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </StyledSelect>
-                      <ErrorMessage>{errors.gender}</ErrorMessage>
-                    </FormControl>
+                    <Input {...field} as="select">
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </Input>
                   )}
                 </Field>
-
-                <Field name="agreedToPrivacyPolicy">
-                  {({ field }) => (
-                    <FormControl isInvalid={errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy}>
-                      <Checkbox {...field}>
-                        I agree to the <Link color="blue.500" href="/privacy-policy">Privacy Policy</Link>
-                      </Checkbox>
-                      <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>
-                    </FormControl>
-                  )}
-                </Field>
-
-                {isVerificationComplete && (
-                  <Text color="green.500">Face verification completed</Text>
+                {errors.gender && touched.gender && <ErrorMessage>{errors.gender}</ErrorMessage>}
+                <CheckboxWrapper>
+                  <Field type="checkbox" name="agreedToPrivacyPolicy" id="agreedToPrivacyPolicy" />
+                  <CheckboxLabel htmlFor="agreedToPrivacyPolicy">
+                    I agree to the <Link to="/privacy-policy">Privacy Policy</Link>
+                  </CheckboxLabel>
+                </CheckboxWrapper>
+                {errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy && (
+                  <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>
                 )}
 
-                <StyledButton
-                  mt={4}
-                  isLoading={isSubmitting}
-                  type="submit"
-                  width="full"
-                >
-                  Register
-                </StyledButton>
-              </VStack>
-            </Form>
-          )}
-        </Formik>
-        <LinkText to="/login">Already have an account? Login</LinkText>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Registering...' : 'Register'}
+                </Button>
+                {errors.submit && <ErrorMessage>{errors.submit}</ErrorMessage>}
+              </Form>
+            )}
+          </Formik>
+          <LinkText to="/login">Already have an account? Login</LinkText>
+        </FormContent>
       </RegisterForm>
 
       {showFaceVerification && (

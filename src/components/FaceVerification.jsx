@@ -39,9 +39,10 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
         videoRef.current.play();
       }
     } catch (err) {
+      console.error("Error accessing the camera:", err);
       toast({
         title: 'Camera Error',
-        description: err.message,
+        description: 'Unable to access the camera. Please check your permissions.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -98,8 +99,11 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       formData.append('uploadedPhoto', dataURItoBlob(uploadedImage), 'uploadedPhoto.jpg');
       formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
   
-      const response = await axios.post(`${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/face-verification/verify-face`, formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${yourAuthToken}` // Make sure to include the auth token
+        }
       });
   
       if (response.data.isMatch) {
@@ -171,6 +175,7 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
         >
           <Heading size="lg" textAlign="center" color="teal.600">Face Verification</Heading>
           <Progress value={(step / 3) * 100} colorScheme="teal" borderRadius="full" />
+          
           {step === 1 && (
             <>
               <Text textAlign="center">Please upload a clear photo of your face</Text>
@@ -194,6 +199,7 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
               </Button>
             </>
           )}
+          
           {step === 2 && (
             <>
               <AspectRatio ratio={4/3} width="100%" overflow="hidden" borderRadius="xl">
@@ -208,7 +214,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                   <Box
                     position="absolute"
                     top="50%"
-                    left="50%"transform="translate(-50%, -50%)"
+                    left="50%"
+                    transform="translate(-50%, -50%)"
                     width="70%"
                     height="90%"
                     border="3px solid white"
@@ -218,43 +225,59 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                   />
                 </Box>
               </AspectRatio>
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
               <Text textAlign="center" fontWeight="bold" color="teal.600">
                 Move closer and center your face
               </Text>
-              <Flex justify="space-between">
-                <Button
-                  onClick={() => setStep(1)}
-                  colorScheme="gray"
-                  boxShadow="md"
-                  _hover={{ boxShadow: 'lg' }}
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={captureImage}
-                  colorScheme="teal"
-                  boxShadow="md"
-                  _hover={{ boxShadow: 'lg' }}
-                >
-                  Capture
-                </Button>
-              </Flex>
+              <Button
+                onClick={captureImage}
+                colorScheme="teal"
+                size="lg"
+                w="full"
+                boxShadow="md"
+                _hover={{ boxShadow: 'lg' }}
+              >
+                Capture
+              </Button>
             </>
           )}
+          
           {step === 3 && (
             <>
               <Flex justify="space-between">
-                <Image src={uploadedImage} alt="Uploaded" boxSize="150px" objectFit="cover" />
-                <Image src={capturedImage} alt="Captured" boxSize="150px" objectFit="cover" />
+                <Box width="48%">
+                  <Image src={uploadedImage} alt="Uploaded" objectFit="cover" borderRadius="md" />
+                  <Text mt={2} textAlign="center">Uploaded Image</Text>
+                </Box>
+                <Box width="48%">
+                  <Image src={capturedImage} alt="Captured" objectFit="cover" borderRadius="md" />
+                  <Text mt={2} textAlign="center">Captured Image</Text>
+                </Box>
               </Flex>
-              <Button onClick={verifyFaces} colorScheme="teal">
+              <Button
+                onClick={verifyFaces}
+                colorScheme="teal"
+                size="lg"
+                w="full"
+                boxShadow="md"
+                _hover={{ boxShadow: 'lg' }}
+              >
                 Verify Faces
               </Button>
             </>
           )}
+          
+          <Button
+            onClick={onClose}
+            variant="outline"
+            colorScheme="teal"
+            size="md"
+            w="full"
+          >
+            Cancel
+          </Button>
         </VStack>
       </motion.div>
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
     </Box>
   );
 };
