@@ -39,10 +39,9 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
         videoRef.current.play();
       }
     } catch (err) {
-      console.error("Error accessing the camera:", err);
       toast({
         title: 'Camera Error',
-        description: 'Unable to access the camera. Please check your permissions.',
+        description: err.message,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -82,7 +81,6 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
     }
   };
 
-  
   const verifyFaces = async () => {
     if (!uploadedImage || !capturedImage) {
       toast({
@@ -100,22 +98,9 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       formData.append('uploadedPhoto', dataURItoBlob(uploadedImage), 'uploadedPhoto.jpg');
       formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
   
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-  
-      const response = await axios.post(
-        `${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify`, 
-        formData, 
-        {
-          headers: { 
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-  
+      const response = await axios.post(`${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
   
       if (response.data.isMatch) {
         onVerificationComplete(uploadedImage);
@@ -129,13 +114,10 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
           isClosable: true,
         });
       }
-    }catch (error) {
+    } catch (error) {
       console.error('Verification error:', error);
       let errorMessage = 'An error occurred during verification. Please try again.';
-      if (error.response && error.response.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-        // Optionally, redirect to login page or refresh token
-      } else if (error.response && error.response.data && error.response.data.message) {
+      if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
       }
       toast({
@@ -189,7 +171,6 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
         >
           <Heading size="lg" textAlign="center" color="teal.600">Face Verification</Heading>
           <Progress value={(step / 3) * 100} colorScheme="teal" borderRadius="full" />
-          
           {step === 1 && (
             <>
               <Text textAlign="center">Please upload a clear photo of your face</Text>
@@ -213,7 +194,6 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
               </Button>
             </>
           )}
-          
           {step === 2 && (
             <>
               <AspectRatio ratio={4/3} width="100%" overflow="hidden" borderRadius="xl">
@@ -228,8 +208,7 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                   <Box
                     position="absolute"
                     top="50%"
-                    left="50%"
-                    transform="translate(-50%, -50%)"
+                    left="50%"transform="translate(-50%, -50%)"
                     width="70%"
                     height="90%"
                     border="3px solid white"
@@ -239,59 +218,43 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                   />
                 </Box>
               </AspectRatio>
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
               <Text textAlign="center" fontWeight="bold" color="teal.600">
                 Move closer and center your face
               </Text>
-              <Button
-                onClick={captureImage}
-                colorScheme="teal"
-                size="lg"
-                w="full"
-                boxShadow="md"
-                _hover={{ boxShadow: 'lg' }}
-              >
-                Capture
-              </Button>
+              <Flex justify="space-between">
+                <Button
+                  onClick={() => setStep(1)}
+                  colorScheme="gray"
+                  boxShadow="md"
+                  _hover={{ boxShadow: 'lg' }}
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={captureImage}
+                  colorScheme="teal"
+                  boxShadow="md"
+                  _hover={{ boxShadow: 'lg' }}
+                >
+                  Capture
+                </Button>
+              </Flex>
             </>
           )}
-          
           {step === 3 && (
             <>
               <Flex justify="space-between">
-                <Box width="48%">
-                  <Image src={uploadedImage} alt="Uploaded" objectFit="cover" borderRadius="md" />
-                  <Text mt={2} textAlign="center">Uploaded Image</Text>
-                </Box>
-                <Box width="48%">
-                  <Image src={capturedImage} alt="Captured" objectFit="cover" borderRadius="md" />
-                  <Text mt={2} textAlign="center">Captured Image</Text>
-                </Box>
+                <Image src={uploadedImage} alt="Uploaded" boxSize="150px" objectFit="cover" />
+                <Image src={capturedImage} alt="Captured" boxSize="150px" objectFit="cover" />
               </Flex>
-              <Button
-                onClick={verifyFaces}
-                colorScheme="teal"
-                size="lg"
-                w="full"
-                boxShadow="md"
-                _hover={{ boxShadow: 'lg' }}
-              >
+              <Button onClick={verifyFaces} colorScheme="teal">
                 Verify Faces
               </Button>
             </>
           )}
-          
-          <Button
-            onClick={onClose}
-            variant="outline"
-            colorScheme="teal"
-            size="md"
-            w="full"
-          >
-            Cancel
-          </Button>
         </VStack>
       </motion.div>
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
     </Box>
   );
 };
