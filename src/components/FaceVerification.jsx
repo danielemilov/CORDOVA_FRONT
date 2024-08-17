@@ -97,21 +97,25 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
   
     try {
       const formData = new FormData();
-      formData.append('uploadedImage', dataURItoBlob(uploadedImage), 'uploadedImage.jpg');
-      formData.append('capturedImage', dataURItoBlob(capturedImage), 'capturedImage.jpg');
+      formData.append('uploadedPhoto', dataURItoBlob(uploadedImage), 'uploadedPhoto.jpg');
+      formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
   
-      const token = localStorage.getItem('token'); // Get the token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
   
       const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/face-verification/verify-face`, 
+        `${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify`, 
         formData, 
         {
           headers: { 
             'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${token}` // Include the token in the request headers
+            'Authorization': `Bearer ${token}`
           }
         }
       );
+  
   
       if (response.data.isMatch) {
         onVerificationComplete(uploadedImage);
@@ -125,10 +129,13 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
           isClosable: true,
         });
       }
-    } catch (error) {
+    }catch (error) {
       console.error('Verification error:', error);
       let errorMessage = 'An error occurred during verification. Please try again.';
-      if (error.response && error.response.data && error.response.data.message) {
+      if (error.response && error.response.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+        // Optionally, redirect to login page or refresh token
+      } else if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
       }
       toast({
