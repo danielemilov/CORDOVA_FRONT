@@ -104,16 +104,17 @@ const AgeTag = styled.span`
   border-radius: 10px;
   font-size: 12px;
   font-weight: bold;
-  margin-right: 8px;
 `;
 
 const StatusDot = styled.span`
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background-color: ${props => props.$online ? '#4CAF50' : '#9E9E9E'};
+  position: absolute;
+  top: 15px;
+  right: 15px;
   box-shadow: 0 0 0 2px #fff;
-  flex-shrink: 0;
 `;
 
 const Description = styled.p`
@@ -172,6 +173,7 @@ const UserCard = ({ user, onUserClick }) => {
 
   return (
     <Card ref={cardRef} onClick={() => onUserClick(user)}>
+      <StatusDot $online={user.isOnline} />
       <Avatar>
         <img src={user.photo || 'https://via.placeholder.com/80'} alt={user.username} />
       </Avatar>
@@ -179,7 +181,6 @@ const UserCard = ({ user, onUserClick }) => {
         <UsernameLine>
           <Username>{user.username}</Username>
           {user.age && <AgeTag>{user.age}</AgeTag>}
-          <StatusDot $online={user.isOnline} />
         </UsernameLine>
         <Description>{user.description}</Description>
         <Detail>
