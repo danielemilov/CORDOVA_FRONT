@@ -10,16 +10,16 @@ const gradientAnimation = keyframes`
 
 const Card = styled.div`
   background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  padding: 15px;
+  border-radius: 20px;
+  padding: 20px;
   display: flex;
   align-items: center;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  max-width: 400px;
-  margin: 0 auto;
+  width: 100%;
+  height: 120px;
 
   &:before {
     content: '';
@@ -41,7 +41,7 @@ const Card = styled.div`
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
 
     &:before {
       opacity: 0.2;
@@ -50,12 +50,12 @@ const Card = styled.div`
 `;
 
 const Avatar = styled.div`
-  width: 60px;
-  height: 60px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   overflow: hidden;
-  margin-right: 15px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  margin-right: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   flex-shrink: 0;
 
@@ -74,12 +74,16 @@ const Avatar = styled.div`
 const UserInfo = styled.div`
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
 `;
 
 const Username = styled.h2`
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  margin: 0 0 3px 0;
+  margin: 0 0 5px 0;
   display: flex;
   align-items: center;
   color: #333;
@@ -89,20 +93,20 @@ const Username = styled.h2`
 `;
 
 const StatusDot = styled.span`
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: ${props => props.$online ? '#4CAF50' : '#9E9E9E'};
-  margin-left: 8px;
+  margin-left: 10px;
   box-shadow: 0 0 0 2px #fff;
   flex-shrink: 0;
 `;
 
 const Description = styled.p`
-  font-size: 13px;
+  font-size: 14px;
   color: #666;
-  margin: 0 0 5px 0;
-  line-height: 1.3;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -113,23 +117,23 @@ const Description = styled.p`
 const Detail = styled.span`
   display: flex;
   align-items: center;
-  font-size: 12px;
+  font-size: 14px;
   color: #888;
   
   svg {
-    margin-right: 4px;
-    font-size: 14px;
+    margin-right: 5px;
+    font-size: 16px;
   }
 `;
 
 const NotificationDot = styled.span`
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background-color: #ff4757;
   position: absolute;
-  top: 10px;
-  right: 10px;
+  bottom: 20px;
+  right: 20px;
   box-shadow: 0 0 0 2px #fff;
 `;
 
@@ -166,7 +170,7 @@ const UserCard = ({ user, onUserClick, unreadCount }) => {
   return (
     <Card ref={cardRef} onClick={() => onUserClick(user)}>
       <Avatar>
-        <img src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
+        <img src={user.photo || 'https://via.placeholder.com/80'} alt={user.username} />
       </Avatar>
       <UserInfo>
         <Username>
