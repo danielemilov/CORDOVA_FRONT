@@ -9,7 +9,7 @@ const gradientAnimation = keyframes`
 `;
 
 const Card = styled.div`
-  background: rgba(255, 255, 255, 0.9);
+  background: rgb(255, 255, 255);
   border-radius: 20px;
   padding: 20px;
   display: flex;
@@ -58,6 +58,7 @@ const Avatar = styled.div`
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   flex-shrink: 0;
+  position: relative;
 
   img {
     width: 100%;
@@ -69,6 +70,18 @@ const Avatar = styled.div`
   &:hover img {
     transform: scale(1.1);
   }
+`;
+
+const AgeTag = styled.span`
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: bold;
 `;
 
 const UserInfo = styled.div`
@@ -114,17 +127,11 @@ const Description = styled.p`
   text-overflow: ellipsis;
 `;
 
-const Details = styled.div`
+const Detail = styled.span`
   display: flex;
   align-items: center;
   font-size: 14px;
   color: #888;
-`;
-
-const Detail = styled.span`
-  display: flex;
-  align-items: center;
-  margin-right: 15px;
   
   svg {
     margin-right: 5px;
@@ -166,6 +173,7 @@ const UserCard = ({ user, onUserClick }) => {
     <Card ref={cardRef} onClick={() => onUserClick(user)}>
       <Avatar>
         <img src={user.photo || 'https://via.placeholder.com/80'} alt={user.username} />
+        {user.age && <AgeTag>{user.age}</AgeTag>}
       </Avatar>
       <UserInfo>
         <Username>
@@ -173,17 +181,10 @@ const UserCard = ({ user, onUserClick }) => {
           <StatusDot $online={user.isOnline} />
         </Username>
         <Description>{user.description}</Description>
-        <Details>
-          {user.age && (
-            <Detail>
-              {user.age}
-            </Detail>
-          )}
-          <Detail>
-            <FaMapMarkerAlt />
-            {formatDistance(user.distance)}
-          </Detail>
-        </Details>
+        <Detail>
+          <FaMapMarkerAlt />
+          {formatDistance(user.distance)}
+        </Detail>
       </UserInfo>
     </Card>
   );
