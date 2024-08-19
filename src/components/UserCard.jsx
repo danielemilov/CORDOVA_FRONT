@@ -98,10 +98,10 @@ const Username = styled.h2`
 `;
 
 const AgeTag = styled.span`
-  background-color: rgba(147, 131, 205, 0.7);
+  background-color: rgba(0, 0, 0, 0.7);
   color: white;
   padding: 2px 6px;
-  border-radius: 10px;
+  border-radius: 50px;
   font-size: 12px;
   font-weight: bold;
 `;
