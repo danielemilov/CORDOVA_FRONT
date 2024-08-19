@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { FaMapMarkerAlt, FaBirthdayCake } from 'react-icons/fa';
+import { FaMapMarkerAlt } from 'react-icons/fa';
 
 const gradientAnimation = keyframes`
   0% { background-position: 0% 50%; }
@@ -176,7 +176,6 @@ const UserCard = ({ user, onUserClick }) => {
         <Details>
           {user.age && (
             <Detail>
-              <FaBirthdayCake />
               {user.age}
             </Detail>
           )}
