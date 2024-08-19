@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import styled from 'styled-components';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import axios from 'axios';
 import FaceVerification from './FaceVerification';
 import { getUserLocation } from '../utils';
-import styled from 'styled-components';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Fluid from 'webgl-fluid';
 
 const RegisterWrapper = styled.div`
@@ -15,12 +15,12 @@ const RegisterWrapper = styled.div`
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  background-color: transparent;
   padding: 20px;
   position: relative;
-  overflow: hidden;
 `;
 
-const RegisterForm = styled.form`
+const RegisterForm = styled.div`
   position: relative;
   width: 100%;
   max-width: 400px;
@@ -35,7 +35,6 @@ const RegisterForm = styled.form`
   flex-direction: column;
   justify-content: center;
   min-height: 100vh;
-  z-index: 1;
 
   @media only screen 
     and (min-device-width: 375px) 
@@ -71,7 +70,7 @@ const Title = styled.h1`
   }
 `;
 
-const Input = styled.input`
+const StyledInput = styled.input`
   width: 100%;
   padding: 12px 20px;
   margin: 16px 0;
@@ -97,7 +96,7 @@ const Input = styled.input`
   }
 `;
 
-const Button = styled.button`
+const StyledButton = styled.button`
   width: 100%;
   padding: 12px;
   margin-top: 40px;
@@ -143,7 +142,7 @@ const ErrorMessage = styled.p`
   }
 `;
 
-const LinkText = styled.a`
+const LinkText = styled(Link)`
   color: #000000;
   text-decoration: none;
   margin-top: 20px;
@@ -179,7 +178,7 @@ const TogglePasswordVisibility = styled.button`
   font-size: 20px;
 `;
 
-const Select = styled.select`
+const StyledSelect = styled.select`
   width: 100%;
   padding: 12px 20px;
   margin: 16px 0;
@@ -187,8 +186,8 @@ const Select = styled.select`
   border-radius: 25px;
   background-color: rgba(255, 255, 255, 0.798);
   font-size: 16px;
-  transition: all 0.3s ease;
   appearance: none;
+  cursor: pointer;
 
   &:focus {
     outline: none;
@@ -204,10 +203,6 @@ const Select = styled.select`
     padding: 14px 20px;
     margin: 20px 0;
   }
-`;
-
-const Checkbox = styled.input`
-  margin-right: 10px;
 `;
 
 const FluidContainer = styled.div`
@@ -425,96 +420,94 @@ function Register() {
             validationSchema={RegisterSchema}
             onSubmit={handleSubmit}
           >
-            {({ errors, touched, isSubmitting }) => (
+            {({ errors, touched, isSubmitting, setFieldValue }) => (
               <Form>
                 <Field name="username">
                   {({ field }) => (
-                    <>
-                      <Input {...field} placeholder="Username" />
-                      {errors.username && touched.username && <ErrorMessage>{errors.username}</ErrorMessage>}
-                      </>
+                    <div>
+                      <StyledInput {...field} placeholder="Username" />
+                      <ErrorMessage>{errors.username}</ErrorMessage>
+                    </div>
                   )}
                 </Field>
 
                 <Field name="email">
                   {({ field }) => (
-                    <>
-                      <Input {...field} type="email" placeholder="Email" />
-                      {errors.email && touched.email && <ErrorMessage>{errors.email}</ErrorMessage>}
-                    </>
+                    <div>
+                      <StyledInput {...field} type="email" placeholder="Email" />
+                      <ErrorMessage>{errors.email}</ErrorMessage>
+                    </div>
                   )}
                 </Field>
 
                 <Field name="password">
                   {({ field }) => (
-                    <>
-                      <PasswordWrapper>
-                        <Input 
-                          {...field} 
-                          type={showPassword ? 'text' : 'password'} 
-                          placeholder="Password" 
-                        />
-                        <TogglePasswordVisibility
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <FaEyeSlash /> : <FaEye />}
-                        </TogglePasswordVisibility>
-                      </PasswordWrapper>
-                      {errors.password && touched.password && <ErrorMessage>{errors.password}</ErrorMessage>}
-                    </>
+                    <PasswordWrapper>
+                      <StyledInput 
+                        {...field} 
+                        type={showPassword ? 'text' : 'password'} 
+                        placeholder="Password" 
+                      />
+                      <TogglePasswordVisibility
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      </TogglePasswordVisibility>
+                      <ErrorMessage>{errors.password}</ErrorMessage>
+                    </PasswordWrapper>
                   )}
                 </Field>
 
                 <Field name="birthDate">
                   {({ field }) => (
-                    <>
-                      <Input {...field} type="date" />
-                      {errors.birthDate && touched.birthDate && <ErrorMessage>{errors.birthDate}</ErrorMessage>}
-                    </>
+                    <div>
+                      <StyledInput {...field} type="date" />
+                      <ErrorMessage>{errors.birthDate}</ErrorMessage>
+                    </div>
                   )}
                 </Field>
 
                 <Field name="gender">
                   {({ field }) => (
-                    <>
-                      <Select {...field}>
+                    <div>
+                      <StyledSelect {...field}>
                         <option value="">Select Gender</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
                         <option value="other">Other</option>
-                      </Select>
-                      {errors.gender && touched.gender && <ErrorMessage>{errors.gender}</ErrorMessage>}
-                    </>
+                      </StyledSelect>
+                      <ErrorMessage>{errors.gender}</ErrorMessage>
+                    </div>
                   )}
                 </Field>
 
                 <Field name="agreedToPrivacyPolicy">
                   {({ field }) => (
-                    <>
+                    <div>
                       <label>
-                        <Checkbox {...field} type="checkbox" />
-                        I agree to the <a href="/privacy-policy">Privacy Policy</a>
+                        <input type="checkbox" {...field} />
+                        I agree to the <Link to="/privacy-policy">Privacy Policy</Link>
                       </label>
-                      {errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy && <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>}
-                    </>
+                      <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>
+                    </div>
                   )}
                 </Field>
 
                 {isVerificationComplete && (
-                  <p style={{ color: 'green' }}>Face verification completed</p>
+                  <p style={{ color: "green" }}>Face verification completed</p>
                 )}
 
-                <Button
+                <StyledButton
                   type="submit"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Registering...' : 'Register'}
-                </Button>
+                </StyledButton>
               </Form>
             )}
           </Formik>
-          <LinkText href="/login">Already have an account? Login</LinkText>
+          <LinkText to="/login">Already have an account? Login</LinkText>
         </FormContent>
       </RegisterForm>
 

@@ -10,6 +10,7 @@ import {
   Progress,
   AspectRatio,
   Image,
+  CloseButton,
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -168,9 +169,16 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
           maxW="sm"
           w="90%"
           boxShadow="2xl"
+          position="relative"
         >
-          <Heading size="lg" textAlign="center" color="teal.600">Face Verification</Heading>
-          <Progress value={(step / 3) * 100} colorScheme="teal" borderRadius="full" />
+          <CloseButton 
+            position="absolute" 
+            right="4" 
+            top="4" 
+            onClick={onClose}
+          />
+          <Heading size="lg" textAlign="center" color="#b766ce">Face Verification</Heading>
+          <Progress value={(step / 3) * 100} colorScheme="purple" borderRadius="full" />
           {step === 1 && (
             <>
               <Text textAlign="center">Please upload a clear photo of your face</Text>
@@ -184,11 +192,12 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
               <Button
                 as="label"
                 htmlFor="file-upload"
-                colorScheme="teal"
+                bg="#b766ce"
+                color="white"
                 size="lg"
                 w="full"
                 boxShadow="md"
-                _hover={{ boxShadow: 'lg' }}
+                _hover={{ bg: "#9a4cad", boxShadow: 'lg' }}
               >
                 Choose File
               </Button>
@@ -208,7 +217,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                   <Box
                     position="absolute"
                     top="50%"
-                    left="50%"transform="translate(-50%, -50%)"
+                    left="50%"
+                    transform="translate(-50%, -50%)"
                     width="70%"
                     height="90%"
                     border="3px solid white"
@@ -219,23 +229,25 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
                 </Box>
               </AspectRatio>
               <canvas ref={canvasRef} style={{ display: 'none' }} />
-              <Text textAlign="center" fontWeight="bold" color="teal.600">
+              <Text textAlign="center" fontWeight="bold" color="#b766ce">
                 Move closer and center your face
               </Text>
               <Flex justify="space-between">
                 <Button
                   onClick={() => setStep(1)}
-                  colorScheme="gray"
+                  bg="gray.200"
+                  color="black"
                   boxShadow="md"
-                  _hover={{ boxShadow: 'lg' }}
+                  _hover={{ bg: "gray.300", boxShadow: 'lg' }}
                 >
                   Back
                 </Button>
                 <Button
                   onClick={captureImage}
-                  colorScheme="teal"
+                  bg="#b766ce"
+                  color="white"
                   boxShadow="md"
-                  _hover={{ boxShadow: 'lg' }}
+                  _hover={{ bg: "#9a4cad", boxShadow: 'lg' }}
                 >
                   Capture
                 </Button>
@@ -244,11 +256,24 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
           )}
           {step === 3 && (
             <>
-              <Flex justify="space-between">
-                <Image src={uploadedImage} alt="Uploaded" boxSize="150px" objectFit="cover" />
-                <Image src={capturedImage} alt="Captured" boxSize="150px" objectFit="cover" />
+              <Flex justify="space-between" align="center">
+                <Box width="78%" overflow="hidden" borderRadius="md">
+                  <AspectRatio ratio={1}>
+                    <Image src={uploadedImage} alt="Uploaded" objectFit="cover" />
+                  </AspectRatio>
+                </Box>
+                <Box width="78%" overflow="hidden" borderRadius="md">
+                  <AspectRatio ratio={1}>
+                    <Image src={capturedImage} alt="Captured" objectFit="cover" />
+                  </AspectRatio>
+                </Box>
               </Flex>
-              <Button onClick={verifyFaces} colorScheme="teal">
+              <Button 
+                onClick={verifyFaces} 
+                bg="#b766ce"
+                color="white"
+                _hover={{ bg: "#9a4cad" }}
+              >
                 Verify Faces
               </Button>
             </>
