@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import {
-  Box, VStack, useToast, Spinner, useDisclosure, Flex, Heading, IconButton, Input,
-} from "@chakra-ui/react";
+import { Box, VStack, useToast, Spinner, useDisclosure, Flex, Heading, IconButton, Input } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
@@ -21,7 +19,7 @@ const MainWrapper = styled.div`
   margin: 0 auto;
   padding: 20px;
   background-color: #f7f7f7;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'SF Pro Text', 'Roboto', sans-serif;
 `;
 
 const Header = styled.header`
@@ -34,29 +32,30 @@ const Header = styled.header`
   left: 0;
   right: 0;
   padding: 15px 20px;
-  background-color: #000000;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
   z-index: 1000;
 `;
 
 const Logo = styled.h1`
-  font-size: 34px;
-  font-weight: 100;
-  color: #d1ffd1;
+  font-size: 28px;
+  font-weight: 700;
+  color: #000;
 `;
 
 const MenuButton = styled.button`
   background: none;
   border: none;
-  font-size: 20px;
-  color: #ffffff;
+  font-size: 24px;
+  color: #000;
   cursor: pointer;
 `;
 
 const CloseMenuButton = styled(MenuButton)`
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 15px;
+  right: 15px;
 `;
 
 const SearchWrapper = styled.div`
@@ -70,14 +69,15 @@ const SearchInput = styled.input`
   padding: 12px 20px;
   padding-left: 40px;
   border: none;
-  border-radius: 25px;
+  border-radius: 10px;
   font-size: 16px;
-  background-color: #f0f0f0;
+  background-color: rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #333;
+    background-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -99,17 +99,17 @@ const LoadMoreButton = styled.button`
   margin-top: 20px;
   width: 100%;
   padding: 12px;
-  background-color: #333;
-  color: #27b600;
+  background-color: #000;
+  color: #fff;
   border: none;
-  border-radius: 25px;
+  border-radius: 10px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: #555;
+    background-color: #333;
   }
 `;
 
@@ -119,19 +119,20 @@ const Menu = styled.div`
   left: 0;
   width: 300px;
   height: 100%;
-  background-color: #000000;
-  color: white;
+  background-color: #fff;
+  color: #000;
   transition: transform 0.3s ease;
   transform: ${props => props.$isOpen ? 'translateX(0)' : 'translateX(-100%)'};
   z-index: 1001;
   overflow-y: auto;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
 `;
 
 const MenuHeader = styled.div`
   padding: 20px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #eee;
 `;
 
 const ProfilePic = styled.img`
@@ -153,22 +154,32 @@ const MenuItem = styled.li`
   transition: background-color 0.3s ease;
 
   &:hover {
-    background-color: #333;
+    background-color: #f0f0f0;
   }
 `;
 
 const UnreadBadge = styled.span`
-  background-color: red;
+  background-color: #ff3b30;
   color: white;
-  border-radius: 50%;
-  padding: 2px 6px;
+  border-radius: 12px;
+  padding: 2px 8px;
   font-size: 12px;
-  margin-left: 5px;
+  margin-left: 8px;
+  font-weight: 600;
 `;
 
 const ToggleButton = styled(Button)`
   margin-bottom: 20px;
   width: 100%;
+  background-color: #000;
+  color: #fff;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #333;
+  }
 `;
 
 const MainPage = ({ user, setUser, onLogout }) => {
@@ -392,7 +403,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
           <MenuButton onClick={() => setIsMenuOpen(true)}>
             <FaBars />
           </MenuButton>
-          <Logo>FE!N</Logo>
+          <Logo>BIND</Logo>
           <div style={{width: '24px'}} />
         </Header>
         <SearchWrapper>
