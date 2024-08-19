@@ -58,7 +58,6 @@ const Avatar = styled.div`
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   flex-shrink: 0;
-  position: relative;
 
   img {
     width: 100%;
@@ -72,18 +71,6 @@ const Avatar = styled.div`
   }
 `;
 
-const AgeTag = styled.span`
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: bold;
-`;
-
 const UserInfo = styled.div`
   flex: 1;
   min-width: 0;
@@ -93,16 +80,31 @@ const UserInfo = styled.div`
   height: 100%;
 `;
 
+const UsernameLine = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+`;
+
 const Username = styled.h2`
   font-size: 20px;
   font-weight: 600;
-  margin: 0 0 5px 0;
-  display: flex;
-  align-items: center;
   color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
+  margin-right: 8px;
+`;
+
+const AgeTag = styled.span`
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-right: 8px;
 `;
 
 const StatusDot = styled.span`
@@ -110,7 +112,6 @@ const StatusDot = styled.span`
   height: 10px;
   border-radius: 50%;
   background-color: ${props => props.$online ? '#4CAF50' : '#9E9E9E'};
-  margin-left: 10px;
   box-shadow: 0 0 0 2px #fff;
   flex-shrink: 0;
 `;
@@ -173,13 +174,13 @@ const UserCard = ({ user, onUserClick }) => {
     <Card ref={cardRef} onClick={() => onUserClick(user)}>
       <Avatar>
         <img src={user.photo || 'https://via.placeholder.com/80'} alt={user.username} />
-        {user.age && <AgeTag>{user.age}</AgeTag>}
       </Avatar>
       <UserInfo>
-        <Username>
-          {user.username}
+        <UsernameLine>
+          <Username>{user.username}</Username>
+          {user.age && <AgeTag>{user.age}</AgeTag>}
           <StatusDot $online={user.isOnline} />
-        </Username>
+        </UsernameLine>
         <Description>{user.description}</Description>
         <Detail>
           <FaMapMarkerAlt />
