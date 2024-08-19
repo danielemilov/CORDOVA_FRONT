@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { FaMapMarkerAlt } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaBirthdayCake } from 'react-icons/fa';
 
 const gradientAnimation = keyframes`
   0% { background-position: 0% 50%; }
@@ -114,27 +114,22 @@ const Description = styled.p`
   text-overflow: ellipsis;
 `;
 
-const Detail = styled.span`
+const Details = styled.div`
   display: flex;
   align-items: center;
   font-size: 14px;
   color: #888;
+`;
+
+const Detail = styled.span`
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
   
   svg {
     margin-right: 5px;
     font-size: 16px;
   }
-`;
-
-const NotificationDot = styled.span`
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background-color: #ff4757;
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  box-shadow: 0 0 0 2px #fff;
 `;
 
 const formatDistance = (distance) => {
@@ -144,7 +139,7 @@ const formatDistance = (distance) => {
   return `${Math.round(distance)} km`;
 };
 
-const UserCard = ({ user, onUserClick, unreadCount }) => {
+const UserCard = ({ user, onUserClick }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -178,12 +173,19 @@ const UserCard = ({ user, onUserClick, unreadCount }) => {
           <StatusDot $online={user.isOnline} />
         </Username>
         <Description>{user.description}</Description>
-        <Detail>
-          <FaMapMarkerAlt />
-          {formatDistance(user.distance)}
-        </Detail>
+        <Details>
+          {user.age && (
+            <Detail>
+              <FaBirthdayCake />
+              {user.age}
+            </Detail>
+          )}
+          <Detail>
+            <FaMapMarkerAlt />
+            {formatDistance(user.distance)}
+          </Detail>
+        </Details>
       </UserInfo>
-      {unreadCount > 0 && <NotificationDot />}
     </Card>
   );
 };
