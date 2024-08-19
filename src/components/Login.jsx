@@ -318,7 +318,7 @@ function Login({ onLogin }) {
       <FluidSimulation />
       <FormContent>
         <Title>
-             IN LOVE
+             BIND
         </Title>
 
         <Input

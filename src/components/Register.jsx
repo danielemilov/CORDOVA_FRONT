@@ -407,7 +407,7 @@ function Register() {
       <FluidSimulation />
       <RegisterForm>
         <FormContent>
-          <Title>IN LOVE</Title>
+          <Title>BIND</Title>
           <Formik
             initialValues={{
               username: '',
