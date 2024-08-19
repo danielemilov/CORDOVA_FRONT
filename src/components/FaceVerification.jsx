@@ -115,8 +115,10 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
           isClosable: true,
         });
       }
+      console.log('Verification response:', response.data);
     } catch (error) {
       console.error('Verification error:', error);
+      console.error('Error response:', error.response?.data);  
       let errorMessage = 'An error occurred during verification. Please try again.';
       if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
