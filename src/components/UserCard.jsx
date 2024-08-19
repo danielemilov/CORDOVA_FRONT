@@ -1,29 +1,25 @@
 import React, { useRef, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { FaBirthdayCake, FaMapMarkerAlt, FaComment } from 'react-icons/fa';
+import { FaMapMarkerAlt } from 'react-icons/fa';
 
 const gradientAnimation = keyframes`
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 `;
 
 const Card = styled.div`
   background: rgba(255, 255, 255, 0.9);
-  border-radius: 20px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 15px;
   display: flex;
   align-items: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  max-width: 400px;
+  margin: 0 auto;
 
   &:before {
     content: '';
@@ -34,7 +30,7 @@ const Card = styled.div`
     height: 200%;
     background: linear-gradient(
       45deg,
-      #ff9a9e, #fad0c4, #ffecd2, #fcb69f
+      #f3e7e9, #e3eeff, #e9e4f0, #d3cce3
     );
     background-size: 400% 400%;
     opacity: 0.1;
@@ -44,8 +40,8 @@ const Card = styled.div`
   }
 
   &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.12);
 
     &:before {
       opacity: 0.2;
@@ -54,13 +50,14 @@ const Card = styled.div`
 `;
 
 const Avatar = styled.div`
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   overflow: hidden;
-  margin-right: 20px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  margin-right: 15px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  flex-shrink: 0;
 
   img {
     width: 100%;
@@ -76,92 +73,74 @@ const Avatar = styled.div`
 
 const UserInfo = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const Username = styled.h2`
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 5px 0;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 3px 0;
   display: flex;
   align-items: center;
   color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const StatusDot = styled.span`
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background-color: ${props => props.$online ? '#4CAF50' : '#9E9E9E'};
-  margin-left: 10px;
+  margin-left: 8px;
   box-shadow: 0 0 0 2px #fff;
+  flex-shrink: 0;
 `;
 
 const Description = styled.p`
-  font-size: 14px;
+  font-size: 13px;
   color: #666;
-  margin: 0 0 10px 0;
-  line-height: 1.4;
-`;
-
-const Details = styled.div`
-  display: flex;
-  font-size: 14px;
-  color: #888;
+  margin: 0 0 5px 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const Detail = styled.span`
   display: flex;
   align-items: center;
-  margin-right: 20px;
+  font-size: 12px;
+  color: #888;
   
   svg {
-    margin-right: 5px;
-    font-size: 16px;
+    margin-right: 4px;
+    font-size: 14px;
   }
 `;
 
-const ChatButton = styled.button`
-  background: ${props => props.$hasUnread ? '#4CAF50' : '#f0f0f0'};
-  border: none;
-  color: ${props => props.$hasUnread ? 'white' : '#333'};
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+const NotificationDot = styled.span`
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-
-  &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-  }
-`;
-
-const UnreadBadge = styled.span`
-  position: absolute;
-  top: -5px;
-  right: -5px;
   background-color: #ff4757;
-  color: white;
-  border-radius: 50%;
-  padding: 2px 6px;
-  font-size: 12px;
-  font-weight: bold;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  box-shadow: 0 0 0 2px #fff;
 `;
 
 const formatDistance = (distance) => {
   if (distance === null || distance === undefined) return 'Unknown distance';
-  if (distance < 1) return `${Math.round(distance * 1000)} meters away`;
-  if (distance < 10) return `${distance.toFixed(1)} km away`;
-  return `${Math.round(distance)} km away`;
+  if (distance < 1) return `${Math.round(distance * 1000)} m`;
+  if (distance < 10) return `${distance.toFixed(1)} km`;
+  return `${Math.round(distance)} km`;
 };
 
-const UserCard = ({ user, onUserClick, onChatClick, unreadCount }) => {
+const UserCard = ({ user, onUserClick, unreadCount }) => {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -187,7 +166,7 @@ const UserCard = ({ user, onUserClick, onChatClick, unreadCount }) => {
   return (
     <Card ref={cardRef} onClick={() => onUserClick(user)}>
       <Avatar>
-        <img src={user.photo || 'https://via.placeholder.com/80'} alt={user.username} />
+        <img src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
       </Avatar>
       <UserInfo>
         <Username>
@@ -195,29 +174,12 @@ const UserCard = ({ user, onUserClick, onChatClick, unreadCount }) => {
           <StatusDot $online={user.isOnline} />
         </Username>
         <Description>{user.description}</Description>
-        <Details>
-          {user.age && (
-            <Detail>
-              <FaBirthdayCake />
-              {user.age} years
-            </Detail>
-          )}
-          <Detail>
-            <FaMapMarkerAlt />
-            {formatDistance(user.distance)}
-          </Detail>
-        </Details>
+        <Detail>
+          <FaMapMarkerAlt />
+          {formatDistance(user.distance)}
+        </Detail>
       </UserInfo>
-      <ChatButton
-        $hasUnread={unreadCount > 0}
-        onClick={(e) => {
-          e.stopPropagation();
-          onChatClick(user);
-        }}
-      >
-        <FaComment />
-        {unreadCount > 0 && <UnreadBadge>{unreadCount}</UnreadBadge>}
-      </ChatButton>
+      {unreadCount > 0 && <NotificationDot />}
     </Card>
   );
 };
