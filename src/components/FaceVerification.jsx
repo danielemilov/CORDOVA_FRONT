@@ -100,7 +100,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
   
       const response = await axios.post(`${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify-face`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true
       });
   
       if (response.data.isMatch) {
