@@ -99,11 +99,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       formData.append('uploadedPhoto', dataURItoBlob(uploadedImage), 'uploadedPhoto.jpg');
       formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
   
-      const url = `${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify`;
-      console.log('Sending verification request to:', url);
-      const response = await axios.post(url, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        withCredentials: true
+      const response = await axios.post(`${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
   
       if (response.data.isMatch) {
@@ -118,10 +115,8 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
           isClosable: true,
         });
       }
-      console.log('Verification response:', response.data);
     } catch (error) {
       console.error('Verification error:', error);
-      console.error('Error response:', error.response?.data);  
       let errorMessage = 'An error occurred during verification. Please try again.';
       if (error.response && error.response.data && error.response.data.message) {
         errorMessage = error.response.data.message;
