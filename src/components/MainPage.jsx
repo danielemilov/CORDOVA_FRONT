@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
 import { Box, VStack, useToast, Spinner, useDisclosure, Flex, Heading, IconButton, Input } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import api from "../api";
@@ -8,6 +8,7 @@ import styled from 'styled-components';
 import { FaSearch, FaBars, FaUser, FaTimes } from 'react-icons/fa';
 import { Card, Avatar, Username, Description, StatusDot, Distance, Button, GlobalStyle } from '../SharedStyles';
 import { useSocket } from '../contexts/SocketContext';
+import Fluid from 'webgl-fluid';
 
 const UserProfile = lazy(() => import("./UserProfile"));
 const Chat = lazy(() => import("./Chat"));
@@ -38,10 +39,28 @@ const Header = styled.header`
   z-index: 1000;
 `;
 
+const LogoWrapper = styled.div`
+  position: relative;
+  width: 100px;
+  height: 40px;
+  overflow: hidden;
+`;
+
 const Logo = styled.h1`
-  font-size: 28px;
-  font-weight: 700;
-  color: #000;
+  font-size: 34px;
+  font-weight: 900;
+  color: #b766ce;
+  position: relative;
+  z-index: 2;
+`;
+
+const FluidCanvas = styled.canvas`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 `;
 
 const MenuButton = styled.button`
@@ -200,6 +219,48 @@ const MainPage = ({ user, setUser, onLogout }) => {
   
   const toast = useToast();
   const socket = useSocket();
+  const logoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (canvasRef.current && logoRef.current) {
+      const canvas = canvasRef.current;
+      const logo = logoRef.current;
+      canvas.width = logo.offsetWidth;
+      canvas.height = logo.offsetHeight;
+
+      const fluidInstance = Fluid(canvas, {
+        SPLAT_RADIUS: 10.6,
+        DENSITY_DISSIPATION: 0.9999999999999995,
+        VELOCITY_DISSIPATION: 0.999999999599995,
+        PRESSURE_DISSIPATION: 0.8,
+        PRESSURE_ITERATIONS: 20,
+        CURL: 10,
+        SPLAT_FORCE: 99000,
+        SHADING: true,
+        COLORFUL: true,
+        COLOR_UPDATE_SPEED: 2,
+        PAUSED: false,
+        BACK_COLOR: { r: 255, g: 255, b: 255 },
+        TRANSPARENT: true,
+        BLOOM: true,
+        BLOOM_ITERATIONS: 8,
+        BLOOM_RESOLUTION: 256,
+        BLOOM_INTENSITY: 0.2,
+        BLOOM_THRESHOLD: 100,
+        BLOOM_SOFT_KNEE: 0.7,
+        SUNRAYS: true,
+        SUNRAYS_RESOLUTION: 196,
+        SUNRAYS_WEIGHT: 0.3,
+      });
+
+      return () => {
+        if (fluidInstance && fluidInstance.destroy) {
+          fluidInstance.destroy();
+        }
+      };
+    }
+  }, []);
 
   const updateUserLocation = useCallback(async () => {
     try {
@@ -403,9 +464,14 @@ const MainPage = ({ user, setUser, onLogout }) => {
           <MenuButton onClick={() => setIsMenuOpen(true)}>
             <FaBars />
           </MenuButton>
-          <Logo>BIND</Logo>
+            <FluidCanvas ref={canvasRef} />
+          <LogoWrapper ref={logoRef}>
+            <Logo>BIND</Logo>
+          </LogoWrapper>
           <div style={{width: '24px'}} />
         </Header>
+
+
         <SearchWrapper>
           <SearchIcon />
           <SearchInput
