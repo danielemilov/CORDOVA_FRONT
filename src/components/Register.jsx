@@ -7,6 +7,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import axios from 'axios';
 import FaceVerification from './FaceVerification';
 import { getUserLocation } from '../utils';
+import Fluid from 'webgl-fluid';
 
 const RegisterWrapper = styled.div`
   display: flex;
@@ -204,6 +205,125 @@ const StyledSelect = styled.select`
   }
 `;
 
+const FluidContainer = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+`;
+
+const FluidCanvas = styled.canvas`
+  width: 100%;
+  height: 100%;
+`;
+
+function FluidSimulation() {
+  const canvasRef = useRef(null);
+  const [fluidInstance, setFluidInstance] = useState(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const initializeFluid = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const fluidOptions = {
+        SPLAT_RADIUS: 10.6,
+        DENSITY_DISSIPATION: 0.9999999999999995,
+        VELOCITY_DISSIPATION: 0.999999999599995,
+        PRESSURE_DISSIPATION: 0.8,
+        PRESSURE_ITERATIONS: 20,
+        CURL: 10,
+        SPLAT_FORCE: 99000,
+        SHADING: true,
+        COLORFUL: true,
+        COLOR_UPDATE_SPEED: 2,
+        PAUSED: false,
+        BACK_COLOR: { r: 255, g: 255, b: 255 },
+        TRANSPARENT: true,
+        BLOOM: true,
+        BLOOM_ITERATIONS: 8,
+        BLOOM_RESOLUTION: 256,
+        BLOOM_INTENSITY: 0.2,
+        BLOOM_THRESHOLD: 100,
+        BLOOM_SOFT_KNEE: 0.7,
+        SUNRAYS: true,
+        SUNRAYS_RESOLUTION: 196,
+        SUNRAYS_WEIGHT: 0.3,
+        COLOR_PALETTE: [
+          { r: 50, g: 100, b: 150 },
+          { r: 70, g: 130, b: 180 },
+          { r: 100, g: 149, b: 237 },
+          { r: 176, g: 224, b: 230 },
+          { r: 135, g: 206, b: 235 },
+        ]
+      };
+
+      const newFluidInstance = Fluid(canvas, fluidOptions);
+      setFluidInstance(newFluidInstance);
+    };
+
+    initializeFluid();
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (fluidInstance) {
+        fluidInstance.resize();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      if (fluidInstance) {
+        fluidInstance.destroy();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!fluidInstance) return;
+
+    let lastTime = 0;
+    const animate = (time) => {
+      if (lastTime !== 0) {
+        const delta = (time - lastTime) / 1000;
+        fluidInstance.update();
+
+        if (Math.random() < 0.05) {
+          const x = Math.random();
+          const y = Math.random();
+          const dx = (Math.random() - 0.5) * 0.005;
+          const dy = (Math.random() - 0.5) * 0.005;
+          fluidInstance.addSplat(x, y, dx, dy);
+        }
+      }
+      lastTime = time;
+      requestAnimationFrame(animate);
+    };
+
+    const animationId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, [fluidInstance]);
+
+  return (
+    <FluidContainer>
+      <FluidCanvas ref={canvasRef} />
+    </FluidContainer>
+  );
+}
+
 const RegisterSchema = Yup.object().shape({
   username: Yup.string()
     .min(3, 'Username must be at least 3 characters')
@@ -211,7 +331,8 @@ const RegisterSchema = Yup.object().shape({
     .required('Username is required'),
   password: Yup.string()
     .min(8, 'Password must be at least 8 characters')
-    .max(50, 'Password must not exceed 50 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/, 
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&.)')
     .required('Password is required'),
   email: Yup.string()
     .email('Invalid email address')
@@ -233,10 +354,8 @@ function Register() {
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [showFaceVerification, setShowFaceVerification] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formSubmitted, setFormSubmitted] = useState(false);
 
   const handleSubmit = async (values, actions) => {
-    setFormSubmitted(true);
     if (!isVerificationComplete) {
       setShowFaceVerification(true);
       return;
@@ -285,6 +404,7 @@ function Register() {
 
   return (
     <RegisterWrapper>
+      <FluidSimulation />
       <RegisterForm>
         <FormContent>
           <Title>BIND</Title>
@@ -306,7 +426,7 @@ function Register() {
                   {({ field }) => (
                     <div>
                       <StyledInput {...field} placeholder="Username" />
-                      {formSubmitted && errors.username && <ErrorMessage>{errors.username}</ErrorMessage>}
+                      <ErrorMessage>{errors.username}</ErrorMessage>
                     </div>
                   )}
                 </Field>
@@ -315,7 +435,7 @@ function Register() {
                   {({ field }) => (
                     <div>
                       <StyledInput {...field} type="email" placeholder="Email" />
-                      {formSubmitted && errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
+                      <ErrorMessage>{errors.email}</ErrorMessage>
                     </div>
                   )}
                 </Field>
@@ -334,7 +454,7 @@ function Register() {
                       >
                         {showPassword ? <FaEyeSlash /> : <FaEye />}
                       </TogglePasswordVisibility>
-                      {formSubmitted && errors.password && <ErrorMessage>{errors.password}</ErrorMessage>}
+                      <ErrorMessage>{errors.password}</ErrorMessage>
                     </PasswordWrapper>
                   )}
                 </Field>
@@ -343,7 +463,7 @@ function Register() {
                   {({ field }) => (
                     <div>
                       <StyledInput {...field} type="date" />
-                      {formSubmitted && errors.birthDate && <ErrorMessage>{errors.birthDate}</ErrorMessage>}
+                      <ErrorMessage>{errors.birthDate}</ErrorMessage>
                     </div>
                   )}
                 </Field>
@@ -357,7 +477,7 @@ function Register() {
                         <option value="female">Female</option>
                         <option value="other">Other</option>
                       </StyledSelect>
-                      {formSubmitted && errors.gender && <ErrorMessage>{errors.gender}</ErrorMessage>}
+                      <ErrorMessage>{errors.gender}</ErrorMessage>
                     </div>
                   )}
                 </Field>
@@ -369,7 +489,7 @@ function Register() {
                         <input type="checkbox" {...field} />
                         I agree to the <Link to="/privacy-policy">Privacy Policy</Link>
                       </label>
-                      {formSubmitted && errors.agreedToPrivacyPolicy && <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>}
+                      <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>
                     </div>
                   )}
                 </Field>
