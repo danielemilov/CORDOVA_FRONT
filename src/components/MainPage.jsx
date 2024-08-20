@@ -19,7 +19,7 @@ const MainWrapper = styled.div`
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
-  background-color: #f7f7f7;
+  background-color: #ffffff;
   font-family: 'SF Pro Text', 'Roboto', sans-serif;
 `;
 
@@ -35,7 +35,7 @@ const Header = styled.header`
   padding: 15px 20px;
   background-color: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 0 rgb(255, 255, 255);
   z-index: 1000;
 `;
 
@@ -190,8 +190,8 @@ const UnreadBadge = styled.span`
 const ToggleButton = styled(Button)`
   margin-bottom: 20px;
   width: 100%;
-  background-color: #000;
-  color: #fff;
+  background-color: #000000;
+  color: #ffffff;
   border-radius: 10px;
   font-weight: 600;
   transition: all 0.3s ease;

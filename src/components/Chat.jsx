@@ -7,6 +7,7 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "d
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
+import { red } from "@cloudinary/url-gen/actions/adjust";
 
 const ChatContainer = styled.div`
   position: fixed;
@@ -52,7 +53,7 @@ const MessageBubble = styled.div`
   max-width: 100%;
   padding: 10px;
   border-radius: 20px;
-  background-color: ${(props) => (props.$isSentByCurrentUser ? "#6ecb91" : "#ffffff")};
+  background-color: ${(props) => (props.$isSentByCurrentUser ? "rgb(192, 132, 237)" : "#ffffff")};
   color: ${(props) => (props.$isSentByCurrentUser ? "#ffffff" : "#000000")};
   position: relative;
 `;
@@ -88,7 +89,7 @@ const StyledInput = styled(Input)`
 
 const TypingIndicator = styled.div`
   font-size: 0.8em;
-  color: #999;
+  color: #ffffff;
   margin-left: 10px;
 `;
 
@@ -100,12 +101,12 @@ const MessageWrapper = styled.div`
 `;
 
 const DeletedMessageBubble = styled(MessageBubble)`
-  background-color: #000000;
+  background-color: #ffffff;
   color: #ffffff;
 `;
 
 const EditedTag = styled.span`
-  color: red;
+  color: #000000;
   font-size: 0.8em;
   margin-left: 5px;
 `;
@@ -121,10 +122,10 @@ const OptionButton = styled(Button)`
   justify-content: flex-start;
   color: white;
   &.edit {
-    background-color: #3498db;
+    background-color: #f5f6ff;
   }
   &.delete {
-    background-color: #2c3e50;
+    background-color: #fb4444;
   }
 `;
 
@@ -699,7 +700,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             />
             <IconButton
               icon={<FaPaperPlane />}
-              colorScheme="blue"
+              colorScheme="purple"
               onClick={handleSendMessage}
               aria-label="Send message"
             />
