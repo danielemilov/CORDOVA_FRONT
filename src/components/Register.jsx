@@ -8,7 +8,6 @@ import axios from 'axios';
 import FaceVerification from './FaceVerification';
 import { getUserLocation } from '../utils';
 import Fluid from 'webgl-fluid';
-import { readAndCompressImage } from 'browser-image-resizer';
 
 
 const RegisterWrapper = styled.div`
@@ -379,20 +378,7 @@ function Register() {
       
       if (uploadedPhoto) {
 
-        const config = {
-          quality: 0.5,
-          maxWidth: 800,
-          maxHeight: 600,
-          debug: true
-        };
-
-
-        
-        // Note: A single file comes from event.target.files on <input>
-        const giveMe = await fetch(uploadedPhoto);
-        const blob = await giveMe.blob();
-        let resizedImage = await readAndCompressImage(blob, config);
-        formData.append('photo', resizedImage, 'user_photo.jpg');
+        formData.append('photo', uploadedPhoto, 'user_photo.jpg');
       
             // Upload file to some Web API
             const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {

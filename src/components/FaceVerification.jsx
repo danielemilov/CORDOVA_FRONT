@@ -14,6 +14,8 @@ import {
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import { readAndCompressImage } from 'browser-image-resizer';
+
 
 const FaceVerification = ({ onVerificationComplete, onClose }) => {
   const [step, setStep] = useState(1);
@@ -95,10 +97,22 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
     }
   
     try {
+      
       const formData = new FormData();
-      formData.append('uploadedPhoto', dataURItoBlob(uploadedImage), 'uploadedPhoto.jpg');
-      formData.append('capturedPhoto', dataURItoBlob(capturedImage), 'capturedPhoto.jpg');
-  
+      // RESIZE HEREEE BEFORE SENDING TO SERVER !!!!!!!!!!!!!! uploadedPhoto and capturedPhoto ... - example in register - component....
+      const config = {
+        quality: 0.5,
+        maxWidth: 800,
+        maxHeight: 600,
+        debug: true
+      };
+      let resizedUploadedImage = await readAndCompressImage(dataURItoBlob(uploadedImage), config);
+      let resizedCapturedImage = await readAndCompressImage(dataURItoBlob(capturedImage), config);
+      
+      formData.append('uploadedPhoto', resizedUploadedImage, 'uploadedPhoto.jpg');
+      formData.append('capturedPhoto', resizedCapturedImage, 'capturedPhoto.jpg');
+
+
       const response = await axios.post(
         `${import.meta.env.VITE_FACE_VERIFICATION_SERVICE_URL}/verify-face`,
         formData,
@@ -109,7 +123,7 @@ const FaceVerification = ({ onVerificationComplete, onClose }) => {
       );
   
       if (response.data.isMatch) {
-        onVerificationComplete(uploadedImage);
+        onVerificationComplete(resizedUploadedImage);
         onClose();
       } else {
         toast({
