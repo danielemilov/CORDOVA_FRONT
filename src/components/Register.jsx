@@ -228,49 +228,48 @@ function FluidSimulation() {
     if (!canvas) return;
 
     const initializeFluid = () => {
-      if (typeof Fluid === 'undefined') {
-        console.warn('Fluid library not available, skipping initialization');
-        return;
-      }
-
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
-      try {
-        const fluidOptions = {
-          SPLAT_RADIUS: 10.6,
-          DENSITY_DISSIPATION: 0.9999999999999995,
-          VELOCITY_DISSIPATION: 0.999999999599995,
-          PRESSURE_DISSIPATION: 0.8,
-          PRESSURE_ITERATIONS: 20,
-          CURL: 10,
-          SPLAT_FORCE: 99000,
-          SHADING: true,
-          COLORFUL: true,
-          COLOR_UPDATE_SPEED: 2,
-          PAUSED: false,
-          BACK_COLOR: { r: 255, g: 255, b: 255 },
-          TRANSPARENT: true,
-          BLOOM: true,
-          BLOOM_ITERATIONS: 8,
-          BLOOM_RESOLUTION: 256,
-          BLOOM_INTENSITY: 0.2,
-          BLOOM_THRESHOLD: 100,
-          BLOOM_SOFT_KNEE: 0.7,
-          SUNRAYS: true,
-          SUNRAYS_RESOLUTION: 196,
-          SUNRAYS_WEIGHT: 0.3,
-          COLOR_PALETTE: [
-            { r: 50, g: 100, b: 150 },
-            { r: 70, g: 130, b: 180 },
-            { r: 100, g: 149, b: 237 },
-            { r: 176, g: 224, b: 230 },
-            { r: 135, g: 206, b: 235 },
-          ]
-        };
+      const fluidOptions = {
+        SPLAT_RADIUS: 10.6,
+        DENSITY_DISSIPATION: 0.9999999999999995,
+        VELOCITY_DISSIPATION: 0.999999999599995,
+        PRESSURE_DISSIPATION: 0.8,
+        PRESSURE_ITERATIONS: 20,
+        CURL: 10,
+        SPLAT_FORCE: 99000,
+        SHADING: true,
+        COLORFUL: true,
+        COLOR_UPDATE_SPEED: 2,
+        PAUSED: false,
+        BACK_COLOR: { r: 255, g: 255, b: 255 },
+        TRANSPARENT: true,
+        BLOOM: true,
+        BLOOM_ITERATIONS: 8,
+        BLOOM_RESOLUTION: 256,
+        BLOOM_INTENSITY: 0.2,
+        BLOOM_THRESHOLD: 100,
+        BLOOM_SOFT_KNEE: 0.7,
+        SUNRAYS: true,
+        SUNRAYS_RESOLUTION: 196,
+        SUNRAYS_WEIGHT: 0.3,
+        COLOR_PALETTE: [
+          { r: 50, g: 100, b: 150 },
+          { r: 70, g: 130, b: 180 },
+          { r: 100, g: 149, b: 237 },
+          { r: 176, g: 224, b: 230 },
+          { r: 135, g: 206, b: 235 },
+        ]
+      };
 
+      try {
         const newFluidInstance = Fluid(canvas, fluidOptions);
-        setFluidInstance(newFluidInstance);
+        if (newFluidInstance && typeof newFluidInstance === 'object') {
+          setFluidInstance(newFluidInstance);
+        } else {
+          console.error('Fluid initialization failed');
+        }
       } catch (error) {
         console.error('Error initializing Fluid:', error);
       }
@@ -425,7 +424,7 @@ function Register() {
       <RegisterForm>
         <FormContent>
           <Title>BIND</Title>
-          <Formik
+              <Formik
             initialValues={{
               username: '',
               email: '',
