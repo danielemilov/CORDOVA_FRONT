@@ -8,6 +8,8 @@ import axios from 'axios';
 import FaceVerification from './FaceVerification';
 import { getUserLocation } from '../utils';
 import Fluid from 'webgl-fluid';
+import { readAndCompressImage } from 'browser-image-resizer';
+
 
 const RegisterWrapper = styled.div`
   display: flex;
@@ -376,17 +378,28 @@ function Register() {
       formData.append('longitude', location.longitude);
       
       if (uploadedPhoto) {
-        const response = await fetch(uploadedPhoto);
-        const blob = await response.blob();
-        formData.append('photo', blob, 'user_photo.jpg');
-      }
 
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      alert('Registration Successful. Please check your email to verify your account.');
-      navigate('/login');
+        const config = {
+          quality: 0.5,
+          maxWidth: 800,
+          maxHeight: 600,
+          debug: true
+        };
+
+
+        let resizedImage = await readAndCompressImage(uploadedPhoto, config);
+
+        // Note: A single file comes from event.target.files on <input>
+
+            // Upload file to some Web API
+            formData.append('photo', resizedImage, 'user_photo.jpg');
+            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            
+            alert('Registration Successful. Please check your email to verify your account.');
+            navigate('/login');
+      }
     } catch (error) {
       console.error('Registration error:', error.response?.data || error);
       alert(error.response?.data?.message || 'An error occurred during registration.');

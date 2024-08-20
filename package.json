@@ -21,6 +21,7 @@
     "@ffmpeg/ffmpeg": "^0.11.6",
     "@ffmpeg/util": "^0.12.1",
     "axios": "^1.7.3",
+    "browser-image-resizer": "^2.4.1",
     "compression": "^1.7.4",
     "cookie": "^0.6.0",
     "cors": "^2.8.5",
