@@ -456,24 +456,21 @@ const MainPage = ({ user, setUser, onLogout }) => {
     }
   };
 
-  const toggleMenu = useCallback(() => {
-    setIsMenuOpen(prevState => !prevState);
-  }, []);
-
   return (
     <>
       <GlobalStyle />
       <MainWrapper>
         <Header>
-          <MenuButton onClick={toggleMenu}>
+          <MenuButton onClick={() => setIsMenuOpen(true)}>
             <FaBars />
           </MenuButton>
-          <FluidCanvas ref={canvasRef} />
+            <FluidCanvas ref={canvasRef} />
           <LogoWrapper ref={logoRef}>
             <Logo>BIND</Logo>
           </LogoWrapper>
           <div style={{width: '24px'}} />
         </Header>
+
 
         <SearchWrapper>
           <SearchIcon />
@@ -521,7 +518,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
       </MainWrapper>
 
       <Menu $isOpen={isMenuOpen}>
-        <CloseMenuButton onClick={toggleMenu}>
+        <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
           <FaTimes />
         </CloseMenuButton>
         <MenuHeader>
@@ -531,11 +528,11 @@ const MainPage = ({ user, setUser, onLogout }) => {
         <MenuItems>
           <MenuItem onClick={() => {
             setIsSettingsOpen(true);
-            toggleMenu();
+            setIsMenuOpen(false);
           }}>Edit Profile</MenuItem>
           <MenuItem onClick={() => {
             onLogout();
-            toggleMenu();
+            setIsMenuOpen(false);
           }}>Logout</MenuItem>
         </MenuItems>
       </Menu>
