@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import { ChakraProvider } from "@chakra-ui/react";
 import MainPage from "./components/MainPage";
@@ -11,7 +11,16 @@ import { theme, GlobalStyle } from "./SharedStyles";
 import { SocketProvider } from './contexts/SocketContext';
 
 function App() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
+  }, []);
 
   const handleLogin = useCallback((userData) => {
     setUser(userData);
@@ -24,36 +33,46 @@ function App() {
     localStorage.removeItem("user");
   }, []);
 
+  if (loading) {
+    return <div>Loading...</div>; // You can replace this with a proper loading component
+  }
+
   return (
     <ChakraProvider theme={theme}>
       <GlobalStyle />
       <SocketProvider>
         <Router>
           <Routes>
-            {user ? (
-              <Route
-                path="/"
-                element={
+            <Route
+              path="/"
+              element={
+                user ? (
                   <MainPage
                     user={user}
                     setUser={setUser}
                     onLogout={handleLogout}
                   />
-                }
-              />
-            ) : (
-              <>
-                <Route path="login" element={<Login onLogin={handleLogin} />} />
-                <Route path="register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password/:token" element={<ResetPassword />} />
-              </>
-            )}
-            <Route path="verify-email/:token" element={<EmailVerification />} />
-            <Route
-              path="*"
-              element={user ? <Navigate to="/" /> : <Navigate to="/login" />}
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
             />
+            <Route
+              path="/login"
+              element={
+                user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                user ? <Navigate to="/" replace /> : <Register />
+              }
+            />
+            <Route path="/verify-email/:token" element={<EmailVerification />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
           </Routes>
         </Router>
       </SocketProvider>
