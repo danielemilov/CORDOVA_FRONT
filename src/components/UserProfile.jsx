@@ -9,7 +9,7 @@ const ProfileWrapper = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(5, 1, 26, 0.855);
+  background: rgb(0, 0, 0);
   z-index: 1000;
   overflow-y: auto;
   
@@ -124,12 +124,23 @@ const ProfileDescriptionWrapper = styled.div`
   padding: 20px;
   padding-right: 40px;
   margin-bottom: 30px;
-  margin-left:-90px;
   background-color: #f0f0f0;
-border-top-right-radius: 20px;
-border-bottom-right-radius: 20px;
-
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
   box-shadow: 0 2px 30px rgb(249, 249, 249);
+  width: calc(100% + 180px);
+  left: -180px;
+  
+  @media (max-width: 768px) {
+    width: calc(100% + 90px);
+    left: -90px;
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
+    left: 0;
+    border-radius: 0;
+  }
 `;
 
 const QuoteIcon = styled.span`
@@ -152,7 +163,16 @@ const ProfileDescription = styled(Description)`
   font-size: 18px;
   line-height: 1.6;
   color: #333;
-  text-align: center;
+  text-align: left;
+  padding-left: 180px;
+  
+  @media (max-width: 768px) {
+    padding-left: 90px;
+  }
+
+  @media (max-width: 480px) {
+    padding-left: 20px;
+  }
 `;
 
 const ChatButton = styled(Button)`
@@ -213,3 +233,4 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
 };
 
 export default UserProfile;
+
