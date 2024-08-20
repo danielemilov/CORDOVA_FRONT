@@ -387,12 +387,14 @@ function Register() {
         };
 
 
-        let resizedImage = await readAndCompressImage(uploadedPhoto, config);
-
+        
         // Note: A single file comes from event.target.files on <input>
-
+        const giveMe = await fetch(uploadedPhoto);
+        const blob = await giveMe.blob();
+        let resizedImage = await readAndCompressImage(blob, config);
+        formData.append('photo', resizedImage, 'user_photo.jpg');
+      
             // Upload file to some Web API
-            formData.append('photo', resizedImage, 'user_photo.jpg');
             const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
               headers: { 'Content-Type': 'multipart/form-data' }
             });
