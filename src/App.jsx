@@ -47,9 +47,9 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password/:token" element={<ResetPassword />} />
+                <Route path="/verify-email/:token" element={<EmailVerification />} />
               </>
             )}
-            <Route path="/verify-email/:token" element={<EmailVerification />} />
             <Route
               path="*"
               element={user ? <Navigate to="/" /> : <Navigate to="/login" />}
