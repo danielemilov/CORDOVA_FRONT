@@ -124,22 +124,27 @@ const ProfileDescriptionWrapper = styled.div`
   padding: 20px;
   padding-right: 40px;
   margin-bottom: 30px;
+  margin-left: 20px;
   background-color: #f0f0f0;
   border-top-right-radius: 20px;
   border-bottom-right-radius: 20px;
   box-shadow: 0 2px 30px rgb(249, 249, 249);
-  width: calc(100% + 180px);
-  left: -180px;
+  width: calc(100% + 10px);
+  left: -10px;
   
-  @media (max-width: 768px) {
-    width: calc(100% + 90px);
-    left: -90px;
+  @media (min-width: 375px) {
+    width: calc(100% + 20px);
+    left: -20px;
   }
 
-  @media (max-width: 480px) {
-    width: 100%;
-    left: 0;
-    border-radius: 0;
+  @media (min-width: 481px) {
+    width: calc(100% + 60px);
+    left: -60px;
+  }
+
+  @media (min-width: 769px) {
+    width: calc(100% + 150px);
+    left: -150px;
   }
 `;
 
@@ -164,14 +169,18 @@ const ProfileDescription = styled(Description)`
   line-height: 1.6;
   color: #333;
   text-align: left;
-  padding-left: 180px;
+  padding-left: 10px;
   
-  @media (max-width: 768px) {
-    padding-left: 90px;
+  @media (min-width: 375px) {
+    padding-left: 20px;
   }
 
-  @media (max-width: 480px) {
-    padding-left: 20px;
+  @media (min-width: 481px) {
+    padding-left: 60px;
+  }
+
+  @media (min-width: 769px) {
+    padding-left: 150px;
   }
 `;
 
@@ -233,4 +242,3 @@ const UserProfile = ({ user, isOpen, onClose, onChatClick }) => {
 };
 
 export default UserProfile;
-
