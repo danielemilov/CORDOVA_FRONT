@@ -243,13 +243,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   useEffect(() => {
     if (socket) {
-      socket.on("private message", (message) => {
-        console.log("Received new message:", message);
-        setMessages((prevMessages) => [...prevMessages, message]);
+      socket.on('new message', (message) => {
+        setMessages(prevMessages => [...prevMessages, message]);
       });
   
       return () => {
-        socket.off("private message");
+        socket.off('new message');
       };
     }
   }, [socket]);

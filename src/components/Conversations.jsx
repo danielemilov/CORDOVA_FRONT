@@ -66,14 +66,22 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   
   useEffect(() => {
     if (socket) {
-      socket.on('private message', (message) => {
-        setConversations((prevConversations) => {
-          const updatedConversations = prevConversations.map((conv) => {
+      socket.emit('fetch conversations', (error, conversations) => {
+        if (error) {
+          console.error('Error fetching conversations:', error);
+        } else {
+          setConversations(conversations);
+        }
+      });
+  
+      socket.on('update conversation', (message) => {
+        setConversations(prevConversations => {
+          const updatedConversations = prevConversations.map(conv => {
             if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
               return {
                 ...conv,
                 lastMessage: message,
-                unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount,
+                unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount
               };
             }
             return conv;
@@ -85,7 +93,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
       });
   
       return () => {
-        socket.off('private message');
+        socket.off('update conversation');
       };
     }
   }, [socket]);
@@ -140,29 +148,19 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   }, [conversations, filter]);
 
   const handleConversationClick = useCallback(async (conversation) => {
-    try {
-      if (!conversation.user._id) {
-        console.error('Invalid conversation user ID');
-        return;
+    socket.emit('mark as read', { conversationId: conversation.user._id }, (error) => {
+      if (error) {
+        console.error('Error marking messages as read:', error);
+      } else {
+        setConversations(prevConversations =>
+          prevConversations.map(conv =>
+            conv.user._id === conversation.user._id ? { ...conv, unreadCount: 0 } : conv
+          )
+        );
       }
-      await api.post(`/api/messages/mark-read/${conversation.user._id}`);
-      setConversations((prevConversations) =>
-        prevConversations.map((conv) =>
-          conv.user._id === conversation.user._id ? { ...conv, unreadCount: 0 } : conv
-        )
-      );
-      onSelectConversation(conversation.user);
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to mark messages as read. Please try again.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [onSelectConversation, toast]);
+    });
+    onSelectConversation(conversation.user);
+  }, [socket, onSelectConversation]);
 
   if (isLoading) {
     return (
