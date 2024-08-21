@@ -7,7 +7,6 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "d
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
-import { red } from "@cloudinary/url-gen/actions/adjust";
 
 const ChatContainer = styled.div`
   position: fixed;
@@ -101,14 +100,16 @@ const MessageWrapper = styled.div`
 `;
 
 const DeletedMessageBubble = styled(MessageBubble)`
-  background-color: #ffffff;
-  color: #ffffff;
+  background-color: #f0f0f0;
+  color: #000000;
 `;
 
 const EditedTag = styled.span`
-  color: #000000;
+  color: #999999;
   font-size: 0.8em;
-  margin-left: 5px;
+  position: absolute;
+  top: -15px;
+  right: 5px;
 `;
 
 const OptionsContainer = styled(VStack)`
@@ -167,6 +168,8 @@ const VoicePreview = styled.div`
   margin-top: 10px;
 `;
 
+const MAX_RECORDING_TIME = 60000; // 60 seconds
+
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -186,6 +189,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const socket = useSocket();
   const typingTimeoutRef = useRef(null);
   const mediaRecorderRef = useRef(null);
+  const recordingTimeoutRef = useRef(null);
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
@@ -461,7 +465,15 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      const destination = audioContext.createMediaStreamDestination();
+      const compressor = audioContext.createDynamicsCompressor();
+      
+      source.connect(compressor);
+      compressor.connect(destination);
+
+      mediaRecorderRef.current = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
       const chunks = [];
   
       mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
@@ -473,15 +485,25 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   
       mediaRecorderRef.current.start();
       setIsRecording(true);
+
+      recordingTimeoutRef.current = setTimeout(() => {
+        if (isRecording) {
+          stopRecording();
+        }
+      }, MAX_RECORDING_TIME);
     } catch (error) {
       console.error('Error starting recording:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start recording. Please check your microphone permissions.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      if (error.name === 'NotSupportedError') {
+        alert('Audio recording is not supported in this browser. Please try using a different browser.');
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to start recording. Please check your microphone permissions.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     }
   };
 
@@ -489,6 +511,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+      }
     }
   };
 
@@ -627,7 +652,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           variant="ghost"
           colorScheme="whiteAlpha"
         />
-        <Avatar src={otherUser.photo} alt={otherUser.username} />
+<Avatar src={otherUser.photo} alt={otherUser.username} />
         <Username>{otherUser.username}</Username>
         {isTyping && <TypingIndicator>Typing...</TypingIndicator>}
       </Header>
@@ -712,4 +737,3 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 };
 
 export default Chat;
-

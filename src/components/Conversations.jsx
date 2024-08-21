@@ -38,12 +38,10 @@ const TimeStamp = styled(Text)`
   color: #999;
 `;
 
-const Conversations = ({ onSelectConversation, filter }) => {
+const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [unreadConversations, setUnreadConversations] = useState(0);
-  const [unreadMessages, setUnreadMessages] = useState({});
   const socket = useSocket();
   const toast = useToast();
 
@@ -52,16 +50,10 @@ const Conversations = ({ onSelectConversation, filter }) => {
       setIsLoading(true);
       setError(null);
       const response = await api.get('/api/messages/conversations');
-      console.log('Fetched conversations:', response.data); // Debug log
-      setConversations(response.data);
-      let unreadCount = 0;
-      const unreadMap = {};
-      response.data.forEach((conv) => {
-        unreadCount += conv.unreadCount;
-        unreadMap[conv.user._id] = conv.unreadCount;
-      });
-      setUnreadConversations(unreadCount);
-      setUnreadMessages(unreadMap);
+      console.log('Fetched conversations:', response.data);
+      setConversations(response.data.sort((a, b) => 
+        new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+      ));
     } catch (error) {
       console.error('Error fetching conversations:', error.response?.data || error.message);
       setError(error.response?.data?.message || 'Failed to fetch conversations');
@@ -94,37 +86,20 @@ const Conversations = ({ onSelectConversation, filter }) => {
 
   const handleNewMessage = useCallback((message) => {
     setConversations((prevConversations) => {
-      const existingConvIndex = prevConversations.findIndex(
-        conv => conv.user._id === message.sender._id || conv.user._id === message.recipient._id
+      const updatedConversations = prevConversations.map(conv => {
+        if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
+          return {
+            ...conv,
+            lastMessage: message,
+            unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount
+          };
+        }
+        return conv;
+      });
+      return updatedConversations.sort((a, b) => 
+        new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
       );
-
-      if (existingConvIndex !== -1) {
-        // Update existing conversation
-        const updatedConversations = [...prevConversations];
-        updatedConversations[existingConvIndex] = {
-          ...updatedConversations[existingConvIndex],
-          lastMessage: message,
-          unreadCount: updatedConversations[existingConvIndex].user._id === message.sender._id 
-            ? updatedConversations[existingConvIndex].unreadCount + 1 
-            : updatedConversations[existingConvIndex].unreadCount,
-        };
-        return updatedConversations;
-      } else {
-        // Add new conversation
-        const newConversation = {
-          user: message.sender,
-          lastMessage: message,
-          unreadCount: 1,
-        };
-        return [newConversation, ...prevConversations];
-      }
     });
-
-    setUnreadConversations((prevUnread) => prevUnread + 1);
-    setUnreadMessages((prevUnread) => ({
-      ...prevUnread,
-      [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1,
-    }));
   }, []);
 
   const handleMessageRead = useCallback((messageIds) => {
@@ -136,16 +111,6 @@ const Conversations = ({ onSelectConversation, filter }) => {
           unreadCount: Math.max(0, conv.unreadCount - readCount),
         };
       });
-    });
-    setUnreadConversations((prevUnread) => Math.max(0, prevUnread - messageIds.length));
-    setUnreadMessages((prevUnread) => {
-      const newUnread = { ...prevUnread };
-      messageIds.forEach((id) => {
-        if (newUnread[id.sender]) {
-          newUnread[id.sender] = Math.max(0, newUnread[id.sender] - 1);
-        }
-      });
-      return newUnread;
     });
   }, []);
 
@@ -179,11 +144,6 @@ const Conversations = ({ onSelectConversation, filter }) => {
             : conv
         )
       );
-      setUnreadConversations((prevUnread) => prevUnread - conversation.unreadCount);
-      setUnreadMessages((prevUnread) => ({
-        ...prevUnread,
-        [conversation.user._id]: 0,
-      }));
       onSelectConversation(conversation.user);
     } catch (error) {
       console.error('Error marking messages as read:', error);
@@ -240,8 +200,8 @@ const Conversations = ({ onSelectConversation, filter }) => {
               <HStack justify="space-between" align="center">
                 <Text fontWeight="bold">{conversation.user.username}</Text>
                 <HStack>
-                  {conversation.unreadCount > 0 && (
-                    <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
+                  {unreadMessages[conversation.user._id] > 0 && (
+                    <UnreadBadge>{unreadMessages[conversation.user._id]}</UnreadBadge>
                   )}
                   <TimeStamp>
                     {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.timestamp)}
@@ -249,7 +209,7 @@ const Conversations = ({ onSelectConversation, filter }) => {
                 </HStack>
               </HStack>
               <LastMessage 
-                $unread={conversation.unreadCount > 0} 
+                $unread={unreadMessages[conversation.user._id] > 0} 
                 noOfLines={1}
               >
                 {conversation.lastMessage ? conversation.lastMessage.content : "No messages yet"}

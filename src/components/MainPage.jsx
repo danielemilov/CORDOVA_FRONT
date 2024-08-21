@@ -368,13 +368,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
             ...prevUnread,
             [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
           }));
-          toast({
-            title: "New Message",
-            description: `${message.sender.username}: ${message.content}`,
-            status: "info",
-            duration: 3000,
-            isClosable: true,
-          });
+       
         }
       });
   
@@ -440,8 +434,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setShowConversations(false);
     setIsChatOpen(true);
     setActiveChat(user._id);
-    setUnreadConversations(0);
-    setUnreadMessages((prevUnread) => ({
+    setUnreadConversations(prev => Math.max(0, prev - 1));
+    setUnreadMessages(prevUnread => ({
       ...prevUnread,
       [user._id]: 0,
     }));
@@ -451,8 +445,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setShowConversations(!showConversations);
     if (!showConversations) {
       setFilter('');
-      setUnreadConversations(0);
-      setUnreadMessages({});
     }
   };
 
@@ -464,13 +456,12 @@ const MainPage = ({ user, setUser, onLogout }) => {
           <MenuButton onClick={() => setIsMenuOpen(true)}>
             <FaBars />
           </MenuButton>
-            <FluidCanvas ref={canvasRef} />
+          <FluidCanvas ref={canvasRef} />
           <LogoWrapper ref={logoRef}>
             <Logo>BIND</Logo>
           </LogoWrapper>
           <div style={{width: '24px'}} />
         </Header>
-
 
         <SearchWrapper>
           <SearchIcon />
@@ -493,6 +484,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
             <Conversations 
               onSelectConversation={handleConversationSelect}
               filter={filter}
+              unreadMessages={unreadMessages}
             />
           </Suspense>
         ) : (
