@@ -478,7 +478,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const options = { mimeType: 'audio/webm;codecs=opus' };
+      const options = { mimeType: 'audio/webm' };
       mediaRecorderRef.current = new MediaRecorder(stream, options);
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioContext.createMediaStreamSource(stream);

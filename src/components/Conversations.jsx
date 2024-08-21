@@ -66,7 +66,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   
   useEffect(() => {
     if (socket) {
-      socket.on('new message', (message) => {
+      socket.on('private message', (message) => {
         setConversations((prevConversations) => {
           const updatedConversations = prevConversations.map((conv) => {
             if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
@@ -78,16 +78,17 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
             }
             return conv;
           });
-          return updatedConversations;
+          return updatedConversations.sort((a, b) => 
+            new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+          );
         });
       });
   
       return () => {
-        socket.off('new message');
+        socket.off('private message');
       };
     }
   }, [socket]);
-
   const handleNewMessage = useCallback((message) => {
     setConversations((prevConversations) => {
       const updatedConversations = prevConversations.map(conv => {
