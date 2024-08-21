@@ -51,35 +51,39 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
       setError(null);
       const response = await api.get('/api/messages/conversations');
       console.log('Fetched conversations:', response.data);
-      setConversations(response.data.sort((a, b) => 
-        new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
-      ));
+      setConversations(response.data);
     } catch (error) {
-      console.error('Error fetching conversations:', error.response?.data || error.message);
-      setError(error.response?.data?.message || 'Failed to fetch conversations');
-      toast({
-        title: "Error",
-        description: "Failed to fetch conversations. Please try again.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      console.error('Error fetching conversations:', error);
+      setError('Failed to fetch conversations');
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
-
+  }, []);
+  
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
-
+  
   useEffect(() => {
     if (socket) {
-      socket.on('private message', handleNewMessage);
-      socket.on('message read', handleMessageRead);
+      socket.on('new message', (message) => {
+        setConversations((prevConversations) => {
+          const updatedConversations = prevConversations.map((conv) => {
+            if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
+              return {
+                ...conv,
+                lastMessage: message,
+                unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount,
+              };
+            }
+            return conv;
+          });
+          return updatedConversations;
+        });
+      });
+  
       return () => {
-        socket.off('private message', handleNewMessage);
-        socket.off('message read', handleMessageRead);
+        socket.off('new message');
       };
     }
   }, [socket]);
@@ -136,12 +140,14 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
 
   const handleConversationClick = useCallback(async (conversation) => {
     try {
+      if (!conversation.user._id) {
+        console.error('Invalid conversation user ID');
+        return;
+      }
       await api.post(`/api/messages/mark-read/${conversation.user._id}`);
       setConversations((prevConversations) =>
         prevConversations.map((conv) =>
-          conv.user._id === conversation.user._id
-            ? { ...conv, unreadCount: 0 }
-            : conv
+          conv.user._id === conversation.user._id ? { ...conv, unreadCount: 0 } : conv
         )
       );
       onSelectConversation(conversation.user);

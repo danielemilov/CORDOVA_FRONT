@@ -240,6 +240,19 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       }
     });
   }, [socket]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on("private message", (message) => {
+        console.log("Received new message:", message);
+        setMessages((prevMessages) => [...prevMessages, message]);
+      });
+  
+      return () => {
+        socket.off("private message");
+      };
+    }
+  }, [socket]);
   
   useEffect(() => {
     if (messages.length > 0) {
@@ -465,6 +478,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+      mediaRecorderRef.current = new MediaRecorder(stream, options);
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioContext.createMediaStreamSource(stream);
       const destination = audioContext.createMediaStreamDestination();
@@ -491,7 +506,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           stopRecording();
         }
       }, MAX_RECORDING_TIME);
-    } catch (error) {
+    }  catch (error) {
       console.error('Error starting recording:', error);
       if (error.name === 'NotSupportedError') {
         alert('Audio recording is not supported in this browser. Please try using a different browser.');
