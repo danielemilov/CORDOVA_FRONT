@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Box, VStack, HStack, Text, Avatar, Spinner, useToast, Button } from '@chakra-ui/react';
 import api from '../api';
 import { useSocket } from '../contexts/SocketContext';
-import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
+import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
 
 const ConversationItem = styled(Box)`
   padding: 1rem;
@@ -66,11 +66,11 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   
   useEffect(() => {
     if (socket) {
-      socket.emit('fetch conversations', (error, conversations) => {
+      socket.emit('fetch conversations', (error, fetchedConversations) => {
         if (error) {
           console.error('Error fetching conversations:', error);
         } else {
-          setConversations(conversations);
+          setConversations(fetchedConversations);
         }
       });
   
@@ -91,12 +91,22 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
           );
         });
       });
+
+      socket.on('message read', ({ conversationId }) => {
+        setConversations(prevConversations => 
+          prevConversations.map(conv => 
+            conv.user._id === conversationId ? { ...conv, unreadCount: 0 } : conv
+          )
+        );
+      });
   
       return () => {
         socket.off('update conversation');
+        socket.off('message read');
       };
     }
   }, [socket]);
+
   const handleNewMessage = useCallback((message) => {
     setConversations((prevConversations) => {
       const updatedConversations = prevConversations.map(conv => {
@@ -128,7 +138,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   }, []);
 
   const formatLastMessageTime = useCallback((timestamp) => {
-    const date = new Date(timestamp);
+    const date = parseISO(timestamp);
     if (isToday(date)) {
       return format(date, 'h:mm a');
     } else if (isYesterday(date)) {
@@ -205,8 +215,8 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
               <HStack justify="space-between" align="center">
                 <Text fontWeight="bold">{conversation.user.username}</Text>
                 <HStack>
-                  {unreadMessages[conversation.user._id] > 0 && (
-                    <UnreadBadge>{unreadMessages[conversation.user._id]}</UnreadBadge>
+                  {conversation.unreadCount > 0 && (
+                    <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
                   )}
                   <TimeStamp>
                     {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.timestamp)}
@@ -214,7 +224,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
                 </HStack>
               </HStack>
               <LastMessage 
-                $unread={unreadMessages[conversation.user._id] > 0} 
+                $unread={conversation.unreadCount > 0} 
                 noOfLines={1}
               >
                 {conversation.lastMessage ? conversation.lastMessage.content : "No messages yet"}

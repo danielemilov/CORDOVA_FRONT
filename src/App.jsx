@@ -7,8 +7,11 @@ import Register from "./components/Register";
 import EmailVerification from "./components/EmailVerification";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
+import ReportManagement from "./components/ReportManagement";
 import { theme, GlobalStyle } from "./SharedStyles";
 import { SocketProvider } from './contexts/SocketContext';
+import ErrorBoundary from './components/ErrorBoundary';
+
 
 function App() {
   const [user, setUser] = useState(null);
@@ -38,6 +41,7 @@ function App() {
   }
 
   return (
+    <ErrorBoundary>
     <ChakraProvider theme={theme}>
       <GlobalStyle />
       <SocketProvider>
@@ -72,11 +76,19 @@ function App() {
             <Route path="/verify-email/:token" element={<EmailVerification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route
+              path="/report-management"
+              element={
+                user && user.isAdmin ? <ReportManagement /> : <Navigate to="/" replace />
+              }
+            />
             <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
           </Routes>
         </Router>
       </SocketProvider>
     </ChakraProvider>
+        </ErrorBoundary>
+
   );
 }
 

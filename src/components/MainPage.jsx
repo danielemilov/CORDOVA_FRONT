@@ -216,9 +216,11 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [activeChat, setActiveChat] = useState(null);
   const [unreadConversations, setUnreadConversations] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState({});
+  const [conversations, setConversations] = useState([]);
+  const { socket, isConnected } = useSocket();
+
   
   const toast = useToast();
-  const socket = useSocket();
   const logoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -261,6 +263,32 @@ const MainPage = ({ user, setUser, onLogout }) => {
       };
     }
   }, []);
+
+  useEffect(() => {
+    if (isConnected && socket) {
+      socket.on('user status', ({ userId, isOnline }) => {
+        setUsers(prevUsers => 
+          prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
+        );
+      });
+
+      socket.on('private message', (message) => {
+        if (activeChat !== message.sender._id) {
+          setUnreadConversations(prev => prev + 1);
+          setUnreadMessages(prevUnread => ({
+            ...prevUnread,
+            [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
+          }));
+        }
+      });
+
+      return () => {
+        socket.off('user status');
+        socket.off('private message');
+        // ... remove other listeners
+      };
+    }
+  }, [socket, isConnected, activeChat]);
 
   const updateUserLocation = useCallback(async () => {
     try {
@@ -345,6 +373,22 @@ const MainPage = ({ user, setUser, onLogout }) => {
     }
   }, [user._id, toast, page, hasMore, getUserLocation]);
 
+  const fetchConversations = useCallback(async () => {
+    try {
+      const response = await api.get('/api/messages/conversations');
+      setConversations(response.data);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch conversations. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  }, [toast]);
+
   useEffect(() => {
     const fetchData = async () => {
       await updateUserLocation();
@@ -352,6 +396,12 @@ const MainPage = ({ user, setUser, onLogout }) => {
     };
     fetchData();
   }, [updateUserLocation, fetchUsers]);
+
+  useEffect(() => {
+    if (showConversations) {
+      fetchConversations();
+    }
+  }, [showConversations, fetchConversations]);
 
   useEffect(() => {
     if (socket) {
@@ -368,16 +418,28 @@ const MainPage = ({ user, setUser, onLogout }) => {
             ...prevUnread,
             [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
           }));
-       
         }
+        fetchConversations();
+      });
+
+      socket.on('update conversation', (updatedConversation) => {
+        setConversations(prevConversations => {
+          const updatedConversations = prevConversations.map(conv => 
+            conv.user._id === updatedConversation.user._id ? updatedConversation : conv
+          );
+          return updatedConversations.sort((a, b) => 
+            new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+          );
+        });
       });
   
       return () => {
         socket.off('user status');
         socket.off('private message');
+        socket.off('update conversation');
       };
     }
-  }, [socket, activeChat, toast]);
+  }, [socket, activeChat, fetchConversations]);
 
   const handleUserClick = useCallback((clickedUser) => {
     setSelectedUser(clickedUser);
@@ -429,6 +491,11 @@ const MainPage = ({ user, setUser, onLogout }) => {
     (u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
   );
 
+  const filteredConversations = conversations.filter(conv => 
+    conv.user.username.toLowerCase().includes(filter.toLowerCase()) ||
+    (conv.lastMessage && conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+  );
+
   const handleConversationSelect = useCallback((user) => {
     setSelectedUser(user);
     setShowConversations(false);
@@ -445,6 +512,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
     setShowConversations(!showConversations);
     if (!showConversations) {
       setFilter('');
+      fetchConversations();
     }
   };
 
@@ -482,8 +550,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
         {showConversations ? (
           <Suspense fallback={<Spinner />}>
             <Conversations 
+              conversations={filteredConversations}
               onSelectConversation={handleConversationSelect}
-              filter={filter}
               unreadMessages={unreadMessages}
             />
           </Suspense>
