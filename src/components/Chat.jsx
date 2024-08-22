@@ -8,165 +8,34 @@ import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
 
-const ChatContainer = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #f7f7f7;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-`;
+// Importing everything from ChatStyles.js
+import ChatStyles from "./ChatStyles";
 
-const Header = styled.header`
-  background-color: #000000;
-  color: white;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-`;
+// Destructure the components you need
+const { 
+  ChatContainer, 
+  Header, 
+  Avatar, 
+  Username,
+  MessageContainer,
+  MessageBubble,
+  MessageContent,
+  MessageTime,
+  InputContainer,
+  StyledInput, 
+  TypingIndicator,
+  MessageWrapper,
+  DeletedMessageBubble,
+  EditedTag,
+  OptionsContainer,
+  OptionButton,
+  MessageStatus,
+  SeenIndicator,
+  DateSeparator,
+  VoiceMessageContainer,
+  VoicePreview 
+} = ChatStyles;
 
-const Avatar = styled.img`
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 10px;
-`;
-
-const Username = styled.span`
-  font-weight: bold;
-`;
-
-const MessageContainer = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-`;
-
-const MessageBubble = styled.div`
-  max-width: 100%;
-  padding: 10px;
-  border-radius: 20px;
-  background-color: ${(props) => (props.$isSentByCurrentUser ? "rgb(192, 132, 237)" : "#ffffff")};
-  color: ${(props) => (props.$isSentByCurrentUser ? "#ffffff" : "#000000")};
-  position: relative;
-`;
-
-const MessageContent = styled.p`
-  margin: 0;
-  white-space: pre-wrap;
-`;
-
-const MessageTime = styled.span`
-  font-size: 0.8em;
-  color: #666;
-  display: block;
-  text-align: right;
-  margin-top: 5px;
-`;
-
-const InputContainer = styled.div`
-  padding: 1rem;
-  background-color: white;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-`;
-
-const StyledInput = styled(Input)`
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 20px;
-  margin-right: 10px;
-`;
-
-const TypingIndicator = styled.div`
-  font-size: 0.8em;
-  color: #ffffff;
-  margin-left: 10px;
-`;
-
-const MessageWrapper = styled.div`
-  display: flex;
-  justify-content: ${(props) => (props.$isSentByCurrentUser ? "flex-end" : "flex-start")};
-  margin-bottom: 10px;
-  position: relative;
-`;
-
-const DeletedMessageBubble = styled(MessageBubble)`
-  background-color: #f0f0f0;
-  color: #000000;
-`;
-
-const EditedTag = styled.span`
-  color: #999999;
-  font-size: 0.8em;
-  position: absolute;
-  top: -15px;
-  right: 5px;
-`;
-
-const OptionsContainer = styled(VStack)`
-  background-color: #1a5f7a;
-  border-radius: 8px;
-  padding: 8px;
-`;
-
-const OptionButton = styled(Button)`
-  width: 100%;
-  justify-content: flex-start;
-  color: white;
-  &.edit {
-    background-color: #f5f6ff;
-  }
-  &.delete {
-    background-color: #fb4444;
-  }
-`;
-
-const MessageStatus = styled.div`
-  font-size: 0.7em;
-  color: #999;
-  text-align: right;
-  margin-top: 2px;
-`;
-
-const SeenIndicator = styled.img`
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-left: 5px;
-`;
-
-const DateSeparator = styled.div`
-  text-align: center;
-  margin: 10px 0;
-  color: #999;
-  font-size: 0.9em;
-`;
-
-const VoiceMessageContainer = styled.div`
-  display: flex;
-  align-items: center;
-  background-color: #f0f0f0;
-  border-radius: 20px;
-  padding: 5px 10px;
-`;
-
-const VoicePreview = styled.div`
-  display: flex;
-  align-items: center;
-  background-color: #f0f0f0;
-  border-radius: 20px;
-  padding: 10px;
-  margin-top: 10px;
-`;
 
 const MAX_RECORDING_TIME = 60000; // 60 seconds
 
@@ -243,15 +112,48 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   useEffect(() => {
     if (socket) {
-      socket.on('new message', (message) => {
-        setMessages(prevMessages => [...prevMessages, message]);
-      });
-  
+      socket.on('new message', handleNewMessage);
+      socket.on('message edited', handleEditedMessage);
+      socket.on('message deleted', handleDeletedMessage);
+
       return () => {
-        socket.off('new message');
+        socket.off('new message', handleNewMessage);
+        socket.off('message edited', handleEditedMessage);
+        socket.off('message deleted', handleDeletedMessage);
       };
     }
   }, [socket]);
+
+  const handleNewMessage = useCallback((message) => {
+    setMessages(prevMessages => [...prevMessages, message]);
+    scrollToBottom();
+  }, []);
+
+  const handleEditedMessage = useCallback((editedMessage) => {
+    setMessages(prevMessages => 
+      prevMessages.map(msg => 
+        msg._id === editedMessage._id ? editedMessage : msg
+      )
+    );
+  }, []);
+
+  const handleDeletedMessage = useCallback((deletedMessage) => {
+    setMessages(prevMessages => 
+      prevMessages.map(msg => 
+        msg._id === deletedMessage._id ? deletedMessage : msg
+      )
+    );
+  }, []);
+
+  const scrollToBottom = () => {
+    if (messageContainerRef.current) {
+      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
   
   useEffect(() => {
     if (messages.length > 0) {
@@ -267,9 +169,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   useEffect(() => {
     if (socket) {
-      socket.on("private message", (message) => {
-        setMessages((prevMessages) => [...prevMessages, message]);
-      });
       socket.on("user typing", (userId) => {
         if (userId === otherUser._id) {
           setIsTyping(true);
@@ -280,30 +179,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           setIsTyping(false);
         }
       });
-      socket.on("message deleted", (messageId) => {
-        setMessages((prevMessages) =>
-          prevMessages.map((msg) =>
-            msg._id === messageId ? { ...msg, content: "This message was unsent.", deleted: true } : msg
-          )
-        );
-      });
-      socket.on("message edited", (updatedMessage) => {
-        setMessages((prevMessages) =>
-          prevMessages.map((msg) => (msg._id === updatedMessage._id ? { ...updatedMessage, edited: true } : msg))
-        );
-      });
-      socket.on("message seen", (messageId) => {
-        setMessages((prevMessages) =>
-          prevMessages.map((msg) => (msg._id === messageId ? { ...msg, seen: true } : msg))
-        );
-      });
       return () => {
-        socket.off("private message");
         socket.off("user typing");
         socket.off("user stop typing");
-        socket.off("message deleted");
-        socket.off("message edited");
-        socket.off("message seen");
       };
     }
   }, [socket, otherUser._id]);
@@ -380,6 +258,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             setFile(null);
             setAudioBlob(null);
             setAudioUrl(null);
+            scrollToBottom();
           }
         });
       }
@@ -419,7 +298,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleDeleteMessage = async (messageId) => {
     try {
-      socket.emit("delete message", messageId, (error) => {
+      socket.emit("delete message", messageId, (error, deletedMessage) => {
         if (error) {
           console.error("Error deleting message:", error);
           toast({
@@ -432,7 +311,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         } else {
           setMessages((prevMessages) =>
             prevMessages.map((msg) =>
-              msg._id === messageId ? { ...msg, content: "This message was unsent.", deleted: true } : msg
+              msg._id === deletedMessage._id ? deletedMessage : msg
             )
           );
           toast({
@@ -505,7 +384,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           stopRecording();
         }
       }, MAX_RECORDING_TIME);
-    }  catch (error) {
+    } catch (error) {
       console.error('Error starting recording:', error);
       if (error.name === 'NotSupportedError') {
         alert('Audio recording is not supported in this browser. Please try using a different browser.');
@@ -558,6 +437,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       setMessages((prevMessages) => [...prevMessages, sentMessage]);
       setAudioBlob(null);
       setAudioUrl(null);
+      scrollToBottom();
     } catch (error) {
       console.error("Error sending voice message:", error);
       console.error("Error response:", error.response?.data);
@@ -666,7 +546,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           variant="ghost"
           colorScheme="whiteAlpha"
         />
-<Avatar src={otherUser.photo} alt={otherUser.username} />
+        <Avatar src={otherUser.photo} alt={otherUser.username} />
         <Username>{otherUser.username}</Username>
         {isTyping && <TypingIndicator>Typing...</TypingIndicator>}
       </Header>
