@@ -217,7 +217,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [unreadConversations, setUnreadConversations] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState({});
   const [conversations, setConversations] = useState([]);
-  const { socket, isConnected } = useSocket();
+  const socket = useSocket();
 
   
   const toast = useToast();
@@ -265,7 +265,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   }, []);
 
   useEffect(() => {
-    if (isConnected && socket) {
+    if (socket) {
       socket.on('user status', ({ userId, isOnline }) => {
         setUsers(prevUsers => 
           prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
@@ -285,10 +285,10 @@ const MainPage = ({ user, setUser, onLogout }) => {
       return () => {
         socket.off('user status');
         socket.off('private message');
-        // ... remove other listeners
       };
     }
-  }, [socket, isConnected, activeChat]);
+  }, [socket, activeChat]);
+
 
   const updateUserLocation = useCallback(async () => {
     try {

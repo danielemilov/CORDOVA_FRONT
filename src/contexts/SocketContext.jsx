@@ -1,3 +1,4 @@
+// SocketContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
@@ -28,7 +29,6 @@ export const SocketProvider = ({ children }) => {
 
       newSocket.on('connect_error', (err) => {
         console.error('WebSocket connection error:', err);
-        // Attempt to reconnect using polling if WebSocket fails
         newSocket.io.opts.transports = ['polling', 'websocket'];
       });
 
