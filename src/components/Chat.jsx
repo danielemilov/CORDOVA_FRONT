@@ -8,34 +8,165 @@ import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
 
-// Importing everything from ChatStyles.js
-import ChatStyles from "./ChatStyles";
+const ChatContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f7f7f7;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+`;
 
-// Destructure the components you need
-const { 
-  ChatContainer, 
-  Header, 
-  Avatar, 
-  Username,
-  MessageContainer,
-  MessageBubble,
-  MessageContent,
-  MessageTime,
-  InputContainer,
-  StyledInput, 
-  TypingIndicator,
-  MessageWrapper,
-  DeletedMessageBubble,
-  EditedTag,
-  OptionsContainer,
-  OptionButton,
-  MessageStatus,
-  SeenIndicator,
-  DateSeparator,
-  VoiceMessageContainer,
-  VoicePreview 
-} = ChatStyles;
+const Header = styled.header`
+  background-color: #000000;
+  color: white;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+`;
 
+const Avatar = styled.img`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+`;
+
+const Username = styled.span`
+  font-weight: bold;
+`;
+
+const MessageContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+`;
+
+const MessageBubble = styled.div`
+  max-width: 100%;
+  padding: 10px;
+  border-radius: 20px;
+  background-color: ${(props) => (props.$isSentByCurrentUser ? "rgb(192, 132, 237)" : "#ffffff")};
+  color: ${(props) => (props.$isSentByCurrentUser ? "#ffffff" : "#000000")};
+  position: relative;
+`;
+
+const MessageContent = styled.p`
+  margin: 0;
+  white-space: pre-wrap;
+`;
+
+const MessageTime = styled.span`
+  font-size: 0.8em;
+  color: #666;
+  display: block;
+  text-align: right;
+  margin-top: 5px;
+`;
+
+const InputContainer = styled.div`
+  padding: 1rem;
+  background-color: white;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+`;
+
+const StyledInput = styled(Input)`
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  margin-right: 10px;
+`;
+
+const TypingIndicator = styled.div`
+  font-size: 0.8em;
+  color: #ffffff;
+  margin-left: 10px;
+`;
+
+const MessageWrapper = styled.div`
+  display: flex;
+  justify-content: ${(props) => (props.$isSentByCurrentUser ? "flex-end" : "flex-start")};
+  margin-bottom: 10px;
+  position: relative;
+`;
+
+const DeletedMessageBubble = styled(MessageBubble)`
+  background-color: #f0f0f0;
+  color: #000000;
+`;
+
+const EditedTag = styled.span`
+  color: #999999;
+  font-size: 0.8em;
+  position: absolute;
+  top: -15px;
+  right: 5px;
+`;
+
+const OptionsContainer = styled(VStack)`
+  background-color: #1a5f7a;
+  border-radius: 8px;
+  padding: 8px;
+`;
+
+const OptionButton = styled(Button)`
+  width: 100%;
+  justify-content: flex-start;
+  color: white;
+  &.edit {
+    background-color: #f5f6ff;
+  }
+  &.delete {
+    background-color: #fb4444;
+  }
+`;
+
+const MessageStatus = styled.div`
+  font-size: 0.7em;
+  color: #999;
+  text-align: right;
+  margin-top: 2px;
+`;
+
+const SeenIndicator = styled.img`
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-left: 5px;
+`;
+
+const DateSeparator = styled.div`
+  text-align: center;
+  margin: 10px 0;
+  color: #999;
+  font-size: 0.9em;
+`;
+
+const VoiceMessageContainer = styled.div`
+  display: flex;
+  align-items: center;
+  background-color: #f0f0f0;
+  border-radius: 20px;
+  padding: 5px 10px;
+`;
+
+const VoicePreview = styled.div`
+  display: flex;
+  align-items: center;
+  background-color: #f0f0f0;
+  border-radius: 20px;
+  padding: 10px;
+  margin-top: 10px;
+`;
 
 const MAX_RECORDING_TIME = 60000; // 60 seconds
 
@@ -145,16 +276,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     );
   }, []);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (messageContainerRef.current) {
       messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
     }
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
-  
+  }, [messages, scrollToBottom]);
+
   useEffect(() => {
     if (messages.length > 0) {
       const unseenMessages = messages
@@ -272,7 +403,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         isClosable: true,
       });
     }
-  }, [newMessage, file, audioBlob, otherUser._id, socket, toast, editingMessageId]);
+  }, [newMessage, file, audioBlob, otherUser._id, socket, toast, editingMessageId, scrollToBottom]);
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
@@ -314,320 +445,320 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
               msg._id === deletedMessage._id ? deletedMessage : msg
             )
           );
-          toast({
-            title: "Message unsent",
-            status: "success",
+
+                      toast({
+              title: "Message unsent",
+              status: "success",
+              duration: 3000,
+              isClosable: true,
+            });
+            }
+            });
+            } catch (error) {
+            console.error("Error deleting message:", error);
+            toast({
+            title: "Error",
+            description: "Failed to unsend message. Please try again.",
+            status: "error",
             duration: 3000,
             isClosable: true,
-          });
-        }
-      });
-    } catch (error) {
-      console.error("Error deleting message:", error);
-      toast({
-        title: "Error",
-        description: "Failed to unsend message. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
+            });
+            }
+            };
 
-  const handleEditMessage = (messageId, content) => {
-    setEditingMessageId(messageId);
-    setNewMessage(content);
-    inputRef.current.focus();
-  };
+            const handleEditMessage = (messageId, content) => {
+            setEditingMessageId(messageId);
+            setNewMessage(content);
+            inputRef.current.focus();
+            };
 
-  const formatMessageTime = (timestamp) => {
-    const messageDate = new Date(timestamp);
-    if (isToday(messageDate)) {
-      return format(messageDate, "h:mm a");
-    } else if (isYesterday(messageDate)) {
-      return `Yesterday ${format(messageDate, "h:mm a")}`;
-    } else if (isThisWeek(messageDate)) {
-      return format(messageDate, "EEEE h:mm a");
-    } else {
-      return format(messageDate, "dd.MM.yyyy h:mm a");
-    }
-  };
+            const formatMessageTime = (timestamp) => {
+            const messageDate = new Date(timestamp);
+            if (isToday(messageDate)) {
+            return format(messageDate, "h:mm a");
+            } else if (isYesterday(messageDate)) {
+            return `Yesterday ${format(messageDate, "h:mm a")}`;
+            } else if (isThisWeek(messageDate)) {
+            return format(messageDate, "EEEE h:mm a");
+            } else {
+            return format(messageDate, "dd.MM.yyyy h:mm a");
+            }
+            };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const options = { mimeType: 'audio/webm' };
-      mediaRecorderRef.current = new MediaRecorder(stream, options);
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createMediaStreamSource(stream);
-      const destination = audioContext.createMediaStreamDestination();
-      const compressor = audioContext.createDynamicsCompressor();
-      
-      source.connect(compressor);
-      compressor.connect(destination);
+            const startRecording = async () => {
+            try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const options = { mimeType: 'audio/webm' };
+            mediaRecorderRef.current = new MediaRecorder(stream, options);
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(stream);
+            const destination = audioContext.createMediaStreamDestination();
+            const compressor = audioContext.createDynamicsCompressor();
 
-      mediaRecorderRef.current = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
-      const chunks = [];
-  
-      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-      };
-  
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
+            source.connect(compressor);
+            compressor.connect(destination);
 
-      recordingTimeoutRef.current = setTimeout(() => {
-        if (isRecording) {
-          stopRecording();
-        }
-      }, MAX_RECORDING_TIME);
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      if (error.name === 'NotSupportedError') {
-        alert('Audio recording is not supported in this browser. Please try using a different browser.');
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to start recording. Please check your microphone permissions.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    }
-  };
+            mediaRecorderRef.current = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
+            const chunks = [];
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordingTimeoutRef.current) {
-        clearTimeout(recordingTimeoutRef.current);
-      }
-    }
-  };
+            mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+            mediaRecorderRef.current.onstop = () => {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            setAudioBlob(blob);
+            setAudioUrl(URL.createObjectURL(blob));
+            };
 
-  const cancelRecording = () => {
-    setAudioBlob(null);
-    setAudioUrl(null);
-  };
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
 
-  const sendVoiceMessage = async () => {
-    if (!audioBlob) return;
-  
-    try {
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "voice_message.webm");
-      formData.append("recipient", otherUser._id);
-  
-      console.log('FormData contents:', formData);
-  
-      const response = await api.post("/api/messages/voice", formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-  
-      console.log('Voice message sent successfully:', response.data);
-  
-      const sentMessage = response.data;
-      setMessages((prevMessages) => [...prevMessages, sentMessage]);
-      setAudioBlob(null);
-      setAudioUrl(null);
-      scrollToBottom();
-    } catch (error) {
-      console.error("Error sending voice message:", error);
-      console.error("Error response:", error.response?.data);
-      toast({
-        title: "Error",
-        description: "Failed to send voice message. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
+            recordingTimeoutRef.current = setTimeout(() => {
+            if (isRecording) {
+            stopRecording();
+            }
+            }, MAX_RECORDING_TIME);
+            } catch (error) {
+            console.error('Error starting recording:', error);
+            if (error.name === 'NotSupportedError') {
+            alert('Audio recording is not supported in this browser. Please try using a different browser.');
+            } else {
+            toast({
+            title: "Error",
+            description: "Failed to start recording. Please check your microphone permissions.",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+            });
+            }
+            }
+            };
 
-  const renderMessage = (msg, index, messages) => {
-    if (!msg || !msg.sender) {
-      console.warn("Invalid message received:", msg);
-      return null;
-    }
+            const stopRecording = () => {
+            if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if (recordingTimeoutRef.current) {
+            clearTimeout(recordingTimeoutRef.current);
+            }
+            }
+            };
 
-    const isSentByCurrentUser = msg.sender._id === currentUser.id;
-    const isFirstInSequence = index === 0 || messages[index - 1].sender._id !== msg.sender._id;
-    const showAvatar = !isSentByCurrentUser && isFirstInSequence;
-    const currentDate = parseISO(msg.timestamp);
-    const previousDate = index > 0 ? parseISO(messages[index - 1].timestamp) : null;
-    const showDateSeparator = index === 0 || !isThisWeek(currentDate) || (previousDate && !isSameDay(currentDate, previousDate));
+            const cancelRecording = () => {
+            setAudioBlob(null);
+            setAudioUrl(null);
+            };
 
-    return (
-      <React.Fragment key={msg._id}>
-        {showDateSeparator && (
-          <DateSeparator>
-            {format(currentDate, 'MMMM d, yyyy')}
-          </DateSeparator>
-        )}
-        <MessageWrapper $isSentByCurrentUser={isSentByCurrentUser}>
-          {showAvatar && <Avatar src={otherUser.photo} alt={otherUser.username} />}
-          <Box ml={showAvatar ? 2 : 0}>
-          {msg.deleted ? (
-              <DeletedMessageBubble>
-                <MessageContent>{msg.content}</MessageContent>
-                <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
-              </DeletedMessageBubble>
-            ) : (
-              <Popover placement="top" trigger="click">
-                <PopoverTrigger>
-                  <MessageBubble $isSentByCurrentUser={isSentByCurrentUser}>
-                    {msg.type === "image" && (
-                      <img
-                        src={msg.media}
-                        alt="Uploaded media"
-                        style={{
-                          maxWidth: "100%",
-                          marginBottom: "10px",
-                          borderRadius: "10px",
-                        }}
-                      />
-                    )}
-                    {msg.type === "voice" && (
-                      <VoiceMessageContainer>
-                        <audio controls src={msg.media} />
-                      </VoiceMessageContainer>
-                    )}
-                    <MessageContent>{msg.content}</MessageContent>
-                    {msg.edited && <EditedTag>edited</EditedTag>}
-                    <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
-                    <MessageStatus>
-                      {isSentByCurrentUser && (msg.seen ? "Seen" : "Sent")}
-                      {msg.seen && isSentByCurrentUser && (
-                        <SeenIndicator src={otherUser.photo} alt={otherUser.username} />
-                      )}
-                    </MessageStatus>
-                  </MessageBubble>
-                </PopoverTrigger>
-                {isSentByCurrentUser && (
-                  <PopoverContent>
-                    <PopoverBody>
-                      <OptionsContainer>
-                        {msg.type !== "voice" && (
-                          <OptionButton className="edit" onClick={() => handleEditMessage(msg._id, msg.content)}>
-                            Edit
-                          </OptionButton>
-                        )}
-                        <OptionButton className="delete" onClick={() => handleDeleteMessage(msg._id)}>
-                          Delete
-                        </OptionButton>
-                      </OptionsContainer>
-                    </PopoverBody>
-                  </PopoverContent>
-                )}
-              </Popover>
+            const sendVoiceMessage = async () => {
+            if (!audioBlob) return;
+
+            try {
+            const formData = new FormData();
+            formData.append("audio", audioBlob, "voice_message.webm");
+            formData.append("recipient", otherUser._id);
+
+            const response = await api.post("/api/messages/voice", formData, {
+            headers: { 
+            'Content-Type': 'multipart/form-data'
+            }
+            });
+
+            const sentMessage = response.data;
+            setMessages((prevMessages) => [...prevMessages, sentMessage]);
+            setAudioBlob(null);
+            setAudioUrl(null);
+            scrollToBottom();
+            } catch (error) {
+            console.error("Error sending voice message:", error);
+            console.error("Error response:", error.response?.data);
+            toast({
+            title: "Error",
+            description: "Failed to send voice message. Please try again.",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+            });
+            }
+            };
+
+            const renderMessages = () => {
+            let lastDate = null;
+            return messages.map((msg, index) => {
+            if (!msg || !msg.sender) {
+            console.warn("Invalid message received:", msg);
+            return null;
+            }
+            const currentDate = parseISO(msg.timestamp);
+            const showDateSeparator = !lastDate || !isSameDay(currentDate, lastDate);
+            lastDate = currentDate;
+
+            const isSentByCurrentUser = msg.sender._id === currentUser.id;
+            const isFirstInSequence = index === 0 || messages[index - 1].sender._id !== msg.sender._id;
+            const showAvatar = !isSentByCurrentUser && isFirstInSequence;
+
+            return (
+            <React.Fragment key={`${msg._id}-${index}`}>
+            {showDateSeparator && (
+              <DateSeparator>
+                {format(currentDate, 'MMMM d, yyyy')}
+              </DateSeparator>
             )}
-          </Box>
-        </MessageWrapper>
-      </React.Fragment>
-    );
-  };
+            <MessageWrapper $isSentByCurrentUser={isSentByCurrentUser}>
+              {showAvatar && <Avatar src={otherUser.photo} alt={otherUser.username} />}
+              <Box ml={showAvatar ? 2 : 0}>
+              {msg.deleted ? (
+                  <DeletedMessageBubble>
+                    <MessageContent>{msg.content}</MessageContent>
+                    <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
+                  </DeletedMessageBubble>
+                ) : (
+                  <Popover placement="top" trigger="click">
+                    <PopoverTrigger>
+                      <MessageBubble $isSentByCurrentUser={isSentByCurrentUser}>
+                        {msg.type === "image" && (
+                          <img
+                            src={msg.media}
+                            alt="Uploaded media"
+                            style={{
+                              maxWidth: "100%",
+                              marginBottom: "10px",
+                              borderRadius: "10px",
+                            }}
+                          />
+                        )}
+                        {msg.type === "voice" && (
+                          <VoiceMessageContainer>
+                            <audio controls src={msg.media} />
+                          </VoiceMessageContainer>
+                        )}
+                        <MessageContent>{msg.content}</MessageContent>
+                        {msg.edited && <EditedTag>edited</EditedTag>}
+                        <MessageTime>{formatMessageTime(msg.timestamp)}</MessageTime>
+                        <MessageStatus>
+                          {isSentByCurrentUser && (msg.seen ? "Seen" : "Sent")}
+                          {msg.seen && isSentByCurrentUser && (
+                            <SeenIndicator src={otherUser.photo} alt={otherUser.username} />
+                          )}
+                        </MessageStatus>
+                      </MessageBubble>
+                    </PopoverTrigger>
+                    {isSentByCurrentUser && (
+                      <PopoverContent>
+                        <PopoverBody>
+                          <OptionsContainer>
+                            {msg.type !== "voice" && (
+                              <OptionButton className="edit" onClick={() => handleEditMessage(msg._id, msg.content)}>
+                                Edit
+                              </OptionButton>
+                            )}
+                            <OptionButton className="delete" onClick={() => handleDeleteMessage(msg._id)}>
+                              Delete
+                            </OptionButton>
+                          </OptionsContainer>
+                        </PopoverBody>
+                      </PopoverContent>
+                    )}
+                  </Popover>
+                )}
+              </Box>
+            </MessageWrapper>
+            </React.Fragment>
+            );
+            });
+            };
 
-  if (!isOpen) return null;
+            if (!isOpen) return null;
 
-  return (
-    <ChatContainer>
-      <Header>
-        <IconButton
-          icon={<ArrowBackIcon />}
-          aria-label="Back"
-          onClick={onClose}
-          variant="ghost"
-          colorScheme="whiteAlpha"
-        />
-        <Avatar src={otherUser.photo} alt={otherUser.username} />
-        <Username>{otherUser.username}</Username>
-        {isTyping && <TypingIndicator>Typing...</TypingIndicator>}
-      </Header>
+            return (
+            <ChatContainer>
+            <Header>
+            <IconButton
+            icon={<ArrowBackIcon />}
+            aria-label="Back"
+            onClick={onClose}
+            variant="ghost"
+            colorScheme="whiteAlpha"
+            />
+            <Avatar src={otherUser.photo} alt={otherUser.username} />
+            <Username>{otherUser.username}</Username>
+            {isTyping && <TypingIndicator>Typing...</TypingIndicator>}
+            </Header>
 
-      <MessageContainer ref={messageContainerRef} id="scrollableDiv">
-        {isLoading && messages.length === 0 ? (
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
-            <Spinner size="xl" />
-          </div>
-        ) : (
-          <InfiniteScroll
-            dataLength={messages.length}
-            next={() => fetchMessages(page)}
-            hasMore={hasMore}
-            loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="md" /></div>}
-            scrollableTarget="scrollableDiv"
-            inverse={true}
-            style={{ display: "flex", flexDirection: "column-reverse" }}
-          >
-            {messages.slice().reverse().map((msg, index, array) => renderMessage(msg, array.length - 1 - index, array.slice().reverse()))}
-          </InfiniteScroll>
-        )}
-      </MessageContainer>
+            <MessageContainer ref={messageContainerRef} id="scrollableDiv">
+            {isLoading && messages.length === 0 ? (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+              <Spinner size="xl" />
+            </div>
+            ) : (
+            <InfiniteScroll
+              dataLength={messages.length}
+              next={() => fetchMessages(page)}
+              hasMore={hasMore}
+              loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="md" /></div>}
+              scrollableTarget="scrollableDiv"
+              inverse={false}
+              style={{ display: "flex", flexDirection: "column" }}
+            >
+              {renderMessages()}
+            </InfiniteScroll>
+            )}
+            </MessageContainer>
 
-      <InputContainer>
-        {audioUrl ? (
-          <VoicePreview>
-            <audio controls src={audioUrl} />
-            <IconButton
-              icon={<CloseIcon />}
-              onClick={cancelRecording}
-              variant="ghost"
-              aria-label="Cancel recording"
-            />
-            <IconButton
-              icon={<FaPaperPlane />}
-              onClick={sendVoiceMessage}
-              colorScheme="blue"
-              aria-label="Send voice message"
-            />
-          </VoicePreview>
-        ) : (
-          <>
-            <StyledInput
-              placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
-              value={newMessage}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              ref={inputRef}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: "none" }}
-              ref={fileInputRef}
-              onChange={handleFileChange}
-            />
-            <IconButton
-              icon={<AttachmentIcon />}
-              onClick={() => fileInputRef.current.click()}
-              variant="ghost"
-              aria-label="Attach file"
-            />
-            <IconButton
-              icon={isRecording ? <FaStop /> : <FaMicrophone />}
-              onClick={isRecording ? stopRecording : startRecording}
-              variant="ghost"
-              aria-label={isRecording ? "Stop recording" : "Start recording"}
-              colorScheme={isRecording ? "red" : "gray"}
-            />
-            <IconButton
-              icon={<FaPaperPlane />}
-              colorScheme="purple"
-              onClick={handleSendMessage}
-              aria-label="Send message"
-            />
-          </>
-        )}
-      </InputContainer>
-    </ChatContainer>
-  );
-};
+            <InputContainer>
+            {audioUrl ? (
+            <VoicePreview>
+              <audio controls src={audioUrl} />
+              <IconButton
+                icon={<CloseIcon />}
+                onClick={cancelRecording}
+                variant="ghost"
+                aria-label="Cancel recording"
+              />
+              <IconButton
+                icon={<FaPaperPlane />}
+                onClick={sendVoiceMessage}
+                colorScheme="blue"
+                aria-label="Send voice message"
+              />
+            </VoicePreview>
+            ) : (
+            <>
+              <StyledInput
+                placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
+                value={newMessage}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                ref={inputRef}
+              />
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                ref={fileInputRef}
+                onChange={handleFileChange}
+              />
+              <IconButton
+                icon={<AttachmentIcon />}
+                onClick={() => fileInputRef.current.click()}
+                variant="ghost"
+                aria-label="Attach file"
+              />
+              <IconButton
+                icon={isRecording ? <FaStop /> : <FaMicrophone />}
+                onClick={isRecording ? stopRecording : startRecording}
+                variant="ghost"
+                aria-label={isRecording ? "Stop recording" : "Start recording"}
+                colorScheme={isRecording ? "red" : "gray"}
+              />
+              <IconButton
+                icon={<FaPaperPlane />}
+                colorScheme="purple"
+                onClick={handleSendMessage}
+                aria-label="Send message"
+              />
+            </>
+            )}
+            </InputContainer>
+            </ChatContainer>
+            );
+            };
 
-export default Chat;
+            export default Chat;
