@@ -7,8 +7,7 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "d
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
-import { MoreVerticalIcon } from 'lucide-react';  // Or another icon library
-
+import { MoreVerticalIcon } from 'lucide-react';
 
 const ChatContainer = styled.div`
   position: fixed;
@@ -235,20 +234,35 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       setHasMore(true);
       fetchMessages(1);
     }
+    // Clear the input when opening a new chat
+    setNewMessage("");
   }, [isOpen, currentUser, otherUser, fetchMessages]);
-
-  const markMessagesAsSeen = useCallback((messageIds) => {
-    socket.emit('mark as seen', messageIds, (error, updatedCount) => {
-      if (error) {
-        console.error('Error marking messages as seen:', error);
-      } else {
-        console.log(`${updatedCount} messages marked as seen`);
-      }
-    });
-  }, [socket]);
 
   useEffect(() => {
     if (socket) {
+      const handleNewMessage = (message) => {
+        if (message.sender._id === otherUser._id || message.sender._id === currentUser.id) {
+          setMessages(prevMessages => [...prevMessages, message]);
+          scrollToBottom();
+        }
+      };
+
+      const handleEditedMessage = (editedMessage) => {
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg._id === editedMessage._id ? editedMessage : msg
+          )
+        );
+      };
+
+      const handleDeletedMessage = (deletedMessage) => {
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg._id === deletedMessage._id ? deletedMessage : msg
+          )
+        );
+      };
+
       socket.on('new message', handleNewMessage);
       socket.on('message edited', handleEditedMessage);
       socket.on('message deleted', handleDeletedMessage);
@@ -259,28 +273,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         socket.off('message deleted', handleDeletedMessage);
       };
     }
-  }, [socket]);
-
-  const handleNewMessage = useCallback((message) => {
-    setMessages(prevMessages => [...prevMessages, message]);
-    scrollToBottom();
-  }, []);
-
-  const handleEditedMessage = useCallback((editedMessage) => {
-    setMessages(prevMessages => 
-      prevMessages.map(msg => 
-        msg._id === editedMessage._id ? editedMessage : msg
-      )
-    );
-  }, []);
-
-  const handleDeletedMessage = useCallback((deletedMessage) => {
-    setMessages(prevMessages => 
-      prevMessages.map(msg => 
-        msg._id === deletedMessage._id ? deletedMessage : msg
-      )
-    );
-  }, []);
+  }, [socket, currentUser.id, otherUser._id]);
 
   const scrollToBottom = useCallback(() => {
     if (messageContainerRef.current) {
@@ -293,16 +286,22 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && socket) {
       const unseenMessages = messages
         .filter(msg => msg.recipient === currentUser.id && !msg.seen)
         .map(msg => msg._id);
       
       if (unseenMessages.length > 0) {
-        markMessagesAsSeen(unseenMessages);
+        socket.emit('mark as seen', unseenMessages, (error, updatedCount) => {
+          if (error) {
+            console.error('Error marking messages as seen:', error);
+          } else {
+            console.log(`${updatedCount} messages marked as seen`);
+          }
+        });
       }
     }
-  }, [messages, currentUser.id, markMessagesAsSeen]);
+  }, [messages, currentUser.id, socket]);
 
   useEffect(() => {
     if (socket) {
@@ -359,7 +358,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         media: mediaUrl,
         type: messageType,
       };
+
       if (editingMessageId) {
+        if (!socket) {
+          throw new Error("Socket connection not established");
+        }
         socket.emit("edit message", { messageId: editingMessageId, content: newMessage.trim() }, (error, updatedMessage) => {
           if (error) {
             console.error("Error editing message:", error);
@@ -379,6 +382,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           }
         });
       } else {
+        if (!socket) {
+          throw new Error("Socket connection not established");
+        }
         socket.emit("private message", messageData, (error, sentMessage) => {
           if (error) {
             console.error("Error sending message:", error);
@@ -413,13 +419,15 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
-    socket.emit("typing", { recipientId: otherUser._id });
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+    if (socket) {
+      socket.emit("typing", { recipientId: otherUser._id });
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit("stop typing", { recipientId: otherUser._id });
+      }, 3000);
     }
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit("stop typing", { recipientId: otherUser._id });
-    }, 3000);
   };
 
   const handleFileChange = (e) => {
@@ -435,6 +443,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleDeleteMessage = async (messageId) => {
     try {
+      if (!socket) {
+        throw new Error("Socket connection not established");
+      }
       socket.emit("delete message", messageId, (error, deletedMessage) => {
         if (error) {
           console.error("Error deleting message:", error);
@@ -448,7 +459,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         } else {
           setMessages((prevMessages) =>
             prevMessages.map((msg) =>
-
               msg._id === deletedMessage._id ? deletedMessage : msg
             )
           );
@@ -784,8 +794,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             hasMore={hasMore}
             loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="md" /></div>}
             scrollableTarget="scrollableDiv"
-            inverse={false}
-            style={{ display: "flex", flexDirection: "column" }}
+            inverse={true}
+            style={{ display: "flex", flexDirection: "column-reverse" }}
           >
             {renderMessages()}
           </InfiniteScroll>

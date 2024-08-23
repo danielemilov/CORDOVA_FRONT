@@ -10,8 +10,9 @@ export function getUserLocation() {
         },
         (error) => {
           console.error("Error getting location:", error.message);
-          reject(new Error("Unable to retrieve your location"));
-        }
+          reject(new Error("Unable to retrieve your location. Please check your browser settings and try again."));
+        },
+        { timeout: 10000, maximumAge: 60000, enableHighAccuracy: true }
       );
     } else {
       reject(new Error("Geolocation is not supported by your browser"));

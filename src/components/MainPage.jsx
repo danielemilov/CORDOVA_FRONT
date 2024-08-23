@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
-import { Box, VStack, useToast, Spinner, useDisclosure, Flex, Heading, IconButton, Input } from "@chakra-ui/react";
+import { Box, VStack, useToast, Spinner, useDisclosure, Flex, Heading, IconButton, Input, Text, Button } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import api from "../api";
 import UserCard from "./UserCard";
-import { getUserLocation } from '../utils';
 import styled from 'styled-components';
 import { FaSearch, FaBars, FaUser, FaTimes } from 'react-icons/fa';
-import { Card, Avatar, Username, Description, StatusDot, Distance, Button, GlobalStyle } from '../SharedStyles';
+import { Card, Avatar, Username, Description, StatusDot, Distance, GlobalStyle } from '../SharedStyles';
 import { useSocket } from '../contexts/SocketContext';
 import Fluid from 'webgl-fluid';
 
@@ -217,9 +216,10 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [unreadConversations, setUnreadConversations] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState({});
   const [conversations, setConversations] = useState([]);
-  const socket = useSocket();
-
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
   
+  const socket = useSocket();
   const toast = useToast();
   const logoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -264,53 +264,78 @@ const MainPage = ({ user, setUser, onLogout }) => {
     }
   }, []);
 
-  useEffect(() => {
-    if (socket) {
-      socket.on('user status', ({ userId, isOnline }) => {
-        setUsers(prevUsers => 
-          prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
-        );
+  const fetchUserLocation = useCallback(async () => {
+    try {
+      const response = await api.get('/api/users/current');
+      if (response.data.location) {
+        setUserLocation(response.data.location);
+        setLocationError(null);
+      } else {
+        setLocationError("Location not set. Please update your location in settings.");
+      }
+    } catch (error) {
+      console.error('Error fetching user location:', error);
+      setLocationError("Failed to fetch user location. Please try again.");
+      toast({
+        title: "Location Error",
+        description: "Failed to fetch your location. Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
       });
-
-      socket.on('private message', (message) => {
-        if (activeChat !== message.sender._id) {
-          setUnreadConversations(prev => prev + 1);
-          setUnreadMessages(prevUnread => ({
-            ...prevUnread,
-            [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
-          }));
-        }
-      });
-
-      return () => {
-        socket.off('user status');
-        socket.off('private message');
-      };
     }
-  }, [socket, activeChat]);
-
+  }, [toast]);
 
   const updateUserLocation = useCallback(async () => {
-    try {
-      const { latitude, longitude } = await getUserLocation();
-      await api.post('/api/users/updateLocation', { latitude, longitude });
-      console.log("Location updated successfully");
-    } catch (error) {
-      console.error('Error updating location:', error);
+    if ("geolocation" in navigator) {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 10000,
+            maximumAge: 60000,
+            enableHighAccuracy: true
+          });
+        });
+        
+        const { latitude, longitude } = position.coords;
+        const response = await api.post('/api/users/updateLocation', { latitude, longitude });
+        setUserLocation(response.data.location);
+        setLocationError(null);
+        toast({
+          title: "Location Updated",
+          description: "Your location has been updated successfully.",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (error) {
+        console.error('Error updating location:', error);
+        setLocationError("Failed to update location. Please try again.");
+        toast({
+          title: "Location Error",
+          description: "Failed to update your location. Please try again.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } else {
+      setLocationError("Geolocation is not supported by your browser");
     }
-  }, []);
+  }, [toast]);
 
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
     setIsLoading(true);
     try {
-      const { latitude, longitude } = await getUserLocation();
       const response = await api.get('/api/users/nearby', {
         params: { 
           page, 
-          limit: 20, 
-          latitude,
-          longitude
+          limit: 20,
+          ...(userLocation && { 
+            latitude: userLocation.coordinates[1], 
+            longitude: userLocation.coordinates[0] 
+          })
         },
       });
       
@@ -353,14 +378,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
   
     } catch (error) {
       console.error('Error fetching users:', error);
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      } else if (error.request) {
-        console.error('No response received:', error.request);
-      } else {
-        console.error('Error setting up request:', error.message);
-      }
       toast({
         title: "Error",
         description: "Failed to fetch users. Please try again later.",
@@ -371,7 +388,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user._id, toast, page, hasMore, getUserLocation]);
+  }, [user._id, toast, page, hasMore, userLocation]);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -390,12 +407,14 @@ const MainPage = ({ user, setUser, onLogout }) => {
   }, [toast]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      await updateUserLocation();
+    fetchUserLocation();
+  }, [fetchUserLocation]);
+
+  useEffect(() => {
+    if (userLocation) {
       fetchUsers();
-    };
-    fetchData();
-  }, [updateUserLocation, fetchUsers]);
+    }
+  }, [fetchUsers, userLocation]);
 
   useEffect(() => {
     if (showConversations) {
@@ -546,6 +565,13 @@ const MainPage = ({ user, setUser, onLogout }) => {
             <UnreadBadge>{unreadConversations}</UnreadBadge>
           )}
         </ToggleButton>
+
+        {locationError && (
+          <Box bg="red.100" p={4} mb={4} borderRadius="md">
+            <Text color="red.500">{locationError}</Text>
+            <Button mt={2} onClick={updateUserLocation}>Update Location</Button>
+          </Box>
+        )}
 
         {showConversations ? (
           <Suspense fallback={<Spinner />}>

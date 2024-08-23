@@ -54,11 +54,18 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
       setConversations(response.data);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      setError('Failed to fetch conversations');
+      setError(error.response?.data?.message || 'Failed to fetch conversations');
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to fetch conversations",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [toast]);
   
   useEffect(() => {
     fetchConversations();
