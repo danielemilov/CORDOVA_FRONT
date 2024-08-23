@@ -4,6 +4,7 @@ import { Box, VStack, HStack, Text, Avatar, Spinner, useToast, Button } from '@c
 import api from '../api';
 import { useSocket } from '../contexts/SocketContext';
 import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const ConversationItem = styled(Box)`
   padding: 1rem;
@@ -44,28 +45,31 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   const [error, setError] = useState(null);
   const socket = useSocket();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const fetchConversations = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       const response = await api.get('/api/messages/conversations');
-      console.log('Fetched conversations:', response.data);
-      setConversations(response.data);
+      setConversations(response.data || []);
     } catch (error) {
       console.error('Error fetching conversations:', error);
       setError(error.response?.data?.message || 'Failed to fetch conversations');
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to fetch conversations",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      if (error.response?.status === 401) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        navigate('/login');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, navigate]);
   
   useEffect(() => {
     fetchConversations();
@@ -73,14 +77,6 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   
   useEffect(() => {
     if (socket) {
-      socket.emit('fetch conversations', (error, fetchedConversations) => {
-        if (error) {
-          console.error('Error fetching conversations:', error);
-        } else {
-          setConversations(fetchedConversations);
-        }
-      });
-  
       socket.on('update conversation', (message) => {
         setConversations(prevConversations => {
           const updatedConversations = prevConversations.map(conv => {
@@ -114,36 +110,6 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
     }
   }, [socket]);
 
-  const handleNewMessage = useCallback((message) => {
-    setConversations((prevConversations) => {
-      const updatedConversations = prevConversations.map(conv => {
-        if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
-          return {
-            ...conv,
-            lastMessage: message,
-            unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount
-          };
-        }
-        return conv;
-      });
-      return updatedConversations.sort((a, b) => 
-        new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
-      );
-    });
-  }, []);
-
-  const handleMessageRead = useCallback((messageIds) => {
-    setConversations((prevConversations) => {
-      return prevConversations.map((conv) => {
-        const readCount = messageIds.filter(id => id.sender === conv.user._id).length;
-        return {
-          ...conv,
-          unreadCount: Math.max(0, conv.unreadCount - readCount),
-        };
-      });
-    });
-  }, []);
-
   const formatLastMessageTime = useCallback((timestamp) => {
     const date = parseISO(timestamp);
     if (isToday(date)) {
@@ -165,17 +131,21 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   }, [conversations, filter]);
 
   const handleConversationClick = useCallback(async (conversation) => {
-    socket.emit('mark as read', { conversationId: conversation.user._id }, (error) => {
-      if (error) {
-        console.error('Error marking messages as read:', error);
-      } else {
-        setConversations(prevConversations =>
-          prevConversations.map(conv =>
-            conv.user._id === conversation.user._id ? { ...conv, unreadCount: 0 } : conv
-          )
-        );
-      }
-    });
+    if (socket && socket.connected) {
+      socket.emit('mark as read', { conversationId: conversation.user._id }, (error) => {
+        if (error) {
+          console.error('Error marking messages as read:', error);
+        } else {
+          setConversations(prevConversations =>
+            prevConversations.map(conv =>
+              conv.user._id === conversation.user._id ? { ...conv, unreadCount: 0 } : conv
+            )
+          );
+        }
+      });
+    } else {
+      console.warn('Socket is not connected. Unable to mark messages as read.');
+    }
     onSelectConversation(conversation.user);
   }, [socket, onSelectConversation]);
 

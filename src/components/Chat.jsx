@@ -9,6 +9,7 @@ import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
 import { MoreVerticalIcon } from 'lucide-react';
 
+
 const ChatContainer = styled.div`
   position: fixed;
   top: 0;
@@ -234,7 +235,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       setHasMore(true);
       fetchMessages(1);
     }
-    // Clear the input when opening a new chat
     setNewMessage("");
   }, [isOpen, currentUser, otherUser, fetchMessages]);
 
@@ -286,7 +286,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (messages.length > 0 && socket) {
+    if (messages.length > 0 && socket && socket.connected) {
       const unseenMessages = messages
         .filter(msg => msg.recipient === currentUser.id && !msg.seen)
         .map(msg => msg._id);
@@ -324,6 +324,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !file && !audioBlob) return;
+    if (!socket || !socket.connected) {
+      toast({
+        title: "Error",
+        description: "Not connected to chat server. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
     try {
       let mediaUrl = null;
       let messageType = "text";
@@ -339,6 +349,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             title: "Error",
             description: "Only photos are allowed.",
             status: "error",
+
             duration: 3000,
             isClosable: true,
           });
@@ -360,9 +371,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       };
 
       if (editingMessageId) {
-        if (!socket) {
-          throw new Error("Socket connection not established");
-        }
         socket.emit("edit message", { messageId: editingMessageId, content: newMessage.trim() }, (error, updatedMessage) => {
           if (error) {
             console.error("Error editing message:", error);
@@ -382,9 +390,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           }
         });
       } else {
-        if (!socket) {
-          throw new Error("Socket connection not established");
-        }
         socket.emit("private message", messageData, (error, sentMessage) => {
           if (error) {
             console.error("Error sending message:", error);
@@ -419,7 +424,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
-    if (socket) {
+    if (socket && socket.connected) {
       socket.emit("typing", { recipientId: otherUser._id });
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -443,7 +448,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleDeleteMessage = async (messageId) => {
     try {
-      if (!socket) {
+      if (!socket || !socket.connected) {
         throw new Error("Socket connection not established");
       }
       socket.emit("delete message", messageId, (error, deletedMessage) => {
@@ -505,7 +510,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const options = { mimeType: 'audio/webm' };
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+
       mediaRecorderRef.current = new MediaRecorder(stream, options);
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioContext.createMediaStreamSource(stream);
@@ -598,7 +604,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const handleDeleteConversation = async () => {
     try {
-      await api.delete(`/api/messages/conversation/${otherUser._id}`);
+      await api.delete(`/api/messages/conversations/${otherUser._id}`);
       toast({
         title: "Conversation deleted",
         status: "success",
@@ -646,7 +652,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         reportedUserId: otherUser._id,
         conversationId: messages[0]?.conversationId,
         reason: "Inappropriate content",
-        priority: "medium"
       });
       toast({
         title: "Conversation reported",
@@ -658,7 +663,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       console.error('Error reporting conversation:', error);
       toast({
         title: "Error",
-        description: "Failed to report conversation. Please try again.",
+        description: error.response?.data?.message || "Failed to report conversation. Please try again.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -792,7 +797,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             dataLength={messages.length}
             next={() => fetchMessages(page)}
             hasMore={hasMore}
-            loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="md" /></div>}
+            loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="
+            md" /></div>}
             scrollableTarget="scrollableDiv"
             inverse={true}
             style={{ display: "flex", flexDirection: "column-reverse" }}
