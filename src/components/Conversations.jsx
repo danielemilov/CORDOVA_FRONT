@@ -55,7 +55,8 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
       setConversations(response.data || []);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      setError(error.response?.data?.message || 'Failed to fetch conversations');
+      const errorMessage = error.response?.data?.message || 'Failed to fetch conversations';
+      setError(errorMessage);
       if (error.response?.status === 401) {
         toast({
           title: "Authentication Error",
@@ -65,6 +66,14 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
           isClosable: true,
         });
         navigate('/login');
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       }
     } finally {
       setIsLoading(false);
@@ -77,7 +86,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   
   useEffect(() => {
     if (socket) {
-      socket.on('update conversation', (message) => {
+      const handleUpdateConversation = (message) => {
         setConversations(prevConversations => {
           const updatedConversations = prevConversations.map(conv => {
             if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
@@ -93,19 +102,22 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
             new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
           );
         });
-      });
+      };
 
-      socket.on('message read', ({ conversationId }) => {
+      const handleMessageRead = ({ conversationId }) => {
         setConversations(prevConversations => 
           prevConversations.map(conv => 
             conv.user._id === conversationId ? { ...conv, unreadCount: 0 } : conv
           )
         );
-      });
+      };
+
+      socket.on('update conversation', handleUpdateConversation);
+      socket.on('message read', handleMessageRead);
   
       return () => {
-        socket.off('update conversation');
-        socket.off('message read');
+        socket.off('update conversation', handleUpdateConversation);
+        socket.off('message read', handleMessageRead);
       };
     }
   }, [socket]);
@@ -135,6 +147,13 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
       socket.emit('mark as read', { conversationId: conversation.user._id }, (error) => {
         if (error) {
           console.error('Error marking messages as read:', error);
+          toast({
+            title: "Error",
+            description: "Failed to mark messages as read",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
         } else {
           setConversations(prevConversations =>
             prevConversations.map(conv =>
@@ -145,9 +164,16 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
       });
     } else {
       console.warn('Socket is not connected. Unable to mark messages as read.');
+      toast({
+        title: "Warning",
+        description: "Not connected to the chat server. Some features may be unavailable.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
     }
     onSelectConversation(conversation.user);
-  }, [socket, onSelectConversation]);
+  }, [socket, onSelectConversation, toast]);
 
   if (isLoading) {
     return (

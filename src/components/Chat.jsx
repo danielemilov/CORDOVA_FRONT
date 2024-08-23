@@ -7,8 +7,7 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "d
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
-import { MoreVerticalIcon } from 'lucide-react';
-
+import { MoreVertical } from 'lucide-react';
 
 const ChatContainer = styled.div`
   position: fixed;
@@ -32,6 +31,12 @@ const Header = styled.header`
   justify-content: space-between;
 `;
 
+const UserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  flex: 1;
+`;
+
 const Avatar = styled.img`
   width: 40px;
   height: 40px;
@@ -41,6 +46,7 @@ const Avatar = styled.img`
 
 const Username = styled.span`
   font-weight: bold;
+  margin-left: 10px;
 `;
 
 const MessageContainer = styled.div`
@@ -174,7 +180,11 @@ const VoicePreview = styled.div`
   margin-top: 10px;
 `;
 
-const MAX_RECORDING_TIME = 60000; // 60 seconds
+const MenuOption = styled(MenuItem)`
+  color: ${props => props.color || 'inherit'};
+`;
+
+const MAX_RECORDING_TIME = 60000;
 
 const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -242,7 +252,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     if (socket) {
       const handleNewMessage = (message) => {
         if (message.sender._id === otherUser._id || message.sender._id === currentUser.id) {
-          setMessages(prevMessages => [...prevMessages, message]);
+          setMessages(prevMessages => {
+            if (!prevMessages.some(msg => msg._id === message._id)) {
+              return [...prevMessages, message];
+            }
+            return prevMessages;
+          });
           scrollToBottom();
         }
       };
@@ -349,7 +364,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             title: "Error",
             description: "Only photos are allowed.",
             status: "error",
-
             duration: 3000,
             isClosable: true,
           });
@@ -762,27 +776,29 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   return (
     <ChatContainer>
       <Header>
-        <IconButton
-          icon={<ArrowBackIcon />}
-          aria-label="Back"
-          onClick={onClose}
-          variant="ghost"
-          colorScheme="whiteAlpha"
-        />
-        <Avatar src={otherUser.photo} alt={otherUser.username} />
-        <Username>{otherUser.username}</Username>
+        <UserInfo>
+          <IconButton
+            icon={<ArrowBackIcon />}
+            aria-label="Back"
+            onClick={onClose}
+            variant="ghost"
+            colorScheme="whiteAlpha"
+          />
+          <Avatar src={otherUser.photo} alt={otherUser.username} />
+          <Username>{otherUser.username}</Username>
+        </UserInfo>
         <Menu>
           <MenuButton
             as={IconButton}
             aria-label="Options"
-            icon={<MoreVerticalIcon />}
+            icon={<MoreVertical />}
             variant="ghost"
             colorScheme="whiteAlpha"
           />
           <MenuList>
-            <MenuItem onClick={handleDeleteConversation}>Delete Conversation</MenuItem>
-            <MenuItem onClick={handleBlockUser}>Block User</MenuItem>
-            <MenuItem onClick={handleReportConversation}>Report Conversation</MenuItem>
+            <MenuOption onClick={handleDeleteConversation} color="red.500">Delete Conversation</MenuOption>
+            <MenuOption onClick={handleBlockUser} color="orange.500">Block User</MenuOption>
+            <MenuOption onClick={handleReportConversation} color="yellow.500">Report Conversation</MenuOption>
           </MenuList>
         </Menu>
       </Header>
@@ -797,8 +813,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             dataLength={messages.length}
             next={() => fetchMessages(page)}
             hasMore={hasMore}
-            loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="
-            md" /></div>}
+            loader={<div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}><Spinner size="md" /></div>}
             scrollableTarget="scrollableDiv"
             inverse={true}
             style={{ display: "flex", flexDirection: "column-reverse" }}
