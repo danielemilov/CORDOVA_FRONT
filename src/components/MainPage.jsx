@@ -325,8 +325,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
   }, [toast]);
 
   const fetchUsers = useCallback(async () => {
-    if (!hasMore) return; // Prevent fetching if no more data
-    setIsLoading(true); // Start loading state
+    if (!hasMore) return;
+    setIsLoading(true);
   
     try {
       const response = await api.get('/api/users/nearby', {
@@ -340,11 +340,9 @@ const MainPage = ({ user, setUser, onLogout }) => {
         },
       });
   
-      // Check if the response data is in the expected format
       if (response.data && Array.isArray(response.data.users)) {
         const newUsers = response.data.users.filter(u => u && u._id !== user._id);
   
-        // Update users state with unique users
         setUsers(prevUsers => {
           const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
             const x = acc.find(item => item._id === current._id);
@@ -357,10 +355,9 @@ const MainPage = ({ user, setUser, onLogout }) => {
           return uniqueUsers;
         });
   
-        setHasMore(newUsers.length === 20); // Set hasMore based on response length
-        setPage(prevPage => prevPage + 1);  // Increment page for pagination
+        setHasMore(newUsers.length === 20);
+        setPage(prevPage => prevPage + 1);
   
-        // Fetch unread message counts for each user
         const unreadCounts = await Promise.all(
           newUsers.map(async (u) => {
             try {
@@ -373,7 +370,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
           })
         );
   
-        // Update unread messages state
         setUnreadMessages(prevUnread => {
           const newUnread = { ...prevUnread };
           unreadCounts.forEach(({ userId, count }) => {
@@ -395,10 +391,9 @@ const MainPage = ({ user, setUser, onLogout }) => {
         isClosable: true,
       });
     } finally {
-      setIsLoading(false); // Stop loading state
+      setIsLoading(false);
     }
   }, [user._id, toast, page, hasMore, userLocation]);
-  
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -460,10 +455,10 @@ const MainPage = ({ user, setUser, onLogout }) => {
       socket.on('update conversation', (updatedConversation) => {
         setConversations(prevConversations => {
           const updatedConversations = prevConversations.map(conv => 
-            conv.user._id === updatedConversation.user._id ? updatedConversation : conv
+            conv._id === updatedConversation._id ? updatedConversation : conv
           );
           return updatedConversations.sort((a, b) => 
-            new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+            new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
           );
         });
       });
@@ -527,19 +522,22 @@ const MainPage = ({ user, setUser, onLogout }) => {
   );
 
   const filteredConversations = conversations.filter(conv =>
-    conv && conv.user && conv.user.username && conv.user.username.toLowerCase().includes(filter.toLowerCase()) ||
-    (conv && conv.lastMessage && conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+    conv && conv.participants && conv.participants.some(p => 
+      p._id !== user._id && p.username.toLowerCase().includes(filter.toLowerCase())
+    ) ||
+    (conv && conv.lastMessage && conv.lastMessage.content && 
+     conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
   );
 
-  const handleConversationSelect = useCallback((user) => {
-    setSelectedUser(user);
+  const handleConversationSelect = useCallback((otherUser) => {
+    setSelectedUser(otherUser);
     setShowConversations(false);
     setIsChatOpen(true);
-    setActiveChat(user._id);
+    setActiveChat(otherUser._id);
     setUnreadConversations(prev => Math.max(0, prev - 1));
     setUnreadMessages(prevUnread => ({
       ...prevUnread,
-      [user._id]: 0,
+      [otherUser._id]: 0,
     }));
   }, []);
 
@@ -595,6 +593,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
               conversations={filteredConversations}
               onSelectConversation={handleConversationSelect}
               unreadMessages={unreadMessages}
+              currentUser={user}
+              filter={filter}
             />
           </Suspense>
         ) : (

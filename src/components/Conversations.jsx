@@ -39,7 +39,7 @@ const TimeStamp = styled(Text)`
   color: #999;
 `;
 
-const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
+const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUser }) => {
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -127,22 +127,33 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   }, [socket]);
 
   const formatLastMessageTime = useCallback((timestamp) => {
-    const date = parseISO(timestamp);
-    if (isToday(date)) {
-      return format(date, 'h:mm a');
-    } else if (isYesterday(date)) {
-      return 'Yesterday';
-    } else if (isThisWeek(date)) {
-      return format(date, 'EEEE');
-    } else {
-      return format(date, 'MMM d');
+    if (!timestamp) return '';
+    try {
+      const date = parseISO(timestamp);
+      if (isToday(date)) {
+        return format(date, 'h:mm a');
+      } else if (isYesterday(date)) {
+        return 'Yesterday';
+      } else if (isThisWeek(date)) {
+        return format(date, 'EEEE');
+      } else {
+        return format(date, 'MMM d');
+      }
+    } catch (error) {
+      console.error('Error formatting last message time:', error);
+      return '';
     }
   }, []);
 
   const filteredConversations = useMemo(() => {
     return conversations.filter(conv => 
-      conv.user.username.toLowerCase().includes(filter.toLowerCase()) ||
-      (conv.lastMessage && conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+      conv.participants && conv.participants.length > 0 && (
+        conv.participants.some(p => 
+          p.username && p.username.toLowerCase().includes(filter.toLowerCase())
+        ) ||
+        (conv.lastMessage && conv.lastMessage.content && 
+         conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+      )
     );
   }, [conversations, filter]);
 
@@ -176,8 +187,9 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
         isClosable: true,
       });
     }
-    onSelectConversation(conversation.user);
-  }, [socket, onSelectConversation, toast]);
+    const otherUser = conversation.participants.find(p => p._id !== currentUser.id);
+    onSelectConversation(otherUser);
+  }, [socket, onSelectConversation, toast, currentUser]);
 
   if (isLoading) {
     return (
@@ -207,39 +219,42 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
 
   return (
     <VStack spacing={0} align="stretch">
-      {filteredConversations.map((conversation) => (
-        <ConversationItem
-          key={conversation._id}
-          onClick={() => handleConversationClick(conversation)}
-        >
-          <HStack spacing={4} align="flex-start">
-            <Avatar
-              src={conversation.user.photo}
-              name={conversation.user.username}
-              size="md"
-            />
-            <Box flex={1}>
-              <HStack justify="space-between" align="center">
-                <Text fontWeight="bold">{conversation.user.username}</Text>
-                <HStack>
-                  {conversation.unreadCount > 0 && (
-                    <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
-                  )}
-                  <TimeStamp>
-                    {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.timestamp)}
-                  </TimeStamp>
+      {filteredConversations.map((conversation) => {
+        const otherUser = conversation.participants.find(p => p._id !== currentUser.id);
+        return (
+          <ConversationItem
+            key={conversation._id}
+            onClick={() => handleConversationClick(conversation)}
+          >
+            <HStack spacing={4} align="flex-start">
+              <Avatar
+                src={otherUser.photo}
+                name={otherUser.username}
+                size="md"
+              />
+              <Box flex={1}>
+                <HStack justify="space-between" align="center">
+                  <Text fontWeight="bold">{otherUser.username}</Text>
+                  <HStack>
+                    {conversation.unreadCount > 0 && (
+                      <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
+                    )}
+                    <TimeStamp>
+                      {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.timestamp)}
+                    </TimeStamp>
+                  </HStack>
                 </HStack>
-              </HStack>
-              <LastMessage 
-                $unread={conversation.unreadCount > 0} 
-                noOfLines={1}
-              >
-                {conversation.lastMessage ? conversation.lastMessage.content : "No messages yet"}
-              </LastMessage>
-            </Box>
-          </HStack>
-        </ConversationItem>
-      ))}
+                <LastMessage 
+                  $unread={conversation.unreadCount > 0} 
+                  noOfLines={1}
+                >
+                  {conversation.lastMessage ? conversation.lastMessage.content : "No messages yet"}
+                </LastMessage>
+              </Box>
+            </HStack>
+          </ConversationItem>
+        );
+      })}
     </VStack>
   );
 };
