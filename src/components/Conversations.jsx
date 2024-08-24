@@ -40,6 +40,7 @@ const TimeStamp = styled(Text)`
 `;
 
 const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUser }) => {
+
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -221,6 +222,10 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
     <VStack spacing={0} align="stretch">
       {filteredConversations.map((conversation) => {
         const otherUser = conversation.participants.find(p => p._id !== currentUser.id);
+        if (!otherUser) {
+          console.warn("Other user not found in conversation:", conversation);
+          return null;
+        }
         return (
           <ConversationItem
             key={conversation._id}
@@ -228,7 +233,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
           >
             <HStack spacing={4} align="flex-start">
               <Avatar
-                src={otherUser.photo}
+                src={otherUser.photo || 'https://via.placeholder.com/150'}
                 name={otherUser.username}
                 size="md"
               />

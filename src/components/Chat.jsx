@@ -565,7 +565,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
     
     try {
-      const messageDate = parseISO(timestamp);
+      const messageDate = new Date(timestamp);
       
       if (isNaN(messageDate.getTime())) {
         console.warn('Invalid date:', timestamp);
@@ -753,16 +753,16 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const renderMessages = () => {
     let lastDate = null;
     return messages.map((msg, index) => {
-      if (!msg || !msg.timestamp) {
-        console.warn("Invalid message or missing timestamp:", msg);
+      if (!msg || !msg.createdAt) {
+        console.warn("Invalid message or missing createdAt:", msg);
         return null;
       }
       
       let currentDate;
       try {
-        currentDate = parseISO(msg.timestamp);
+        currentDate = new Date(msg.createdAt);
         if (isNaN(currentDate.getTime())) {
-          console.warn("Invalid date:", msg.timestamp);
+          console.warn("Invalid date:", msg.createdAt);
           return null;
         }
       } catch (error) {
@@ -791,7 +791,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
                 <DeletedMessageBubble>
                   <MessageContent>{msg.content}</MessageContent>
                   <MessageTime>
-                    {msg.timestamp ? formatMessageTime(msg.timestamp) : ''}
+                    {msg.createdAt ? formatMessageTime(msg.createdAt) : ''}
                   </MessageTime>
                 </DeletedMessageBubble>
               ) : (
