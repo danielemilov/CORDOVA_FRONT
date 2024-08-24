@@ -325,8 +325,9 @@ const MainPage = ({ user, setUser, onLogout }) => {
   }, [toast]);
 
   const fetchUsers = useCallback(async () => {
-    if (!hasMore) return;
-    setIsLoading(true);
+    if (!hasMore) return; // Prevent fetching if no more data
+    setIsLoading(true); // Start loading state
+  
     try {
       const response = await api.get('/api/users/nearby', {
         params: { 
@@ -338,43 +339,51 @@ const MainPage = ({ user, setUser, onLogout }) => {
           })
         },
       });
-      
-      const newUsers = response.data.users.filter(u => u._id !== user._id);
-    
-      setUsers(prevUsers => {
-        const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
-          const x = acc.find(item => item._id === current._id);
-          if (!x) {
-            return acc.concat([current]);
-          } else {
-            return acc;
-          }
-        }, []);
-        return uniqueUsers;
-      });
-      setHasMore(newUsers.length === 20);
-      setPage(prevPage => prevPage + 1);
   
-      // Fetch unread message counts for each user
-      const unreadCounts = await Promise.all(
-        newUsers.map(async (u) => {
-          try {
-            const response = await api.get(`/api/messages/unread/${u._id}`);
-            return { userId: u._id, count: response.data.unreadCount };
-          } catch (error) {
-            console.error(`Error fetching unread count for user ${u._id}:`, error);
-            return { userId: u._id, count: 0 };
-          }
-        })
-      );
-      
-      setUnreadMessages(prevUnread => {
-        const newUnread = { ...prevUnread };
-        unreadCounts.forEach(({ userId, count }) => {
-          newUnread[userId] = count;
+      // Check if the response data is in the expected format
+      if (response.data && Array.isArray(response.data.users)) {
+        const newUsers = response.data.users.filter(u => u && u._id !== user._id);
+  
+        // Update users state with unique users
+        setUsers(prevUsers => {
+          const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
+            const x = acc.find(item => item._id === current._id);
+            if (!x) {
+              return acc.concat([current]);
+            } else {
+              return acc;
+            }
+          }, []);
+          return uniqueUsers;
         });
-        return newUnread;
-      });
+  
+        setHasMore(newUsers.length === 20); // Set hasMore based on response length
+        setPage(prevPage => prevPage + 1);  // Increment page for pagination
+  
+        // Fetch unread message counts for each user
+        const unreadCounts = await Promise.all(
+          newUsers.map(async (u) => {
+            try {
+              const response = await api.get(`/api/messages/unread/${u._id}`);
+              return { userId: u._id, count: response.data.unreadCount };
+            } catch (error) {
+              console.error(`Error fetching unread count for user ${u._id}:`, error);
+              return { userId: u._id, count: 0 };
+            }
+          })
+        );
+  
+        // Update unread messages state
+        setUnreadMessages(prevUnread => {
+          const newUnread = { ...prevUnread };
+          unreadCounts.forEach(({ userId, count }) => {
+            newUnread[userId] = count;
+          });
+          return newUnread;
+        });
+      } else {
+        console.error('Unexpected response format:', response.data);
+      }
   
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -386,14 +395,21 @@ const MainPage = ({ user, setUser, onLogout }) => {
         isClosable: true,
       });
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Stop loading state
     }
   }, [user._id, toast, page, hasMore, userLocation]);
+  
 
   const fetchConversations = useCallback(async () => {
     try {
+      console.log('Fetching conversations...');
       const response = await api.get('/api/messages/conversations');
-      setConversations(response.data);
+      console.log('Conversations response:', response.data);
+      if (Array.isArray(response.data)) {
+        setConversations(response.data);
+      } else {
+        console.error('Unexpected conversations data format:', response.data);
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast({
@@ -506,13 +522,13 @@ const MainPage = ({ user, setUser, onLogout }) => {
   }, [setUser, socket, toast]);
 
   const filteredUsers = users.filter(u => 
-    u.username.toLowerCase().includes(filter.toLowerCase()) ||
-    (u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
+    u && u.username && u.username.toLowerCase().includes(filter.toLowerCase()) ||
+    (u && u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
   );
 
-  const filteredConversations = conversations.filter(conv => 
-    conv.user.username.toLowerCase().includes(filter.toLowerCase()) ||
-    (conv.lastMessage && conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+  const filteredConversations = conversations.filter(conv =>
+    conv && conv.user && conv.user.username && conv.user.username.toLowerCase().includes(filter.toLowerCase()) ||
+    (conv && conv.lastMessage && conv.lastMessage.content && conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
   );
 
   const handleConversationSelect = useCallback((user) => {

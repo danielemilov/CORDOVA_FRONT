@@ -52,7 +52,12 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
       setIsLoading(true);
       setError(null);
       const response = await api.get('/api/messages/conversations');
-      setConversations(response.data || []);
+      if (Array.isArray(response.data)) {
+        setConversations(response.data);
+      } else {
+        console.error('Unexpected response format:', response.data);
+        setError('Received unexpected data format from server');
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
       const errorMessage = error.response?.data?.message || 'Failed to fetch conversations';
@@ -86,28 +91,27 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
   
   useEffect(() => {
     if (socket) {
-      const handleUpdateConversation = (message) => {
+      const handleUpdateConversation = (updatedConversation) => {
         setConversations(prevConversations => {
-          const updatedConversations = prevConversations.map(conv => {
-            if (conv.user._id === message.sender._id || conv.user._id === message.recipient._id) {
-              return {
-                ...conv,
-                lastMessage: message,
-                unreadCount: conv.user._id === message.sender._id ? conv.unreadCount + 1 : conv.unreadCount
-              };
-            }
-            return conv;
-          });
-          return updatedConversations.sort((a, b) => 
-            new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
-          );
+          const existingIndex = prevConversations.findIndex(conv => conv._id === updatedConversation._id);
+          if (existingIndex !== -1) {
+            // Update existing conversation
+            const updatedConversations = [...prevConversations];
+            updatedConversations[existingIndex] = updatedConversation;
+            return updatedConversations.sort((a, b) => 
+              new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+            );
+          } else {
+            // Add new conversation
+            return [updatedConversation, ...prevConversations];
+          }
         });
       };
 
       const handleMessageRead = ({ conversationId }) => {
         setConversations(prevConversations => 
           prevConversations.map(conv => 
-            conv.user._id === conversationId ? { ...conv, unreadCount: 0 } : conv
+            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
           )
         );
       };
@@ -144,7 +148,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
 
   const handleConversationClick = useCallback(async (conversation) => {
     if (socket && socket.connected) {
-      socket.emit('mark as read', { conversationId: conversation.user._id }, (error) => {
+      socket.emit('mark as read', { conversationId: conversation._id }, (error) => {
         if (error) {
           console.error('Error marking messages as read:', error);
           toast({
@@ -157,7 +161,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
         } else {
           setConversations(prevConversations =>
             prevConversations.map(conv =>
-              conv.user._id === conversation.user._id ? { ...conv, unreadCount: 0 } : conv
+              conv._id === conversation._id ? { ...conv, unreadCount: 0 } : conv
             )
           );
         }
@@ -205,7 +209,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages }) => {
     <VStack spacing={0} align="stretch">
       {filteredConversations.map((conversation) => (
         <ConversationItem
-          key={conversation.user._id}
+          key={conversation._id}
           onClick={() => handleConversationClick(conversation)}
         >
           <HStack spacing={4} align="flex-start">

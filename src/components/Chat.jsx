@@ -3,7 +3,7 @@ import { IconButton, useToast, Spinner, Input, Button, Popover, PopoverTrigger, 
 import { ArrowBackIcon, AttachmentIcon, CloseIcon } from "@chakra-ui/icons";
 import { FaPaperPlane, FaMicrophone, FaStop } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay } from "date-fns";
+import { format, isToday, isYesterday, isThisWeek, parseISO, isSameDay} from "date-fns";
 import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
@@ -508,8 +508,17 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     inputRef.current.focus();
   };
 
-  const formatMessageTime = (timestamp) => {
-    const messageDate = new Date(timestamp);
+  
+  const formatMessageTime = useCallback((timestamp) => {
+    // Check if the timestamp is valid
+    if (!timestamp) return '';
+  
+    // Parse the ISO date string
+    const messageDate = parseISO(timestamp);
+  
+    // Check if the parsed date is valid before proceeding
+    if (isNaN(messageDate)) return '';
+  
     if (isToday(messageDate)) {
       return format(messageDate, "h:mm a");
     } else if (isYesterday(messageDate)) {
@@ -519,7 +528,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     } else {
       return format(messageDate, "dd.MM.yyyy h:mm a");
     }
-  };
+  }, []);
+  
+  
 
   const startRecording = async () => {
     try {
