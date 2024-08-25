@@ -225,6 +225,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const logoRef = useRef(null);
   const canvasRef = useRef(null);
 
+
   useEffect(() => {
     if (canvasRef.current && logoRef.current) {
       const canvas = canvasRef.current;
@@ -403,6 +404,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
       console.log('Conversations response:', response.data);
       if (Array.isArray(response.data)) {
         setConversations(response.data);
+        const totalUnread = response.data.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+        setTotalUnreadCount(totalUnread);
       } else {
         console.error('Unexpected conversations data format:', response.data);
       }
@@ -436,22 +439,23 @@ const MainPage = ({ user, setUser, onLogout }) => {
 
   useEffect(() => {
     if (socket) {
+      const handleNewMessage = (message) => {
+        if (message.recipient === user._id) {
+          setTotalUnreadCount(prev => prev + 1);
+          setUnreadMessages(prevUnread => ({
+            ...prevUnread,
+            [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
+          }));
+        }
+      };
+
       socket.on('user status', ({ userId, isOnline }) => {
         setUsers(prevUsers => 
           prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
         );
       });
 
-      socket.on('private message', (message) => {
-        if (activeChat !== message.sender._id) {
-          setUnreadConversations(prev => prev + 1);
-          setUnreadMessages(prevUnread => ({
-            ...prevUnread,
-            [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
-          }));
-        }
-        fetchConversations();
-      });
+      socket.on('private message', handleNewMessage);
 
       socket.on('update conversation', (updatedConversation) => {
         setConversations(prevConversations => {
@@ -464,20 +468,13 @@ const MainPage = ({ user, setUser, onLogout }) => {
         });
       });
 
-      socket.on('new message', (message) => {
-        if (message.recipient === user._id && !isChatOpen) {
-          setTotalUnreadCount(prev => prev + 1);
-        }
-      });
-    
       return () => {
         socket.off('user status');
         socket.off('private message');
         socket.off('update conversation');
-        socket.off('new message');
       };
     }
-  }, [socket, activeChat, fetchConversations, user._id, isChatOpen]);
+  }, [socket, user._id]);
 
   useEffect(() => {
     const count = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
@@ -498,35 +495,11 @@ const MainPage = ({ user, setUser, onLogout }) => {
       ...prevUnread,
       [clickedUser._id]: 0
     }));
-  }, []);
+    setTotalUnreadCount(prev => Math.max(0, prev - (unreadMessages[clickedUser._id] || 0)));
+  }, [unreadMessages]);
 
   const handleSettingsClose = useCallback(async (updatedUser) => {
-    if (updatedUser) {
-      try {
-        const response = await api.put('/api/users/profile', updatedUser);
-        setUser(response.data.user);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        if (socket) {
-          socket.emit('user update', response.data.user);
-        }
-        toast({
-          title: "Profile Updated",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-      } catch (error) {
-        console.error('Error updating profile:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update profile. Please try again.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    }
-    setIsSettingsOpen(false);
+    // ... (keep your existing handleSettingsClose function)
   }, [setUser, socket, toast]);
 
   const filteredUsers = users.filter(u => 
@@ -552,7 +525,8 @@ const MainPage = ({ user, setUser, onLogout }) => {
       ...prevUnread,
       [otherUser._id]: 0,
     }));
-  }, []);
+    setTotalUnreadCount(prev => Math.max(0, prev - (unreadMessages[otherUser._id] || 0)));
+  }, [unreadMessages]);
 
   const toggleView = () => {
     setShowConversations(!showConversations);
