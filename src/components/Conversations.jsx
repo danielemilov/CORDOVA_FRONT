@@ -1,3 +1,4 @@
+// Conversations.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { Box, VStack, HStack, Text, Avatar, Spinner, useToast, Button } from '@chakra-ui/react';
@@ -40,7 +41,6 @@ const TimeStamp = styled(Text)`
 `;
 
 const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUser }) => {
-
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -96,14 +96,12 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
         setConversations(prevConversations => {
           const existingIndex = prevConversations.findIndex(conv => conv._id === updatedConversation._id);
           if (existingIndex !== -1) {
-            // Update existing conversation
             const updatedConversations = [...prevConversations];
             updatedConversations[existingIndex] = updatedConversation;
             return updatedConversations.sort((a, b) => 
-              new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+              new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
             );
           } else {
-            // Add new conversation
             return [updatedConversation, ...prevConversations];
           }
         });
@@ -117,15 +115,35 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
         );
       };
 
+      const handleNewMessage = (message) => {
+        setConversations(prevConversations => {
+          const updatedConversations = prevConversations.map(conv => {
+            if (conv._id === message.conversationId) {
+              return {
+                ...conv,
+                lastMessage: message,
+                unreadCount: conv.unreadCount + (message.sender._id !== currentUser.id ? 1 : 0),
+              };
+            }
+            return conv;
+          });
+          return updatedConversations.sort((a, b) => 
+            new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
+          );
+        });
+      };
+
       socket.on('update conversation', handleUpdateConversation);
       socket.on('message read', handleMessageRead);
+      socket.on('new message', handleNewMessage);
   
       return () => {
         socket.off('update conversation', handleUpdateConversation);
         socket.off('message read', handleMessageRead);
+        socket.off('new message', handleNewMessage);
       };
     }
-  }, [socket]);
+  }, [socket, currentUser.id]);
 
   const formatLastMessageTime = useCallback((timestamp) => {
     if (!timestamp) return '';
@@ -226,6 +244,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
           console.warn("Other user not found in conversation:", conversation);
           return null;
         }
+        const isUnread = conversation.unreadCount > 0 && conversation.lastMessage?.sender._id !== currentUser.id;
         return (
           <ConversationItem
             key={conversation._id}
@@ -241,7 +260,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
                 <HStack justify="space-between" align="center">
                   <Text fontWeight="bold">{otherUser.username}</Text>
                   <HStack>
-                    {conversation.unreadCount > 0 && (
+                    {isUnread && (
                       <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
                     )}
                     <TimeStamp>
@@ -250,7 +269,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
                   </HStack>
                 </HStack>
                 <LastMessage 
-                  $unread={conversation.unreadCount > 0} 
+                  $unread={isUnread}
                   noOfLines={1}
                 >
                   {conversation.lastMessage ? conversation.lastMessage.content : "No messages yet"}
