@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { IconButton, useToast, Spinner, Input, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, VStack, Box, Menu, MenuButton, MenuList, MenuItem, Badge } from "@chakra-ui/react";
+import { IconButton, useToast, Spinner, Input, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, VStack, Box, Menu, MenuButton, MenuList, MenuItem, Badge, Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from "@chakra-ui/react";
 import { ArrowBackIcon, AttachmentIcon, CloseIcon } from "@chakra-ui/icons";
 import { FaPaperPlane, FaMicrophone, FaStop } from "react-icons/fa";
 import InfiniteScroll from "react-infinite-scroll-component";
@@ -8,6 +8,7 @@ import api from "../api";
 import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
 import { MoreVertical } from 'lucide-react';
+import RecordRTC from 'recordrtc';
 
 const ChatContainer = styled.div`
   position: fixed;
@@ -211,14 +212,15 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const toast = useToast();
   const messageContainerRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const socket = useSocket();
   const typingTimeoutRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
   const recordingTimeoutRef = useRef(null);
+  const [recorder, setRecorder] = useState(null);
 
   const fetchMessages = useCallback(async (pageNum = 1) => {
     if (!currentUser || !otherUser) {
@@ -268,12 +270,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     if (socket) {
       const handleNewMessage = (message) => {
         if (message.sender._id === otherUser._id || message.sender._id === currentUser.id) {
-          setMessages(prevMessages => {
-            if (!prevMessages.some(msg => msg._id === message._id)) {
-              return [message, ...prevMessages];
-            }
-            return prevMessages;
-          });
+          setMessages(prevMessages => [message, ...prevMessages]);
           if (message.sender._id === otherUser._id) {
             setUnreadCount(prev => prev + 1);
           }
@@ -529,30 +526,18 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const options = { mimeType: 'audio/webm;codecs=opus' };
-  
-      mediaRecorderRef.current = new MediaRecorder(stream, options);
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createMediaStreamSource(stream);
-      const destination = audioContext.createMediaStreamDestination();
-      const compressor = audioContext.createDynamicsCompressor();
-  
-      source.connect(compressor);
-      compressor.connect(destination);
-  
-      mediaRecorderRef.current = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
-      const chunks = [];
-  
-      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-      };
-  
-      mediaRecorderRef.current.start();
+      const newRecorder = RecordRTC(stream, {
+        type: 'audio',
+        mimeType: 'audio/webm',
+        sampleRate: 44100,
+        desiredSampRate: 16000,
+        recorderType: RecordRTC.StereoAudioRecorder,
+        numberOfAudioChannels: 1
+      });
+      newRecorder.startRecording();
+      setRecorder(newRecorder);
       setIsRecording(true);
-  
+
       recordingTimeoutRef.current = setTimeout(() => {
         if (isRecording) {
           stopRecording();
@@ -560,27 +545,27 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       }, MAX_RECORDING_TIME);
     } catch (error) {
       console.error('Error starting recording:', error);
-      if (error.name === 'NotSupportedError') {
-        alert('Audio recording is not supported in this browser. Please try using a different browser.');
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to start recording. Please check your microphone permissions.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
+      toast({
+        title: "Error",
+        description: "Failed to start recording. Please check your microphone permissions.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
   
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordingTimeoutRef.current) {
-        clearTimeout(recordingTimeoutRef.current);
-      }
+    if (recorder) {
+      recorder.stopRecording(() => {
+        const blob = recorder.getBlob();
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+        setIsRecording(false);
+      });
+    }
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
     }
   };
   
@@ -643,39 +628,21 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   };
   
   const handleBlockUser = async () => {
-    try {
-      const result = await new Promise((resolve) => {
-        toast({
-          title: `Are you sure to block ${otherUser.username} forever?`,
-          description: "This action cannot be undone.",
-          status: "warning",
-          duration: null,
-          isClosable: true,
-          render: ({ onClose }) => (
-            <Box p={3} color="white" bg="orange.500" borderRadius="md">
-              <VStack spacing={3}>
-                <Text fontWeight="bold">Are you sure to block {otherUser.username} forever?</Text>
-                <Text>This action cannot be undone.</Text>
-                <HStack spacing={3}>
-                  <Button onClick={() => { resolve(true); onClose(); }}>Yes</Button>
-                  <Button onClick={() => { resolve(false); onClose(); }}>No</Button>
-                </HStack>
-              </VStack>
-            </Box>
-          ),
-        });
-      });
+    setIsBlockModalOpen(true);
+  };
 
-      if (result) {
-        await api.post(`/api/users/block/${otherUser._id}`);
-        toast({
-          title: "User blocked",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-        onClose();
-      }
+  const confirmBlockUser = async () => {
+    try {
+      await api.post(`/api/users/block/${otherUser._id}`);
+      toast({
+        title: "User blocked",
+        description: `${otherUser.username} has been blocked successfully.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setIsBlockModalOpen(false);
+      onClose();
     } catch (error) {
       console.error('Error blocking user:', error);
       toast({
@@ -687,6 +654,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
+  
   
   const handleReportConversation = async () => {
     try {
@@ -911,6 +879,25 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           </>
         )}
       </InputContainer>
+
+      <Modal isOpen={isBlockModalOpen} onClose={() => setIsBlockModalOpen(false)}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Block User</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          Are you sure you want to block {otherUser.username} forever? This action cannot be undone.
+        </ModalBody>
+        <ModalFooter>
+          <Button colorScheme="red" mr={3} onClick={confirmBlockUser}>
+            Yes, Block User
+          </Button>
+          <Button variant="ghost" onClick={() => setIsBlockModalOpen(false)}>
+            No, Cancel
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
     </ChatContainer>
   );
 };

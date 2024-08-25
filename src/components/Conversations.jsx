@@ -1,10 +1,9 @@
-// Conversations.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { Box, VStack, HStack, Text, Avatar, Spinner, useToast, Button } from '@chakra-ui/react';
 import api from '../api';
 import { useSocket } from '../contexts/SocketContext';
-import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
+import { format, isToday, isYesterday, isThisWeek, parseISO, formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 const ConversationItem = styled(Box)`
@@ -33,11 +32,25 @@ const UnreadBadge = styled.div`
 const LastMessage = styled(Text)`
   color: ${props => props.$unread ? '#000' : '#666'};
   font-weight: ${props => props.$unread ? 'bold' : 'normal'};
+  font-size: 14px;
+  line-height: 1.4;
 `;
 
 const TimeStamp = styled(Text)`
   font-size: 12px;
   color: #999;
+  white-space: nowrap;
+`;
+
+const NoConversationsMessage = styled(Text)`
+  text-align: center;
+  font-size: 16px;
+  color: #666;
+  margin-top: 20px;
+`;
+
+const RefreshButton = styled(Button)`
+  margin-top: 10px;
 `;
 
 const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUser }) => {
@@ -99,7 +112,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
             const updatedConversations = [...prevConversations];
             updatedConversations[existingIndex] = updatedConversation;
             return updatedConversations.sort((a, b) => 
-              new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
+              new Date(b.lastMessage?.createdAt || 0) - new Date(a.lastMessage?.createdAt || 0)
             );
           } else {
             return [updatedConversation, ...prevConversations];
@@ -128,7 +141,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
             return conv;
           });
           return updatedConversations.sort((a, b) => 
-            new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
+            new Date(b.lastMessage?.createdAt || 0) - new Date(a.lastMessage?.createdAt || 0)
           );
         });
       };
@@ -156,7 +169,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
       } else if (isThisWeek(date)) {
         return format(date, 'EEEE');
       } else {
-        return format(date, 'MMM d');
+        return formatDistanceToNow(date, { addSuffix: true });
       }
     } catch (error) {
       console.error('Error formatting last message time:', error);
@@ -213,7 +226,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
   if (isLoading) {
     return (
       <Box textAlign="center" py={4}>
-        <Spinner size="xl" />
+        <Spinner size="xl" color="purple.500" />
       </Box>
     );
   }
@@ -222,7 +235,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
     return (
       <Box textAlign="center" py={4}>
         <Text color="red.500">{error}</Text>
-        <Button mt={2} onClick={fetchConversations}>Retry</Button>
+        <RefreshButton onClick={fetchConversations} colorScheme="purple">Retry</RefreshButton>
       </Box>
     );
   }
@@ -230,8 +243,8 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
   if (filteredConversations.length === 0) {
     return (
       <Box textAlign="center" py={4}>
-        <Text>No conversations found</Text>
-        <Button mt={2} onClick={fetchConversations}>Refresh</Button>
+        <NoConversationsMessage>No conversations found</NoConversationsMessage>
+        <RefreshButton onClick={fetchConversations} colorScheme="purple">Refresh</RefreshButton>
       </Box>
     );
   }
@@ -258,13 +271,13 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
               />
               <Box flex={1}>
                 <HStack justify="space-between" align="center">
-                  <Text fontWeight="bold">{otherUser.username}</Text>
+                  <Text fontWeight="bold" fontSize="16px">{otherUser.username}</Text>
                   <HStack>
                     {isUnread && (
                       <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
                     )}
                     <TimeStamp>
-                      {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.timestamp)}
+                      {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.createdAt)}
                     </TimeStamp>
                   </HStack>
                 </HStack>

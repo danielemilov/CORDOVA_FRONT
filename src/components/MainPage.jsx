@@ -220,7 +220,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [locationError, setLocationError] = useState(null);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
-  
   const socket = useSocket();
   const toast = useToast();
   const logoRef = useRef(null);
@@ -458,229 +457,235 @@ const MainPage = ({ user, setUser, onLogout }) => {
         setConversations(prevConversations => {
           const updatedConversations = prevConversations.map(conv => 
             conv._id === updatedConversation._id ? updatedConversation : conv
-        );
-        return updatedConversations.sort((a, b) => 
-          new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
-        );
+          );
+          return updatedConversations.sort((a, b) => 
+            new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
+          );
+        });
       });
-    });
-  
-    return () => {
-      socket.off('user status');
-      socket.off('private message');
-      socket.off('update conversation');
-    };
-  }
-}, [socket, activeChat, fetchConversations]);
 
-useEffect(() => {
-  const count = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
-  setTotalUnreadCount(count);
-}, [conversations]);
-
-const handleUserClick = useCallback((clickedUser) => {
-  setSelectedUser(clickedUser);
-  setIsProfileOpen(true);
-}, []);
-
-const handleChatClick = useCallback((clickedUser) => {
-  setSelectedUser(clickedUser);
-  setIsChatOpen(true);
-  setActiveChat(clickedUser._id);
-  setUnreadConversations(prev => Math.max(0, prev - 1));
-  setUnreadMessages(prevUnread => ({
-    ...prevUnread,
-    [clickedUser._id]: 0
-  }));
-}, []);
-
-const handleSettingsClose = useCallback(async (updatedUser) => {
-  if (updatedUser) {
-    try {
-      const response = await api.put('/api/users/profile', updatedUser);
-      setUser(response.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      if (socket) {
-        socket.emit('user update', response.data.user);
-      }
-      toast({
-        title: "Profile Updated",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
+      socket.on('new message', (message) => {
+        if (message.recipient === user._id && !isChatOpen) {
+          setTotalUnreadCount(prev => prev + 1);
+        }
       });
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+    
+      return () => {
+        socket.off('user status');
+        socket.off('private message');
+        socket.off('update conversation');
+        socket.off('new message');
+      };
     }
-  }
-  setIsSettingsOpen(false);
-}, [setUser, socket, toast]);
+  }, [socket, activeChat, fetchConversations, user._id, isChatOpen]);
 
-const filteredUsers = users.filter(u => 
-  u && u.username && u.username.toLowerCase().includes(filter.toLowerCase()) ||
-  (u && u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
-);
+  useEffect(() => {
+    const count = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+    setTotalUnreadCount(count);
+  }, [conversations]);
 
-const filteredConversations = conversations.filter(conv =>
-  conv && conv.participants && conv.participants.some(p => 
-    p._id !== user._id && p.username.toLowerCase().includes(filter.toLowerCase())
-  ) ||
-  (conv && conv.lastMessage && conv.lastMessage.content && 
-   conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
-);
+  const handleUserClick = useCallback((clickedUser) => {
+    setSelectedUser(clickedUser);
+    setIsProfileOpen(true);
+  }, []);
 
-const handleConversationSelect = useCallback((otherUser) => {
-  setSelectedUser(otherUser);
-  setShowConversations(false);
-  setIsChatOpen(true);
-  setActiveChat(otherUser._id);
-  setUnreadConversations(prev => Math.max(0, prev - 1));
-  setUnreadMessages(prevUnread => ({
-    ...prevUnread,
-    [otherUser._id]: 0,
-  }));
-}, []);
+  const handleChatClick = useCallback((clickedUser) => {
+    setSelectedUser(clickedUser);
+    setIsChatOpen(true);
+    setActiveChat(clickedUser._id);
+    setUnreadConversations(prev => Math.max(0, prev - 1));
+    setUnreadMessages(prevUnread => ({
+      ...prevUnread,
+      [clickedUser._id]: 0
+    }));
+  }, []);
 
-const toggleView = () => {
-  setShowConversations(!showConversations);
-  if (!showConversations) {
-    setFilter('');
-    fetchConversations();
-  }
-};
+  const handleSettingsClose = useCallback(async (updatedUser) => {
+    if (updatedUser) {
+      try {
+        const response = await api.put('/api/users/profile', updatedUser);
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        if (socket) {
+          socket.emit('user update', response.data.user);
+        }
+        toast({
+          title: "Profile Updated",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update profile. Please try again.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }
+    setIsSettingsOpen(false);
+  }, [setUser, socket, toast]);
 
-return (
-  <>
-    <GlobalStyle />
-    <MainWrapper>
-      <Header>
-        <MenuButton onClick={() => setIsMenuOpen(true)}>
-          <FaBars />
-        </MenuButton>
-        <FluidCanvas ref={canvasRef} />
-        <LogoWrapper ref={logoRef}>
-          <Logo>BIND</Logo>
-        </LogoWrapper>
-        <div style={{width: '24px'}} />
-      </Header>
+  const filteredUsers = users.filter(u => 
+    u && u.username && u.username.toLowerCase().includes(filter.toLowerCase()) ||
+    (u && u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
+  );
 
-      <SearchWrapper>
-        <SearchIcon />
-        <SearchInput
-          placeholder={showConversations ? "Search conversations..." : "Search users..."}
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </SearchWrapper>
+  const filteredConversations = conversations.filter(conv =>
+    conv && conv.participants && conv.participants.some(p => 
+      p._id !== user._id && p.username.toLowerCase().includes(filter.toLowerCase())
+    ) ||
+    (conv && conv.lastMessage && conv.lastMessage.content && 
+     conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+  );
 
-      <ToggleButton onClick={toggleView}>
-  {showConversations ? 'Show Users' : 'Show Conversations'}
-  {totalUnreadCount > 0 && <UnreadBadge>{totalUnreadCount}</UnreadBadge>}
-</ToggleButton>
+  const handleConversationSelect = useCallback((otherUser) => {
+    setSelectedUser(otherUser);
+    setShowConversations(false);
+    setIsChatOpen(true);
+    setActiveChat(otherUser._id);
+    setUnreadConversations(prev => Math.max(0, prev - 1));
+    setUnreadMessages(prevUnread => ({
+      ...prevUnread,
+      [otherUser._id]: 0,
+    }));
+  }, []);
 
+  const toggleView = () => {
+    setShowConversations(!showConversations);
+    if (!showConversations) {
+      setFilter('');
+      fetchConversations();
+    }
+  };
 
-      {locationError && (
-        <Box bg="red.100" p={4} mb={4} borderRadius="md">
-          <Text color="red.500">{locationError}</Text>
-          <Button mt={2} onClick={updateUserLocation}>Update Location</Button>
-        </Box>
-      )}
+  return (
+    <>
+      <GlobalStyle />
+      <MainWrapper>
+        <Header>
+          <MenuButton onClick={() => setIsMenuOpen(true)}>
+            <FaBars />
+          </MenuButton>
+          <FluidCanvas ref={canvasRef} />
+          <LogoWrapper ref={logoRef}>
+            <Logo>BIND</Logo>
+          </LogoWrapper>
+          <div style={{width: '24px'}} />
+        </Header>
 
-      {showConversations ? (
-        <Suspense fallback={<Spinner />}>
-          <Conversations 
-  conversations={filteredConversations}
-  onSelectConversation={handleConversationSelect}
-  unreadMessages={unreadMessages}
-  currentUser={user}
-  filter={filter}
-  totalUnreadCount={totalUnreadCount}
-/>
-        </Suspense>
-      ) : (
-        <UserList>
-          {filteredUsers.map((u) => (
-            <UserCard 
-              key={u._id}
-              user={u} 
-              onUserClick={() => handleUserClick(u)}
-              onChatClick={() => handleChatClick(u)}
-              unreadCount={unreadMessages[u._id] || 0}
+        <SearchWrapper>
+          <SearchIcon />
+          <SearchInput
+            placeholder={showConversations ? "Search conversations..." : "Search users..."}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        </SearchWrapper>
+
+        <ToggleButton onClick={toggleView}>
+          {showConversations ? 'Show Users' : 'Show Conversations'}
+          {totalUnreadCount > 0 && <UnreadBadge>{totalUnreadCount}</UnreadBadge>}
+        </ToggleButton>
+
+        {locationError && (
+          <Box bg="red.100" p={4} mb={4} borderRadius="md">
+            <Text color="red.500">{locationError}</Text>
+            <Button mt={2} onClick={updateUserLocation}>Update Location</Button>
+          </Box>
+        )}
+
+        {showConversations ? (
+          <Suspense fallback={<Spinner />}>
+            <Conversations 
+              conversations={filteredConversations}
+              onSelectConversation={handleConversationSelect}
+              unreadMessages={unreadMessages}
+              currentUser={user}
+              filter={filter}
+              totalUnreadCount={totalUnreadCount}
             />
-          ))}
-        </UserList>
-      )}
-      
-      {!showConversations && isLoading && <Spinner />}
-      {!showConversations && !isLoading && hasMore && (
-        <LoadMoreButton onClick={fetchUsers}>
-          Load More
-        </LoadMoreButton>
-      )}
-    </MainWrapper>
+          </Suspense>
+        ) : (
+          <UserList>
+            {filteredUsers.map((u) => (
+              <UserCard 
+                key={u._id}
+                user={u} 
+                onUserClick={() => handleUserClick(u)}
+                onChatClick={() => handleChatClick(u)}
+                unreadCount={unreadMessages[u._id] || 0}
+              />
+            ))}
+          </UserList>
+        )}
+        
+        {!showConversations && isLoading && <Spinner />}
+        {!showConversations && !isLoading && hasMore && (
+          <LoadMoreButton onClick={fetchUsers}>
+            Load More
+          </LoadMoreButton>
+        )}
+      </MainWrapper>
 
-    <Menu $isOpen={isMenuOpen}>
-      <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
-        <FaTimes />
-      </CloseMenuButton>
-      <MenuHeader>
-        <ProfilePic src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
-        <Username>{user.username}</Username>
-      </MenuHeader>
-      <MenuItems>
-        <MenuItem onClick={() => {
-          setIsSettingsOpen(true);
-          setIsMenuOpen(false);
-        }}>Edit Profile</MenuItem>
-        <MenuItem onClick={() => {
-          onLogout();
-          setIsMenuOpen(false);
-        }}>Logout</MenuItem>
-      </MenuItems>
-    </Menu>
+      <Menu $isOpen={isMenuOpen}>
+        <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
+          <FaTimes />
+        </CloseMenuButton>
+        <MenuHeader>
+          <ProfilePic src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
+          <Username>{user.username}</Username>
+        </MenuHeader>
+        <MenuItems>
+          <MenuItem onClick={() => {
+            setIsSettingsOpen(true);
+            setIsMenuOpen(false);
+          }}>Edit Profile</MenuItem>
+          <MenuItem onClick={() => {
+            onLogout();
+            setIsMenuOpen(false);
+          }}>Logout</MenuItem>
+        </MenuItems>
+      </Menu>
 
-    <Suspense fallback={<div>Loading...</div>}>
-      {selectedUser && (
-        <UserProfile 
-          user={selectedUser} 
-          isOpen={isProfileOpen} 
-          onClose={() => setIsProfileOpen(false)}
-          onChatClick={() => {
-            setIsProfileOpen(false);
-            setIsChatOpen(true);
-            setActiveChat(selectedUser._id);
-          }}
+      <Suspense fallback={<div>Loading...</div>}>
+        {selectedUser && (
+          <UserProfile 
+            user={selectedUser} 
+            isOpen={isProfileOpen} 
+            onClose={() => setIsProfileOpen(false)}
+            onChatClick={() => {
+              setIsProfileOpen(false);
+              setIsChatOpen(true);
+              setActiveChat(selectedUser._id);
+            }}
+          />
+        )}
+
+        {selectedUser && (
+         <Chat
+           currentUser={user}
+           otherUser={selectedUser}
+           isOpen={isChatOpen}
+           onClose={() => {
+             setIsChatOpen(false);
+             setActiveChat(null);
+           }}
+         />
+        )}
+
+        <Settings
+          user={user}
+          setUser={setUser}
+          isOpen={isSettingsOpen}
+          onClose={handleSettingsClose}
         />
-      )}
-
-      {selectedUser && (
-       <Chat
-         currentUser={user}
-         otherUser={selectedUser}
-         isOpen={isChatOpen}
-         onClose={() => {
-           setIsChatOpen(false);
-           setActiveChat(null);
-         }}
-       />
-      )}
-
-      <Settings
-        user={user}
-        setUser={setUser}
-        isOpen={isSettingsOpen}
-        onClose={handleSettingsClose}
-      />
-    </Suspense>
-  </>
-);
+      </Suspense>
+    </>
+  );
 };
 
 export default MainPage;
