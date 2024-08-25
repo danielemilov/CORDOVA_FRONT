@@ -55,7 +55,7 @@ const MessageContainer = styled.div`
   overflow-y: auto;
   padding: 1rem;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
 `;
 
 const MessageBubble = styled.div`
@@ -239,7 +239,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           : [];
         return pageNum === 1 ? updatedMessages : [...prevMessages, ...updatedMessages];
       });
-    
       setHasMore(hasMore);
       setPage((prevPage) => prevPage + 1);
     } catch (error) {
@@ -270,13 +269,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     if (socket) {
       const handleNewMessage = (message) => {
         if (message.sender._id === otherUser._id || message.sender._id === currentUser.id) {
-          setMessages(prevMessages => [message, ...prevMessages]);
+          setMessages(prevMessages => [...prevMessages, message]);
+          scrollToBottom();
           if (message.sender._id === otherUser._id) {
             setUnreadCount(prev => prev + 1);
           }
         }
       };
-
       const handleEditedMessage = (editedMessage) => {
         setMessages(prevMessages => 
           prevMessages.map(msg => 
@@ -284,7 +283,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           )
         );
       };
-
       const handleDeletedMessage = (deletedMessage) => {
         setMessages(prevMessages => 
           prevMessages.map(msg => 
@@ -292,11 +290,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           )
         );
       };
-
       socket.on('new message', handleNewMessage);
       socket.on('message edited', handleEditedMessage);
       socket.on('message deleted', handleDeletedMessage);
-
       return () => {
         socket.off('new message', handleNewMessage);
         socket.off('message edited', handleEditedMessage);
@@ -305,12 +301,17 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   }, [socket, currentUser.id, otherUser._id]);
 
+  const scrollToBottom = () => {
+    if (messageContainerRef.current) {
+      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+    }
+  };
+
   useEffect(() => {
     if (messages.length > 0 && socket && socket.connected) {
       const unseenMessages = messages
         .filter(msg => msg.recipient === currentUser.id && !msg.seen)
         .map(msg => msg._id);
-      
       if (unseenMessages.length > 0) {
         socket.emit('mark as seen', unseenMessages, (error, updatedCount) => {
           if (error) {
@@ -358,7 +359,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     try {
       let mediaUrl = null;
       let messageType = "text";
-  
       if (file) {
         if (file.type.startsWith("image/")) {
           const formData = new FormData();
@@ -383,7 +383,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         mediaUrl = response.data.url;
         messageType = "voice";
       }
-  
       const messageData = {
         sender: currentUser.id,
         recipient: otherUser._id,
@@ -391,7 +390,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         media: mediaUrl,
         type: messageType,
       };
-      
       socket.emit("private message", messageData, (error, sentMessage) => {
         if (error) {
           console.error("Error sending message:", error);
@@ -403,11 +401,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
             isClosable: true,
           });
         } else {
-          setMessages((prevMessages) => [sentMessage, ...prevMessages]);
+          setMessages((prevMessages) => [...prevMessages, sentMessage]);
           setNewMessage("");
           setFile(null);
           setAudioBlob(null);
           setAudioUrl(null);
+          scrollToBottom();
         }
       });
     } catch (error) {
@@ -467,7 +466,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
               msg._id === deletedMessage._id ? deletedMessage : msg
             )
           );
-  
           toast({
             title: "Message unsent",
             status: "success",
@@ -499,15 +497,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       console.warn("Empty timestamp provided to formatMessageTime");
       return '';
     }
-    
     try {
       const messageDate = parseISO(timestamp);
-      
       if (isNaN(messageDate.getTime())) {
         console.warn('Invalid date:', timestamp);
         return '';
       }
-  
       if (isToday(messageDate)) {
         return format(messageDate, "h:mm a");
       } else if (isYesterday(messageDate)) {
@@ -537,7 +532,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       newRecorder.startRecording();
       setRecorder(newRecorder);
       setIsRecording(true);
-
       recordingTimeoutRef.current = setTimeout(() => {
         if (isRecording) {
           stopRecording();
@@ -589,12 +583,12 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
   
       const sentMessage = response.data;
-      setMessages((prevMessages) => [sentMessage, ...prevMessages]);
+      setMessages((prevMessages) => [...prevMessages, sentMessage]);
       setAudioBlob(null);
       setAudioUrl(null);
+      scrollToBottom();
     } catch (error) {
       console.error("Error sending voice message:", error);
-      console.error("Error response:", error.response?.data);
       toast({
         title: "Error",
         description: "Failed to send voice message. Please try again.",
@@ -655,7 +649,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
     }
   };
   
-  
   const handleReportConversation = async () => {
     try {
       await api.post(`/api/reports/create`, {
@@ -683,12 +676,11 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
 
   const renderMessages = () => {
     let lastDate = null;
-    return messages.map((msg, index) => {
+    return messages.slice().reverse().map((msg, index) => {
       if (!msg || !msg.createdAt) {
         console.warn("Invalid message or missing createdAt:", msg);
         return null;
       }
-      
       let currentDate;
       try {
         currentDate = parseISO(msg.createdAt);
@@ -700,12 +692,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         console.error("Error parsing date:", error);
         return null;
       }
-  
       const showDateSeparator = !lastDate || !isSameDay(currentDate, lastDate);
       lastDate = currentDate;
-  
       const isSentByCurrentUser = msg.sender._id === currentUser.id;
-  
       return (
         <React.Fragment key={`${msg._id}-${index}`}>
           {showDateSeparator && (
@@ -808,7 +797,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           </MenuList>
         </Menu>
       </Header>
-
       <MessageContainer ref={messageContainerRef} id="scrollableDiv">
         <InfiniteScroll
           dataLength={messages.length}
@@ -823,7 +811,6 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         </InfiniteScroll>
         {isTyping && <TypingIndicator>Typing...</TypingIndicator>}
       </MessageContainer>
-
       <InputContainer>
         {audioUrl ? (
           <VoicePreview>
@@ -879,25 +866,24 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
           </>
         )}
       </InputContainer>
-
       <Modal isOpen={isBlockModalOpen} onClose={() => setIsBlockModalOpen(false)}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Block User</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          Are you sure you want to block {otherUser.username} forever? This action cannot be undone.
-        </ModalBody>
-        <ModalFooter>
-          <Button colorScheme="red" mr={3} onClick={confirmBlockUser}>
-            Yes, Block User
-          </Button>
-          <Button variant="ghost" onClick={() => setIsBlockModalOpen(false)}>
-            No, Cancel
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Block User</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            Are you sure you want to block {otherUser.username} forever? This action cannot be undone.
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="red" mr={3} onClick={confirmBlockUser}>
+              Yes, Block User
+            </Button>
+            <Button variant="ghost" onClick={() => setIsBlockModalOpen(false)}>
+              No, Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </ChatContainer>
   );
 };
