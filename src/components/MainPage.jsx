@@ -213,12 +213,12 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showConversations, setShowConversations] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
-  const [unreadConversations, setUnreadConversations] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState({});
   const [conversations, setConversations] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+
 
   
   const socket = useSocket();
@@ -404,6 +404,9 @@ const MainPage = ({ user, setUser, onLogout }) => {
       console.log('Conversations response:', response.data);
       if (Array.isArray(response.data)) {
         setConversations(response.data);
+        const count = response.data.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+        console.log("CONV HAS CHANGED - LETS CHECK THE COUNT!!!", count)
+        setTotalUnreadCount(count);
       } else {
         console.error('Unexpected conversations data format:', response.data);
       }
@@ -429,10 +432,10 @@ const MainPage = ({ user, setUser, onLogout }) => {
     }
   }, [fetchUsers, userLocation]);
 
+
   useEffect(() => {
-    if (showConversations) {
       fetchConversations();
-    }
+    
   }, [showConversations, fetchConversations]);
 
   useEffect(() => {
@@ -445,7 +448,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
 
       socket.on('private message', (message) => {
         if (activeChat !== message.sender._id) {
-          setUnreadConversations(prev => prev + 1);
           setUnreadMessages(prevUnread => ({
             ...prevUnread,
             [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
@@ -453,6 +455,9 @@ const MainPage = ({ user, setUser, onLogout }) => {
         }
         fetchConversations();
       });
+
+      socket.on('new message', handleNewMessage);
+
 
       socket.on('update conversation', (updatedConversation) => {
         setConversations(prevConversations => {
@@ -469,14 +474,19 @@ const MainPage = ({ user, setUser, onLogout }) => {
       socket.off('user status');
       socket.off('private message');
       socket.off('update conversation');
+      socket.off('new message', handleNewMessage);
+
     };
   }
 }, [socket, activeChat, fetchConversations]);
 
-useEffect(() => {
-  const count = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
-  setTotalUnreadCount(count);
-}, [conversations]);
+ const handleNewMessage =  (message)=>{
+  
+  setTotalUnreadCount(previous => previous + 1)
+}
+
+
+
 
 const handleUserClick = useCallback((clickedUser) => {
   setSelectedUser(clickedUser);

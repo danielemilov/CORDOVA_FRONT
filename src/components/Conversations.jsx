@@ -68,6 +68,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
       const response = await api.get('/api/messages/conversations');
       if (Array.isArray(response.data)) {
         setConversations(response.data);
+        console.log("PLACE1")
       } else {
         console.error('Unexpected response format:', response.data);
         setError('Received unexpected data format from server');
@@ -106,8 +107,10 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
   useEffect(() => {
     if (socket) {
       const handleUpdateConversation = (updatedConversation) => {
+        console.log("PLACE2")
         setConversations(prevConversations => {
           const existingIndex = prevConversations.findIndex(conv => conv._id === updatedConversation._id);
+          
           if (existingIndex !== -1) {
             const updatedConversations = [...prevConversations];
             updatedConversations[existingIndex] = updatedConversation;
@@ -121,6 +124,8 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
       };
 
       const handleMessageRead = ({ conversationId }) => {
+        console.log("PLACE3")
+
         setConversations(prevConversations => 
           prevConversations.map(conv => 
             conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
@@ -129,6 +134,8 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
       };
 
       const handleNewMessage = (message) => {
+        console.log("PLACE4")
+
         setConversations(prevConversations => {
           const updatedConversations = prevConversations.map(conv => {
             if (conv._id === message.conversationId) {
@@ -202,6 +209,8 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
             isClosable: true,
           });
         } else {
+          console.log("PLACE5")
+
           setConversations(prevConversations =>
             prevConversations.map(conv =>
               conv._id === conversation._id ? { ...conv, unreadCount: 0 } : conv
@@ -276,6 +285,7 @@ const Conversations = ({ onSelectConversation, filter, unreadMessages, currentUs
                     {isUnread && (
                       <UnreadBadge>{conversation.unreadCount}</UnreadBadge>
                     )}
+                    
                     <TimeStamp>
                       {conversation.lastMessage && formatLastMessageTime(conversation.lastMessage.createdAt)}
                     </TimeStamp>
