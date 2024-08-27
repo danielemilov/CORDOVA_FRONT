@@ -9,6 +9,7 @@ import { useSocket } from "../contexts/SocketContext";
 import styled from "styled-components";
 import { MoreVertical } from 'lucide-react';
 import RecordRTC from 'recordrtc';
+import { Text as ChakraText } from "@chakra-ui/react";
 
 const ChatContainer = styled.div`
   position: fixed;
@@ -213,6 +214,8 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   const [audioUrl, setAudioUrl] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isBlockedBy, setIsBlockedBy] = useState(false);
   const toast = useToast();
   const messageContainerRef = useRef(null);
   const inputRef = useRef(null);
@@ -232,28 +235,55 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       const response = await api.get(`/api/messages/${otherUser._id}`, {
         params: { page: pageNum, limit: 15 },
       });
-      const { messages: newMessages, hasMore } = response.data;
-      setMessages((prevMessages) => {
-        const updatedMessages = Array.isArray(newMessages) 
-          ? newMessages.filter(msg => msg && msg.createdAt && !isNaN(new Date(msg.createdAt).getTime()))
-          : [];
-        return pageNum === 1 ? updatedMessages : [...prevMessages, ...updatedMessages];
-      });
-      setHasMore(hasMore);
-      setPage((prevPage) => prevPage + 1);
+      if (response.data && Array.isArray(response.data.messages)) {
+        const { messages: newMessages, hasMore, isBlocked } = response.data;
+        setMessages((prevMessages) => {
+          const updatedMessages = Array.isArray(newMessages)
+            ? newMessages.filter(msg => msg && msg.createdAt && !isNaN(new Date(msg.createdAt).getTime()))
+            : [];
+          return pageNum === 1 ? updatedMessages : [...prevMessages, ...updatedMessages];
+        });
+        setHasMore(hasMore);
+        setPage((prevPage) => prevPage + 1);
+        setIsBlocked(isBlocked);
+      } else {
+        setMessages([]);
+        setHasMore(false);
+      }
     } catch (error) {
-      console.error("Error fetching messages:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load messages. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+      if (error.response && error.response.status === 404) {
+        console.log("No existing conversation found. Ready to start a new one.");
+        setMessages([]);
+        setHasMore(false);
+      } else {
+        console.error("Error fetching messages:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load messages. Please try again.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   }, [currentUser, otherUser, toast]);
+
+  const checkBlockStatus = useCallback(async () => {
+    try {
+      const response = await api.get(`/api/users/blockStatus/${otherUser._id}`);
+      const { isBlocked, isBlockedBy } = response.data;
+      setIsBlocked(isBlocked);
+      setIsBlockedBy(isBlockedBy);
+    } catch (error) {
+      console.error('Error checking block status:', error);
+    }
+  }, [otherUser._id]);
+
+  useEffect(() => {
+    checkBlockStatus();
+  }, [checkBlockStatus]);
 
   useEffect(() => {
     if (isOpen && currentUser && otherUser) {
@@ -345,6 +375,17 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
   }, [socket, otherUser._id]);
 
   const handleSendMessage = useCallback(async () => {
+    if (isBlocked) {
+      toast({
+        title: "Error",
+        description: "You cannot send messages in a blocked conversation.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+  
     if (!newMessage.trim() && !file && !audioBlob) return;
     if (!socket || !socket.connected) {
       toast({
@@ -419,7 +460,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         isClosable: true,
       });
     }
-  }, [newMessage, file, audioBlob, otherUser._id, currentUser.id, socket, toast]);
+  }, [isBlocked, newMessage, file, audioBlob, otherUser._id, currentUser.id, socket, toast, scrollToBottom]);
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
@@ -444,7 +485,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       handleSendMessage();
     }
   };
-  
+
   const handleDeleteMessage = async (messageId) => {
     try {
       if (!socket || !socket.connected) {
@@ -485,13 +526,13 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
-  
+
   const handleEditMessage = (messageId, content) => {
     setEditingMessageId(messageId);
     setNewMessage(content);
     inputRef.current.focus();
   };
-  
+
   const formatMessageTime = useCallback((timestamp) => {
     if (!timestamp) {
       console.warn("Empty timestamp provided to formatMessageTime");
@@ -548,7 +589,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
-  
+
   const stopRecording = () => {
     if (recorder) {
       recorder.stopRecording(() => {
@@ -562,26 +603,26 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       clearTimeout(recordingTimeoutRef.current);
     }
   };
-  
+
   const cancelRecording = () => {
     setAudioBlob(null);
     setAudioUrl(null);
   };
-  
+
   const sendVoiceMessage = async () => {
     if (!audioBlob) return;
-  
+
     try {
       const formData = new FormData();
       formData.append("audio", audioBlob, "voice_message.webm");
       formData.append("recipient", otherUser._id);
-  
+
       const response = await api.post("/api/messages/voice", formData, {
         headers: { 
           'Content-Type': 'multipart/form-data'
         }
       });
-  
+
       const sentMessage = response.data;
       setMessages((prevMessages) => [...prevMessages, sentMessage]);
       setAudioBlob(null);
@@ -598,29 +639,42 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
-  
+
   const handleDeleteConversation = async () => {
     try {
-      await api.delete(`/api/messages/conversations/${otherUser._id}`);
+      const conversationResponse = await api.get(`/api/messages/conversations`);
+      const conversations = conversationResponse.data;
+      const conversation = conversations.find(conv => 
+        conv.participants.some(p => p._id === otherUser._id)
+      );
+
+      if (!conversation) {
+        throw new Error("Conversation not found");
+      }
+
+      await api.delete(`/api/messages/conversations/${conversation._id}`);
+
       toast({
         title: "Conversation deleted",
+        description: "The conversation has been successfully deleted.",
         status: "success",
         duration: 3000,
         isClosable: true,
       });
+
       onClose();
     } catch (error) {
       console.error('Error deleting conversation:', error);
       toast({
         title: "Error",
-        description: "Failed to delete conversation. Please try again.",
+        description: error.response?.data?.message || "Failed to delete conversation. Please try again.",
         status: "error",
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     }
   };
-  
+
   const handleBlockUser = async () => {
     setIsBlockModalOpen(true);
   };
@@ -641,14 +695,14 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       console.error('Error blocking user:', error);
       toast({
         title: "Error",
-        description: "Failed to block user. Please try again.",
+        description: error.response?.data?.message || "Failed to block user. Please try again.",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
     }
   };
-  
+
   const handleReportConversation = async () => {
     try {
       await api.post(`/api/reports/create`, {
@@ -764,9 +818,9 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       );
     }).filter(Boolean);
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <ChatContainer>
       <Header>
@@ -812,60 +866,76 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
         {isTyping && <TypingIndicator>Typing...</TypingIndicator>}
       </MessageContainer>
       <InputContainer>
-        {audioUrl ? (
-          <VoicePreview>
-            <audio controls src={audioUrl} />
-            <IconButton
-              icon={<CloseIcon />}
-              onClick={cancelRecording}
-              variant="ghost"
-              aria-label="Cancel recording"
-            />
-            <IconButton
-              icon={<FaPaperPlane />}
-              onClick={sendVoiceMessage}
-              colorScheme="blue"
-              aria-label="Send voice message"
-            />
-          </VoicePreview>
-        ) : (
-          <>
-            <StyledInput
-              placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
-              value={newMessage}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              ref={inputRef}
-            />
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: "none" }}
-              ref={fileInputRef}
-              onChange={handleFileChange}
-            />
-            <IconButton
-              icon={<AttachmentIcon />}
-              onClick={() => fileInputRef.current.click()}
-              variant="ghost"
-              aria-label="Attach file"
-            />
-            <IconButton
-              icon={isRecording ? <FaStop /> : <FaMicrophone />}
-              onClick={isRecording ? stopRecording : startRecording}
-              variant="ghost"
-              aria-label={isRecording ? "Stop recording" : "Start recording"}
-              colorScheme={isRecording ? "red" : "gray"}
-            />
-            <IconButton
-              icon={<FaPaperPlane />}
-              colorScheme="purple"
-              onClick={handleSendMessage}
-              aria-label="Send message"
-            />
-          </>
-        )}
-      </InputContainer>
+  {isBlocked ? (
+    <Box
+      width="100%"
+      textAlign="center"
+      py={4}
+      bg="gray.100"
+      borderRadius="md"
+    >
+      <ChakraText fontWeight="bold">
+        {isBlocked ? "This conversation is blocked." : "The user has blocked you."} You can't send new messages.
+      </ChakraText>
+    </Box>
+  ) : (
+    <>
+      {audioUrl ? (
+        <VoicePreview>
+          <audio controls src={audioUrl} />
+          <IconButton
+            icon={<CloseIcon />}
+            onClick={cancelRecording}
+            variant="ghost"
+            aria-label="Cancel recording"
+          />
+          <IconButton
+            icon={<FaPaperPlane />}
+            onClick={sendVoiceMessage}
+            colorScheme="blue"
+            aria-label="Send voice message"
+          />
+        </VoicePreview>
+      ) : (
+        <>
+          <StyledInput
+            placeholder={editingMessageId ? "Edit message..." : "Type a message..."}
+            value={newMessage}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            ref={inputRef}
+          />
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
+          <IconButton
+            icon={<AttachmentIcon />}
+            onClick={() => fileInputRef.current.click()}
+            variant="ghost"
+            aria-label="Attach file"
+          />
+          <IconButton
+            icon={isRecording ? <FaStop /> : <FaMicrophone />}
+            onClick={isRecording ? stopRecording : startRecording}
+            variant="ghost"
+            aria-label={isRecording ? "Stop recording" : "Start recording"}
+            colorScheme={isRecording ? "red" : "gray"}
+          />
+          <IconButton
+            icon={<FaPaperPlane />}
+            colorScheme="purple"
+            onClick={handleSendMessage}
+            aria-label="Send message"
+          />
+        </>
+      )}
+    </>
+  )}
+</InputContainer>
       <Modal isOpen={isBlockModalOpen} onClose={() => setIsBlockModalOpen(false)}>
         <ModalOverlay />
         <ModalContent>

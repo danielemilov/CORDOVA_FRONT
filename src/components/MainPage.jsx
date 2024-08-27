@@ -18,7 +18,7 @@ const MainWrapper = styled.div`
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
-  background-color: #ffffff;
+  background-color: #000000;
   font-family: 'SF Pro Text', 'Roboto', sans-serif;
 `;
 
@@ -32,9 +32,8 @@ const Header = styled.header`
   left: 0;
   right: 0;
   padding: 15px 20px;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgb(255, 255, 255);
   backdrop-filter: blur(10px);
-  box-shadow: 0 1px 0 rgb(255, 255, 255);
   z-index: 1000;
 `;
 
@@ -219,8 +218,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const [locationError, setLocationError] = useState(null);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
-
-  
   const socket = useSocket();
   const toast = useToast();
   const logoRef = useRef(null);
@@ -298,7 +295,7 @@ const MainPage = ({ user, setUser, onLogout }) => {
             enableHighAccuracy: true
           });
         });
-        
+
         const { latitude, longitude } = position.coords;
         const response = await api.post('/api/users/updateLocation', { latitude, longitude });
         setUserLocation(response.data.location);
@@ -329,22 +326,21 @@ const MainPage = ({ user, setUser, onLogout }) => {
   const fetchUsers = useCallback(async () => {
     if (!hasMore) return;
     setIsLoading(true);
-  
     try {
       const response = await api.get('/api/users/nearby', {
-        params: { 
-          page, 
+        params: {
+          page,
           limit: 20,
-          ...(userLocation && { 
-            latitude: userLocation.coordinates[1], 
-            longitude: userLocation.coordinates[0] 
+          ...(userLocation && {
+            latitude: userLocation.coordinates[1],
+            longitude: userLocation.coordinates[0]
           })
         },
       });
   
       if (response.data && Array.isArray(response.data.users)) {
         const newUsers = response.data.users.filter(u => u && u._id !== user._id);
-  
+        
         setUsers(prevUsers => {
           const uniqueUsers = [...prevUsers, ...newUsers].reduce((acc, current) => {
             const x = acc.find(item => item._id === current._id);
@@ -382,7 +378,6 @@ const MainPage = ({ user, setUser, onLogout }) => {
       } else {
         console.error('Unexpected response format:', response.data);
       }
-  
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -432,265 +427,254 @@ const MainPage = ({ user, setUser, onLogout }) => {
     }
   }, [fetchUsers, userLocation]);
 
-
-  useEffect(() => {
-      fetchConversations();
-    
-  }, [showConversations, fetchConversations]);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('user status', ({ userId, isOnline }) => {
-        setUsers(prevUsers => 
-          prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
-        );
-      });
-
-      socket.on('private message', (message) => {
-        if (activeChat !== message.sender._id) {
-          setUnreadMessages(prevUnread => ({
-            ...prevUnread,
-            [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
-          }));
-        }
-        fetchConversations();
-      });
-
-      socket.on('new message', handleNewMessage);
-
-
-      socket.on('update conversation', (updatedConversation) => {
-        setConversations(prevConversations => {
-          const updatedConversations = prevConversations.map(conv => 
-            conv._id === updatedConversation._id ? updatedConversation : conv
-        );
-        return updatedConversations.sort((a, b) => 
-          new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
-        );
-      });
-    });
-  
-    return () => {
-      socket.off('user status');
-      socket.off('private message');
-      socket.off('update conversation');
-      socket.off('new message', handleNewMessage);
-
-    };
-  }
-}, [socket, activeChat, fetchConversations]);
-
- const handleNewMessage =  (message)=>{
-  
-  setTotalUnreadCount(previous => previous + 1)
-}
-
-
-
-
-const handleUserClick = useCallback((clickedUser) => {
-  setSelectedUser(clickedUser);
-  setIsProfileOpen(true);
-}, []);
-
-const handleChatClick = useCallback((clickedUser) => {
-  setSelectedUser(clickedUser);
-  setIsChatOpen(true);
-  setActiveChat(clickedUser._id);
-  setUnreadConversations(prev => Math.max(0, prev - 1));
-  setUnreadMessages(prevUnread => ({
-    ...prevUnread,
-    [clickedUser._id]: 0
-  }));
-}, []);
-
-const handleSettingsClose = useCallback(async (updatedUser) => {
-  if (updatedUser) {
-    try {
-      const response = await api.put('/api/users/profile', updatedUser);
-      setUser(response.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      if (socket) {
-        socket.emit('user update', response.data.user);
-      }
-      toast({
-        title: "Profile Updated",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }
-  setIsSettingsOpen(false);
-}, [setUser, socket, toast]);
-
-const filteredUsers = users.filter(u => 
-  u && u.username && u.username.toLowerCase().includes(filter.toLowerCase()) ||
-  (u && u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
-);
-
-const filteredConversations = conversations.filter(conv =>
-  conv && conv.participants && conv.participants.some(p => 
-    p._id !== user._id && p.username.toLowerCase().includes(filter.toLowerCase())
-  ) ||
-  (conv && conv.lastMessage && conv.lastMessage.content && 
-   conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
-);
-
-const handleConversationSelect = useCallback((otherUser) => {
-  setSelectedUser(otherUser);
-  setShowConversations(false);
-  setIsChatOpen(true);
-  setActiveChat(otherUser._id);
-  setUnreadConversations(prev => Math.max(0, prev - 1));
-  setUnreadMessages(prevUnread => ({
-    ...prevUnread,
-    [otherUser._id]: 0,
-  }));
-}, []);
-
-const toggleView = () => {
-  setShowConversations(!showConversations);
-  if (!showConversations) {
-    setFilter('');
-    fetchConversations();
-  }
-};
-
-return (
-  <>
-    <GlobalStyle />
-    <MainWrapper>
-      <Header>
-        <MenuButton onClick={() => setIsMenuOpen(true)}>
-          <FaBars />
-        </MenuButton>
-        <FluidCanvas ref={canvasRef} />
-        <LogoWrapper ref={logoRef}>
-          <Logo>BIND</Logo>
-        </LogoWrapper>
-        <div style={{width: '24px'}} />
-      </Header>
-
-      <SearchWrapper>
-        <SearchIcon />
-        <SearchInput
-          placeholder={showConversations ? "Search conversations..." : "Search users..."}
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </SearchWrapper>
-
-      <ToggleButton onClick={toggleView}>
-  {showConversations ? 'Show Users' : 'Show Conversations'}
-  {totalUnreadCount > 0 && <UnreadBadge>{totalUnreadCount}</UnreadBadge>}
-</ToggleButton>
-
-
-      {locationError && (
-        <Box bg="red.100" p={4} mb={4} borderRadius="md">
-          <Text color="red.500">{locationError}</Text>
-          <Button mt={2} onClick={updateUserLocation}>Update Location</Button>
-        </Box>
-      )}
-
-      {showConversations ? (
-        <Suspense fallback={<Spinner />}>
-          <Conversations 
-  conversations={filteredConversations}
-  onSelectConversation={handleConversationSelect}
-  unreadMessages={unreadMessages}
-  currentUser={user}
-  filter={filter}
-  totalUnreadCount={totalUnreadCount}
-/>
-        </Suspense>
-      ) : (
-        <UserList>
-          {filteredUsers.map((u) => (
-            <UserCard 
-              key={u._id}
-              user={u} 
-              onUserClick={() => handleUserClick(u)}
-              onChatClick={() => handleChatClick(u)}
-              unreadCount={unreadMessages[u._id] || 0}
-            />
-          ))}
-        </UserList>
-      )}
-      
-      {!showConversations && isLoading && <Spinner />}
-      {!showConversations && !isLoading && hasMore && (
-        <LoadMoreButton onClick={fetchUsers}>
-          Load More
-        </LoadMoreButton>
-      )}
-    </MainWrapper>
-
-    <Menu $isOpen={isMenuOpen}>
-      <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
-        <FaTimes />
-      </CloseMenuButton>
-      <MenuHeader>
-        <ProfilePic src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
-        <Username>{user.username}</Username>
-      </MenuHeader>
-      <MenuItems>
-        <MenuItem onClick={() => {
-          setIsSettingsOpen(true);
-          setIsMenuOpen(false);
-        }}>Edit Profile</MenuItem>
-        <MenuItem onClick={() => {
-          onLogout();
-          setIsMenuOpen(false);
-        }}>Logout</MenuItem>
-      </MenuItems>
-    </Menu>
-
-    <Suspense fallback={<div>Loading...</div>}>
-      {selectedUser && (
-        <UserProfile 
-          user={selectedUser} 
-          isOpen={isProfileOpen} 
-          onClose={() => setIsProfileOpen(false)}
-          onChatClick={() => {
-            setIsProfileOpen(false);
-            setIsChatOpen(true);
-            setActiveChat(selectedUser._id);
-          }}
-        />
-      )}
-
-      {selectedUser && (
-       <Chat
-         currentUser={user}
-         otherUser={selectedUser}
-         isOpen={isChatOpen}
-         onClose={() => {
-           setIsChatOpen(false);
-           setActiveChat(null);
-         }}
-       />
-      )}
-
-      <Settings
-        user={user}
-        setUser={setUser}
-        isOpen={isSettingsOpen}
-        onClose={handleSettingsClose}
-      />
-    </Suspense>
-  </>
-);
-};
-
-export default MainPage;
+useEffect(() => {
+              fetchConversations();
+            }, [showConversations, fetchConversations]);
+          
+            useEffect(() => {
+              if (socket) {
+                socket.on('user status', ({ userId, isOnline }) => {
+                  setUsers(prevUsers => 
+                    prevUsers.map(u => u._id === userId ? { ...u, isOnline } : u)
+                  );
+                });
+          
+                socket.on('private message', (message) => {
+                  if (activeChat !== message.sender._id) {
+                    setUnreadMessages(prevUnread => ({
+                      ...prevUnread,
+                      [message.sender._id]: (prevUnread[message.sender._id] || 0) + 1
+                    }));
+                  }
+                  fetchConversations();
+                });
+          
+                socket.on('new message', handleNewMessage);
+          
+                socket.on('update conversation', (updatedConversation) => {
+                  setConversations(prevConversations => {
+                    const updatedConversations = prevConversations.map(conv => 
+                      conv._id === updatedConversation._id ? updatedConversation : conv
+                    );
+                    return updatedConversations.sort((a, b) => 
+                      new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
+                    );
+                  });
+                });
+          
+                return () => {
+                  socket.off('user status');
+                  socket.off('private message');
+                  socket.off('update conversation');
+                  socket.off('new message', handleNewMessage);
+                };
+              }
+            }, [socket, activeChat, fetchConversations]);
+          
+            const handleNewMessage = (message) => {
+              setTotalUnreadCount(previous => previous + 1);
+            };
+          
+            const handleUserClick = useCallback((clickedUser) => {
+              setSelectedUser(clickedUser);
+              setIsProfileOpen(true);
+            }, []);
+          
+            const handleChatClick = useCallback((clickedUser) => {
+              setSelectedUser(clickedUser);
+              setIsChatOpen(true);
+              setActiveChat(clickedUser._id);
+              setUnreadMessages(prevUnread => ({
+                ...prevUnread,
+                [clickedUser._id]: 0
+              }));
+            }, []);
+          
+            const handleSettingsClose = useCallback(async (updatedUser) => {
+              if (updatedUser) {
+                try {
+                  const response = await api.put('/api/users/profile', updatedUser);
+                  setUser(response.data.user);
+                  localStorage.setItem('user', JSON.stringify(response.data.user));
+                  if (socket) {
+                    socket.emit('user update', response.data.user);
+                  }
+                  toast({
+                    title: "Profile Updated",
+                    status: "success",
+                    duration: 3000,
+                    isClosable: true,
+                  });
+                } catch (error) {
+                  console.error('Error updating profile:', error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to update profile. Please try again.",
+                    status: "error",
+                    duration: 3000,
+                    isClosable: true,
+                  });
+                }
+              }
+              setIsSettingsOpen(false);
+            }, [setUser, socket, toast]);
+          
+            const filteredUsers = users.filter(u => 
+              u && u.username && u.username.toLowerCase().includes(filter.toLowerCase()) ||
+              (u && u.description && u.description.toLowerCase().includes(filter.toLowerCase()))
+            );
+          
+            const filteredConversations = conversations.filter(conv =>
+              conv && conv.participants && conv.participants.some(p => 
+                p._id !== user._id && p.username.toLowerCase().includes(filter.toLowerCase())
+              ) ||
+              (conv && conv.lastMessage && conv.lastMessage.content && 
+               conv.lastMessage.content.toLowerCase().includes(filter.toLowerCase()))
+            );
+          
+            const handleConversationSelect = useCallback((otherUser) => {
+              setSelectedUser(otherUser);
+              setShowConversations(false);
+              setIsChatOpen(true);
+              setActiveChat(otherUser._id);
+              setUnreadMessages(prevUnread => ({
+                ...prevUnread,
+                [otherUser._id]: 0,
+              }));
+            }, []);
+          
+            const toggleView = () => {
+              setShowConversations(!showConversations);
+              if (!showConversations) {
+                setFilter('');
+                fetchConversations();
+              }
+            };
+          
+            return (
+              <>
+                <GlobalStyle />
+                <MainWrapper>
+                  <Header>
+                    <MenuButton onClick={() => setIsMenuOpen(true)}>
+                      <FaBars />
+                    </MenuButton>
+                    <FluidCanvas ref={canvasRef} />
+                    <LogoWrapper ref={logoRef}>
+                      <Logo>BIND</Logo>
+                    </LogoWrapper>
+                    <div style={{width: '24px'}} />
+                  </Header>
+          
+                  <SearchWrapper>
+                    <SearchIcon />
+                    <SearchInput
+                      placeholder={showConversations ? "Search conversations..." : "Search users..."}
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                    />
+                  </SearchWrapper>
+          
+                  <ToggleButton onClick={toggleView}>
+                    {showConversations ? 'Show Users' : 'Show Conversations'}
+                    {totalUnreadCount > 0 && <UnreadBadge>{totalUnreadCount}</UnreadBadge>}
+                  </ToggleButton>
+          
+                  {locationError && (
+                    <Box bg="red.100" p={4} mb={4} borderRadius="md">
+                      <Text color="red.500">{locationError}</Text>
+                      <Button mt={2} onClick={updateUserLocation}>Update Location</Button>
+                    </Box>
+                  )}
+          
+                  {showConversations ? (
+                    <Suspense fallback={<Spinner />}>
+                      <Conversations 
+                        conversations={filteredConversations}
+                        onSelectConversation={handleConversationSelect}
+                        unreadMessages={unreadMessages}
+                        currentUser={user}
+                        filter={filter}
+                        totalUnreadCount={totalUnreadCount}
+                      />
+                    </Suspense>
+                  ) : (
+                    <UserList>
+                      {filteredUsers.map((u) => (
+                        <UserCard 
+                          key={u._id}
+                          user={u} 
+                          onUserClick={() => handleUserClick(u)}
+                          onChatClick={() => handleChatClick(u)}
+                          unreadCount={unreadMessages[u._id] || 0}
+                        />
+                      ))}
+                    </UserList>
+                  )}
+          
+                  {!showConversations && isLoading && <Spinner />}
+                  {!showConversations && !isLoading && hasMore && (
+                    <LoadMoreButton onClick={fetchUsers}>
+                      Load More
+                    </LoadMoreButton>
+                  )}
+                </MainWrapper>
+          
+                <Menu $isOpen={isMenuOpen}>
+                  <CloseMenuButton onClick={() => setIsMenuOpen(false)}>
+                    <FaTimes />
+                  </CloseMenuButton>
+                  <MenuHeader>
+                    <ProfilePic src={user.photo || 'https://via.placeholder.com/60'} alt={user.username} />
+                    <Username>{user.username}</Username>
+                  </MenuHeader>
+                  <MenuItems>
+                    <MenuItem onClick={() => {
+                      setIsSettingsOpen(true);
+                      setIsMenuOpen(false);
+                    }}>Edit Profile</MenuItem>
+                    <MenuItem onClick={() => {
+                      onLogout();
+                      setIsMenuOpen(false);
+                    }}>Logout</MenuItem>
+                  </MenuItems>
+                </Menu>
+          
+                <Suspense fallback={<div>Loading...</div>}>
+                  {selectedUser && (
+                    <UserProfile 
+                      user={selectedUser} 
+                      isOpen={isProfileOpen} 
+                      onClose={() => setIsProfileOpen(false)}
+                      onChatClick={() => {
+                        setIsProfileOpen(false);
+                        setIsChatOpen(true);
+                        setActiveChat(selectedUser._id);
+                      }}
+                    />
+                  )}
+          
+                  {selectedUser && (
+                   <Chat
+                     currentUser={user}
+                     otherUser={selectedUser}
+                     isOpen={isChatOpen}
+                     onClose={() => {
+                       setIsChatOpen(false);
+                       setActiveChat(null);
+                     }}
+                   />
+                  )}
+          
+                  <Settings
+                    user={user}
+                    setUser={setUser}
+                    isOpen={isSettingsOpen}
+                    onClose={handleSettingsClose}
+                  />
+                </Suspense>
+              </>
+            );
+          };
+          
+          export default MainPage;

@@ -14,12 +14,16 @@ const Card = styled.div`
   padding: 20px;
   display: flex;
   align-items: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 3px 10px rgba(7, 7, 7, 0.17);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
   width: 100%;
   height: 120px;
+  border-bottom-right-radius: 20px;
+  border-bottom-left-radius: 50px;
+  border-top-left-radius: 0px;
+  border-top-right-radius:60px;
 
   &:before {
     content: '';
@@ -115,8 +119,8 @@ const StatusDot = styled.span`
   border-radius: 50%;
   background-color: ${props => props.$online ? '#4CAF50' : '#9E9E9E'};
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 25px;
+  right: 35px;
   box-shadow: 0 0 0 2px #fff;
 `;
 

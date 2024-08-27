@@ -7,6 +7,7 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, formatDistanceToNow
 import { useNavigate } from 'react-router-dom';
 
 const ConversationItem = styled(Box)`
+  background-color:#f0f0f0;
   padding: 1rem;
   border-bottom: 1px solid #e0e0e0;
   cursor: pointer;
