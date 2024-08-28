@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useHistory, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import api from '../api';
+import { IonButton, IonInput, IonItem } from '@ionic/react';
 import Fluid from 'webgl-fluid';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -31,7 +32,7 @@ const LoginForm = styled.form`
     border-radius: 0;
     max-width: none;
     justify-content: flex-start;
-    padding-top: 60px; /* Increased top padding for iPhone */
+    padding-top: 60px;
   }
 `;
 
@@ -52,68 +53,8 @@ const Title = styled.h1`
     and (min-device-width: 375px) 
     and (max-device-width: 812px) 
     and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 32px; /* Increased font size for iPhone */
+    font-size: 32px;
     margin-bottom: 25px;
-  }
-`;
-
-
-const Input = styled.input`
-  width: 100%;
-  padding: 12px 20px;
-  margin: 16px 0;
-  border: .1px solid lightgrey;
-  border-radius: 25px;
-  background-color: rgba(255, 255, 255, 0.798);
-  font-size: 16px;
-  transition: all 0.3s ease;
-
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(51, 51, 51, 0.5);
-    background-color: rgba(255, 255, 255, 0.8);
-  }
-
-  @media only screen 
-    and (min-device-width: 375px) 
-    and (max-device-width: 812px) 
-    and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 16px;
-    padding: 14px 20px;
-    margin: 20px 0;
-  }
-`;
-
-const Button = styled.button`
-  width: 100%;
-  padding: 12px;
-  margin-top: 40px;
-  background-color: rgba(0, 0, 0, 0.813);
-  color: #ffffff;
-  border: none;
-  border-radius: 25px;
-  font-size: 16px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background-color: rgba(85, 85, 85, 0.7);
-    color: #ffffff;
-  }
-
-  &:disabled {
-    background-color: rgba(204, 204, 204, 0.5);
-    cursor: not-allowed;
-  }
-
-  @media only screen 
-    and (min-device-width: 375px) 
-    and (max-device-width: 812px) 
-    and (-webkit-min-device-pixel-ratio: 3) {
-    font-size: 18px;
-    padding: 14px;
-    margin-top: 40px;
   }
 `;
 
@@ -163,7 +104,7 @@ const TogglePasswordVisibility = styled.button`
   border: none;
   cursor: pointer;
   color: #e59ef0;
-  font-size: 20px; /* Increased size for better touch on iPhone */
+  font-size: 20px;
 `;
 
 const FluidContainer = styled.div`
@@ -291,7 +232,7 @@ function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const history = useHistory();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -303,7 +244,7 @@ function Login({ onLogin }) {
         localStorage.setItem('token', response.data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         onLogin(response.data.user);
-        navigate('/');
+        history.push('/');
       }
     } catch (error) {
       console.error('Login error:', error.response ? error.response.data : error.message);
@@ -312,30 +253,34 @@ function Login({ onLogin }) {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <LoginForm onSubmit={handleSubmit}>
       <FluidSimulation />
       <FormContent>
         <Title>
-             BIND
+          BIND
         </Title>
 
-        <Input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-        />
-        <PasswordWrapper>
-          <Input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+        <IonItem>
+          <IonInput
+            type="email"
+            value={email}
+            onIonChange={(e) => setEmail(e.detail.value)}
+            placeholder="Email"
             required
           />
+        </IonItem>
+        <PasswordWrapper>
+          <IonItem>
+            <IonInput
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onIonChange={(e) => setPassword(e.detail.value)}
+              placeholder="Password"
+              required
+            />
+          </IonItem>
           <TogglePasswordVisibility
             type="button"
             onClick={() => setShowPassword(!showPassword)}
@@ -343,9 +288,9 @@ function Login({ onLogin }) {
             {showPassword ? <FaEyeSlash /> : <FaEye />}
           </TogglePasswordVisibility>
         </PasswordWrapper>
-        <Button type="submit" disabled={isLoading}>
+        <IonButton expand="block" onClick={handleSubmit} disabled={isLoading}>
           {isLoading ? 'Logging in...' : 'Login'}
-        </Button>
+        </IonButton>
         {error && <ErrorMessage>{error}</ErrorMessage>}
         <LinkText to="/register">Don't have an account? Register</LinkText>
         <LinkText to="/forgot-password">Forgot Password?</LinkText>
@@ -355,4 +300,3 @@ function Login({ onLogin }) {
 }
 
 export default Login;
-

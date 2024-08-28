@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
+import { IonApp, IonRouterOutlet } from '@ionic/react';
+import { IonReactRouter } from '@ionic/react-router';
+import { Route, Redirect } from 'react-router-dom';
 import { ChakraProvider } from "@chakra-ui/react";
+
 import MainPage from "./components/MainPage";
 import Login from "./components/Login";
 import Register from "./components/Register";
@@ -12,6 +15,21 @@ import { theme, GlobalStyle } from "./SharedStyles";
 import { SocketProvider } from './contexts/SocketContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
+/* Core CSS required for Ionic components to work properly */
+import '@ionic/react/css/core.css';
+
+/* Basic CSS for apps built with Ionic */
+import '@ionic/react/css/normalize.css';
+import '@ionic/react/css/structure.css';
+import '@ionic/react/css/typography.css';
+
+/* Optional CSS utils that can be commented out */
+import '@ionic/react/css/padding.css';
+import '@ionic/react/css/float-elements.css';
+import '@ionic/react/css/text-alignment.css';
+import '@ionic/react/css/text-transformation.css';
+import '@ionic/react/css/flex-utils.css';
+import '@ionic/react/css/display.css';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -37,58 +55,47 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>; // You can replace this with a proper loading component
+    return <div>Loading...</div>;
   }
 
   return (
-    <ErrorBoundary>
-    <ChakraProvider theme={theme}>
-      <GlobalStyle />
-      <SocketProvider>
-        <Router>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                user ? (
-                  <MainPage
-                    user={user}
-                    setUser={setUser}
-                    onLogout={handleLogout}
-                  />
-                ) : (
-                  <Navigate to="/login" replace />
-                )
-              }
-            />
-            <Route
-              path="/login"
-              element={
-                user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                user ? <Navigate to="/" replace /> : <Register />
-              }
-            />
-            <Route path="/verify-email/:token" element={<EmailVerification />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password/:token" element={<ResetPassword />} />
-            <Route
-              path="/report-management"
-              element={
-                user && user.isAdmin ? <ReportManagement /> : <Navigate to="/" replace />
-              }
-            />
-            <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
-          </Routes>
-        </Router>
-      </SocketProvider>
-    </ChakraProvider>
-        </ErrorBoundary>
-
+    <IonApp>
+      <ErrorBoundary>
+        <ChakraProvider theme={theme}>
+          <GlobalStyle />
+          <SocketProvider>
+            <IonReactRouter>
+              <IonRouterOutlet>
+                <Route 
+                  path="/" 
+                  render={() => user ? <MainPage user={user} setUser={setUser} onLogout={handleLogout} /> : <Redirect to="/login" />} 
+                  exact={true}
+                />
+                <Route 
+                  path="/login" 
+                  render={() => user ? <Redirect to="/" /> : <Login onLogin={handleLogin} />} 
+                  exact={true}
+                />
+                <Route 
+                  path="/register" 
+                  render={() => user ? <Redirect to="/" /> : <Register />} 
+                  exact={true}
+                />
+                <Route path="/verify-email/:token" component={EmailVerification} exact={true} />
+                <Route path="/forgot-password" component={ForgotPassword} exact={true} />
+                <Route path="/reset-password/:token" component={ResetPassword} exact={true} />
+                <Route 
+                  path="/report-management" 
+                  render={() => user && user.isAdmin ? <ReportManagement /> : <Redirect to="/" />} 
+                  exact={true}
+                />
+                <Route render={() => <Redirect to={user ? "/" : "/login"} />} />
+              </IonRouterOutlet>
+            </IonReactRouter>
+          </SocketProvider>
+        </ChakraProvider>
+      </ErrorBoundary>
+    </IonApp>
   );
 }
 

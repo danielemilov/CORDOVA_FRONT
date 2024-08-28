@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
-import { useNavigate, Link } from 'react-router-dom';
+import { useHistory, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import axios from 'axios';
 import FaceVerification from './FaceVerification';
 import { getUserLocation } from '../utils';
 import Fluid from 'webgl-fluid';
+import { IonButton, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonCheckbox } from '@ionic/react';
+
 
 
 const RegisterWrapper = styled.div`
@@ -325,7 +327,8 @@ function FluidSimulation() {
   );
 }
 
-const RegisterSchema = Yup.object().shape({
+  const RegisterSchema = Yup.object().shape({
+
   username: Yup.string()
     .min(3, 'Username must be at least 3 characters')
     .max(20, 'Username must not exceed 20 characters')
@@ -350,7 +353,7 @@ const RegisterSchema = Yup.object().shape({
 });
 
 function Register() {
-  const navigate = useNavigate();
+  const history = useHistory();
   const [isVerificationComplete, setIsVerificationComplete] = useState(false);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [showFaceVerification, setShowFaceVerification] = useState(false);
@@ -375,18 +378,16 @@ function Register() {
       });
       formData.append('latitude', location.latitude);
       formData.append('longitude', location.longitude);
-      
-      if (uploadedPhoto) {
 
+      if (uploadedPhoto) {
         formData.append('photo', uploadedPhoto, 'user_photo.jpg');
-      
-            // Upload file to some Web API
-            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            
-            alert('Registration Successful. Please check your email to verify your account.');
-            navigate('/login');
+
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        alert('Registration Successful. Please check your email to verify your account.');
+        history.push('/login');
       }
     } catch (error) {
       console.error('Registration error:', error.response?.data || error);
@@ -421,90 +422,92 @@ function Register() {
             validationSchema={RegisterSchema}
             onSubmit={handleSubmit}
           >
-            {({ errors, touched, isSubmitting, setFieldValue }) => (
+            {({ errors, touched, isSubmitting, setFieldValue, values }) => (
               <Form>
-                <Field name="username">
-                  {({ field }) => (
-                    <div>
-                      <StyledInput {...field} placeholder="Username" />
-                      <ErrorMessage>{errors.username}</ErrorMessage>
-                    </div>
-                  )}
-                </Field>
+                <IonItem>
+                  <IonLabel position="floating">Username</IonLabel>
+                  <IonInput
+                    name="username"
+                    onIonChange={(e) => setFieldValue('username', e.detail.value)}
+                    value={values.username}
+                  />
+                </IonItem>
+                {errors.username && touched.username && <ErrorMessage>{errors.username}</ErrorMessage>}
 
-                <Field name="email">
-                  {({ field }) => (
-                    <div>
-                      <StyledInput {...field} type="email" placeholder="Email" />
-                      <ErrorMessage>{errors.email}</ErrorMessage>
-                    </div>
-                  )}
-                </Field>
+                <IonItem>
+                  <IonLabel position="floating">Email</IonLabel>
+                  <IonInput
+                    name="email"
+                    type="email"
+                    onIonChange={(e) => setFieldValue('email', e.detail.value)}
+                    value={values.email}
+                  />
+                </IonItem>
+                {errors.email && touched.email && <ErrorMessage>{errors.email}</ErrorMessage>}
 
-                <Field name="password">
-                  {({ field }) => (
-                    <PasswordWrapper>
-                      <StyledInput 
-                        {...field} 
-                        type={showPassword ? 'text' : 'password'} 
-                        placeholder="Password" 
-                      />
-                      <TogglePasswordVisibility
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <FaEyeSlash /> : <FaEye />}
-                      </TogglePasswordVisibility>
-                      <ErrorMessage>{errors.password}</ErrorMessage>
-                    </PasswordWrapper>
-                  )}
-                </Field>
+                <IonItem>
+                  <IonLabel position="floating">Password</IonLabel>
+                  <IonInput
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    onIonChange={(e) => setFieldValue('password', e.detail.value)}
+                    value={values.password}
+                  />
+                  <TogglePasswordVisibility
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </TogglePasswordVisibility>
+                </IonItem>
+                {errors.password && touched.password && <ErrorMessage>{errors.password}</ErrorMessage>}
 
-                <Field name="birthDate">
-                  {({ field }) => (
-                    <div>
-                      <StyledInput {...field} type="date" />
-                      <ErrorMessage>{errors.birthDate}</ErrorMessage>
-                    </div>
-                  )}
-                </Field>
+                <IonItem>
+                  <IonLabel position="floating">Birth Date</IonLabel>
+                  <IonInput
+                    name="birthDate"
+                    type="date"
+                    onIonChange={(e) => setFieldValue('birthDate', e.detail.value)}
+                    value={values.birthDate}
+                  />
+                </IonItem>
+                {errors.birthDate && touched.birthDate && <ErrorMessage>{errors.birthDate}</ErrorMessage>}
 
-                <Field name="gender">
-                  {({ field }) => (
-                    <div>
-                      <StyledSelect {...field}>
-                        <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </StyledSelect>
-                      <ErrorMessage>{errors.gender}</ErrorMessage>
-                    </div>
-                  )}
-                </Field>
+                <IonItem>
+                  <IonLabel>Gender</IonLabel>
+                  <IonSelect
+                    name="gender"
+                    onIonChange={(e) => setFieldValue('gender', e.detail.value)}
+                    value={values.gender}
+                  >
+                    <IonSelectOption value="male">Male</IonSelectOption>
+                    <IonSelectOption value="female">Female</IonSelectOption>
+                    <IonSelectOption value="other">Other</IonSelectOption>
+                  </IonSelect>
+                </IonItem>
+                {errors.gender && touched.gender && <ErrorMessage>{errors.gender}</ErrorMessage>}
 
-                <Field name="agreedToPrivacyPolicy">
-                  {({ field }) => (
-                    <div>
-                      <label>
-                        <input type="checkbox" {...field} />
-                        I agree to the <Link to="/privacy-policy">Privacy Policy</Link>
-                      </label>
-                      <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>
-                    </div>
-                  )}
-                </Field>
+                <IonItem>
+                  <IonLabel>I agree to the Privacy Policy</IonLabel>
+                  <IonCheckbox
+                    name="agreedToPrivacyPolicy"
+                    checked={values.agreedToPrivacyPolicy}
+                    onIonChange={(e) => setFieldValue('agreedToPrivacyPolicy', e.detail.checked)}
+                  />
+                </IonItem>
+                {errors.agreedToPrivacyPolicy && touched.agreedToPrivacyPolicy && <ErrorMessage>{errors.agreedToPrivacyPolicy}</ErrorMessage>}
 
                 {isVerificationComplete && (
                   <p style={{ color: "green" }}>Face verification completed</p>
                 )}
 
-                <StyledButton
+                <IonButton
+                  expand="block"
                   type="submit"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Registering...' : 'Register'}
-                </StyledButton>
+                </IonButton>
               </Form>
             )}
           </Formik>

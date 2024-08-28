@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 import axios from 'axios';
-import { Box, Heading, Text, VStack, Spinner } from '@chakra-ui/react';
+import { IonContent, IonSpinner, IonText, IonCard, IonCardHeader, IonCardTitle, IonCardContent } from '@ionic/react';
 
 function EmailVerification() {
   const [status, setStatus] = useState('Verifying...');
   const [isLoading, setIsLoading] = useState(true);
   const { token } = useParams();
-  const navigate = useNavigate();
+  const history = useHistory();
 
   useEffect(() => {
     const verifyEmail = async () => {
       try {
         await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/verify-email/${token}`);
         setStatus('Email verified successfully. You can now log in.');
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => history.push('/login'), 3000);
       } catch (error) {
         setStatus('Verification failed. Please try again or contact support.');
       } finally {
@@ -23,19 +23,23 @@ function EmailVerification() {
     };
 
     verifyEmail();
-  }, [token, navigate]);
+  }, [token, history]);
 
   return (
-    <Box maxWidth="400px" margin="auto" mt={8}>
-      <VStack spacing={4} align="center">
-        <Heading as="h2" size="xl">Email Verification</Heading>
-        {isLoading ? (
-          <Spinner size="xl" />
-        ) : (
-          <Text fontSize="lg" textAlign="center">{status}</Text>
-        )}
-      </VStack>
-    </Box>
+    <IonContent className="ion-padding">
+      <IonCard>
+        <IonCardHeader>
+          <IonCardTitle>Email Verification</IonCardTitle>
+        </IonCardHeader>
+        <IonCardContent>
+          {isLoading ? (
+            <IonSpinner name="crescent" />
+          ) : (
+            <IonText>{status}</IonText>
+          )}
+        </IonCardContent>
+      </IonCard>
+    </IonContent>
   );
 }
 

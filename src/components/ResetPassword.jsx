@@ -1,72 +1,84 @@
 import React, { useState } from 'react';
-import { Box, Button, FormControl, FormLabel, Input, VStack, useToast } from '@chakra-ui/react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 import axios from 'axios';
+import { IonContent, IonButton, IonInput, IonItem, IonLabel, IonCard, IonCardContent, IonToast } from '@ionic/react';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastColor, setToastColor] = useState('');
   const { token } = useParams();
-  const toast = useToast();
-  const navigate = useNavigate();
+  const history = useHistory();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      toast({
-        title: 'Error',
-        description: 'Passwords do not match',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      setToastMessage('Passwords do not match');
+      setToastColor('danger');
+      setShowToast(true);
       return;
     }
-
     setIsLoading(true);
-
     try {
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/reset-password/${token}`, { password });
-      toast({
-        title: 'Success',
-        description: response.data.message,
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-      navigate('/login');
+      setToastMessage(response.data.message);
+      setToastColor('success');
+      setShowToast(true);
+      setTimeout(() => history.push('/login'), 2000);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'An error occurred',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      setToastMessage(error.response?.data?.message || 'An error occurred');
+      setToastColor('danger');
+      setShowToast(true);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Box maxW="md" mx="auto" mt={8}>
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={4}>
-          <FormControl id="password" isRequired>
-            <FormLabel>New Password</FormLabel>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </FormControl>
-          <FormControl id="confirmPassword" isRequired>
-            <FormLabel>Confirm New Password</FormLabel>
-            <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-          </FormControl>
-          <Button type="submit" colorScheme="blue" isLoading={isLoading}>
-            Reset Password
-          </Button>
-        </VStack>
-      </form>
-    </Box>
+    <IonContent className="ion-padding">
+      <IonCard>
+        <IonCardContent>
+          <form onSubmit={handleSubmit}>
+            <IonItem>
+              <IonLabel position="floating">New Password</IonLabel>
+              <IonInput 
+                type="password" 
+                value={password} 
+                onIonChange={(e) => setPassword(e.detail.value)} 
+                required
+              />
+            </IonItem>
+            <IonItem>
+              <IonLabel position="floating">Confirm New Password</IonLabel>
+              <IonInput 
+                type="password" 
+                value={confirmPassword} 
+                onIonChange={(e) => setConfirmPassword(e.detail.value)} 
+                required
+              />
+            </IonItem>
+            <IonButton 
+              expand="block" 
+              type="submit" 
+              disabled={isLoading}
+              className="ion-margin-top"
+            >
+              {isLoading ? 'Resetting...' : 'Reset Password'}
+            </IonButton>
+          </form>
+        </IonCardContent>
+      </IonCard>
+      <IonToast
+        isOpen={showToast}
+        onDidDismiss={() => setShowToast(false)}
+        message={toastMessage}
+        duration={5000}
+        color={toastColor}
+      />
+    </IonContent>
   );
 };
 
