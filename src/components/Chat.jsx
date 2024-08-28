@@ -727,6 +727,7 @@ const Chat = ({ currentUser, otherUser, isOpen, onClose }) => {
       });
     }
   };
+  
 
   const renderMessages = () => {
     let lastDate = null;
