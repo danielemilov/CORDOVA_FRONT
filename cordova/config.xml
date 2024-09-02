@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.yourcompany.bindapp" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Bind</name>
+    <description>Sample Apache Cordova App</description>
+    <author email="dev@cordova.apache.org" href="https://cordova.apache.org">
+        Apache Cordova Team
+    </author>
+    <content src="index.html" />
+    
+    <!-- General Preferences -->
+    <preference name="Fullscreen" value="true" />
+    <preference name="Orientation" value="default" />
+    
+    
+    <!-- iOS Platform Specific Configuration -->
+    <platform name="ios">
+        <!-- Allow navigation to any URL -->
+        <allow-navigation href="*" />
+        <!-- Allow access to any origin -->
+        <access origin="*" />
+        
+        <!-- iOS-specific Preferences -->
+            <preference name="scheme" value="app" />
+        <preference name="AllowNewWindows" value="false" />
+        <preference name="MediaPlaybackAllowsAirPlay" value="true" />
+        <preference name="LimitsNavigationsToAppBoundDomains" value="false" />
+        <preference name="InspectableWebview" value="true" />
+        <preference name="AllowBackForwardNavigationGestures" value="false" />
+        <preference name="Allow3DTouchLinkPreview" value="true" />
+        <preference name="AutoHideSplashScreen" value="true" />
+        <preference name="deployment-target" value="12.0" />
+        
+        <!-- App Transport Security Settings -->
+        <config-file platform="ios" parent="NSAppTransportSecurity">
+            <dict>
+                <key>NSAllowsArbitraryLoads</key>
+                <true/>
+            </dict>
+        </config-file>
+        
+        <!-- Enable background modes for audio and fetch -->
+        <config-file platform="ios" target="*-Info.plist" parent="UIBackgroundModes">
+            <array>
+                <string>audio</string>
+                <string>fetch</string>
+            </array>
+        </config-file>
+        
+        <!-- Set App Icons and Launch Images -->
+        <icon src="res/icons/ios/icon.png" />
+        <splash src="res/screens/ios/splash.png" />
+        
+        <!-- Entitlements -->
+        <config-file platform="ios" target="*-Entitlements.plist" parent="com.apple.developer.networking.networkextension">
+            <array>
+                <string>vpn</string>
+                <string>app-proxy-provider</string>
+            </array>
+        </config-file>
+    </platform>
+</widget>

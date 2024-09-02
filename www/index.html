@@ -1,24 +1,43 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
+    <meta name="color-scheme" content="light dark" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
+
     <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js"></script>
     <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css" />
-    <title>Vite + React</title>
+    
+    <title>Bind Dating App</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
+    
+    <!-- add to homescreen for ios -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Bind Dating App" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
     <script type="module" crossorigin src="./assets/index-B-zzZdsT.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/vendor-_1ZOfwzY.js">
     <link rel="modulepreload" crossorigin href="./assets/ui-NZYliEti.js">
     <link rel="modulepreload" crossorigin href="./assets/utils-VUVtOQ0U.js">
     <link rel="stylesheet" crossorigin href="./assets/index-jeFhLjxL.css">
-  </head>
-  <body>
+</head>
+<body>
     <div id="root"></div>
-  </body>
+    <!-- Cordova script (this will be a 404 during development) -->
+    <script src="cordova.js"></script>
+    <script>
+        document.addEventListener('deviceready', function() {
+            // Cordova is now initialized. Have fun!
+            console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
+        }, false);
+    </script>
+</body>
 </html>

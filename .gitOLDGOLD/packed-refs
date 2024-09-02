@@ -1,0 +1,11 @@
+# pack-refs with: peeled fully-peeled sorted 
+78b8fad1e556bfeac30c90f1aef7ee727e906ce2 refs/heads/TEST
+78b8fad1e556bfeac30c90f1aef7ee727e906ce2 refs/heads/main
+9bd3972b22ebadf0552a2878d045f16827855402 refs/heads/mainold
+294101c4afcc9972152bbfff3ecc5d91e6528b14 refs/heads/recoverone-old
+78b8fad1e556bfeac30c90f1aef7ee727e906ce2 refs/remotes/origin/main
+9bd3972b22ebadf0552a2878d045f16827855402 refs/remotes/origin/mainold
+a17a25291f796e5f8e30c7726fa206841ca5d2a5 refs/remotes/origin/recoverfront
+294101c4afcc9972152bbfff3ecc5d91e6528b14 refs/remotes/origin/recoverone
+294101c4afcc9972152bbfff3ecc5d91e6528b14 refs/remotes/origin/recoverone-old
+411eb2a99755bb15a309472ca0809fa906773a94 refs/stash

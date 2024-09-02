@@ -1,0 +1,22 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = https://github.com/danielemilov/chat-app-client.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "mainold"]
+	remote = origin
+	merge = refs/heads/main
+[branch "recoverone-old"]
+	remote = origin
+	merge = refs/heads/recoverone
+[branch "main"]
+	remote = origin
+	github-pr-owner-number = "danielemilov#chat-app-client#1"
+	github-pr-base-branch = "danielemilov#chat-app-client#recoverfront"
+	vscode-merge-base = origin/recoverone
+	merge = refs/heads/main
