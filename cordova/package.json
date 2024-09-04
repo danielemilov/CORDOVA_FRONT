@@ -14,5 +14,8 @@
   "license": "Apache-2.0",
   "cordova": {
     "platforms": []
+  },
+  "devDependencies": {
+    "cordova-ios": "^7.1.1"
   }
 }

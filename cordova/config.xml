@@ -47,8 +47,8 @@
         </config-file>
         
         <!-- Set App Icons and Launch Images -->
-        <icon src="res/icons/ios/icon.png" />
-        <splash src="res/screens/ios/splash.png" />
+        <icon src="./assets/icon1.png" />
+        <splash src="./assets/splask.png" />
         
         <!-- Entitlements -->
         <config-file platform="ios" target="*-Entitlements.plist" parent="com.apple.developer.networking.networkextension">
